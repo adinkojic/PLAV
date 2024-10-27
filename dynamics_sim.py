@@ -1,3 +1,4 @@
+import numpy as np
 '''
 Implenting physics simulation by using an RungeKutta integrator at a fixed timestep 
 
@@ -8,12 +9,14 @@ Implenting physics simulation by using an RungeKutta integrator at a fixed times
 # x_dot = f(x,u)
 # this is the f(x,u)
 # returns [x,y,z (NED) , vx, vy, vz, q1 q2 q3 q4, p, q, r]
+# TODO: Change to numpyarray
 def x_dot(x, forcesBody, momentsBody, mass, interia):
-    x_dot = []
+    x_dot = np.zeros(13)
     #xdot ydot zdot are vx, vy, vz
-    x_dot.append(x[0])
-    x_dot.append(x[1])
-    x_dot.append(x[2])
+    #TODO: convert this from inertial velocity to body velocity
+    x_dot[0] = x[3]
+    x_dot[1] = x[4]
+    x_dot[2] = x[5]
 
     #solving for acceleration, which is velocity_dot
     #TODO: adapt for body
