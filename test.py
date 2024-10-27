@@ -6,3 +6,8 @@ print(msg)
 print(np.random.randint(1,9))
 
 print("enter a message")
+
+print("ahask")
+
+
+hello!
