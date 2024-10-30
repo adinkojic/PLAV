@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import scipy.integrate
 import time
 import math
+import j2_harmonic_gravity as j2grav
 from numba import jit
 '''
 Implenting physics simulation by using an RungeKutta integrator at a fixed timestep 
@@ -30,23 +31,26 @@ def rotateVectorQ(quat, vec):
     v_prime = vec + 2 * np.cross(r, (s*vec + np.cross(r, vec)) ) / m
     return v_prime
 
+
+@jit
 def get_forces(state):
-    #TODO: implement a proper gravity model
-    g = 9.81
-    gravity = np.array([0, 0, -g])
-    orientation = np.array([state[6], state[7], state[8], state[9]])
+     # Extract position
+    position = np.array([state[0], state[1], state[2],] )
+
+    # Calculate gravitational force using J2 model
+    gravity = j2grav.get_gravitational_force(position)
+
+    # Rotate the gravitational force to the body frame
+    orientation = np.array([state[6], state[7], state[8], state[9] ])  # Quaternion (q0, q1, q2, q3)
     grotated = rotateFrameQ(orientation, gravity)
 
-    result = grotated
-    return result
-
-
+    return grotated
 
 
 # x_dot = f(x,u)
 # this is the f(x,u)
 # returns [x,y,z (NED) , vx, vy, vz, q1 q2 q3 q4, p, q, r]
-# TODO: Change to numpyarray
+@jit
 def x_dot(t, y):
     
 
@@ -57,7 +61,6 @@ def x_dot(t, y):
     x_dot = np.zeros(13)
 
     #xdot ydot zdot are vx, vy, vz
-    #TODO: convert this from inertial velocity to body velocity
     v_body = np.array([ y[3], y[4], y[5] ])
     orientation = np.array([y[6], y[7], y[8], y[9]])
     v_inertial = rotateVectorQ(orientation, v_body)
@@ -68,8 +71,7 @@ def x_dot(t, y):
     x_dot[2] = v_inertial[2]
 
     #solving for acceleration, which is velocity_dot
-    force_body = get_forces(state = y)
-    
+    force_body = get_forces(y)
 
     v_b_dot = force_body/mass + np.cross(omega, v_body) #this cross term might be broken
     x_dot[3] = v_b_dot[0]
@@ -93,7 +95,6 @@ def x_dot(t, y):
     #to solve for angular velocity change
     #w_B = II_B^-1( M_B - w_Bconj * II_B * w_B )
     #moments_body = get_moments(t)
-    # TODO: this doesnt work need to fix 
     moments_body = np.zeros(3)
     omega_dot = np.linalg.inv(interia) * (moments_body - np.cross(omega, interia*omega)) #check that matrix inv
     #above is probbably wrong due to issues dimensions and stuff, likely needs a transpose
@@ -103,39 +104,49 @@ def x_dot(t, y):
 
     return x_dot
 
+@jit
+def q1totheta(q1):
+    result = np.zeros(q1.size)
+    for i in range(0, q1.size):
+        result[i] = math.acos(q1[i])*2
+    return result
 
-start_time = time.time()
+code_start_time = time.time()
 
-int_pos = np.array([1, 0, 15])
-int_vel = np.array([0, 1, 0])
+inital_alt = 0
+inital_lat = 0
+inital_lon = 0
 
+
+radius_from_earthcm = 
+
+int_pos = np.array([0, 0, 6371e3])
+int_vel = np.array([0, 0, 0])
 angle = -math.pi/2 * 1/2
 axis = [0, 1, 0]
 
 int_ori = np.array([math.cos(angle), math.sin(angle)*axis[0], math.sin(angle)*axis[1], math.sin(angle)*axis[2]])
-int_rte = np.array([0, 0.5*math.pi, 0])
+int_rte = np.array([0, 2*math.pi, 0])
 
 y0 = np.append(int_pos, np.append(int_vel, np.append(int_ori, int_rte) ))
 
 
-results = scipy.integrate.solve_ivp(fun = x_dot, t_span = [0, 1], y0=y0, max_step = 0.01)
+results = scipy.integrate.solve_ivp(fun = x_dot, t_span = [0, 1], y0=y0, max_step = 0.001)
 
 
-print("took ", time.time()-start_time)
+print("took ", time.time()-code_start_time)
+
+
 plt.plot(results.t, results.y[0])
 plt.plot(results.t, results.y[1])
-plt.plot(results.t, results.y[2])
+plt.plot(results.t, results.y[2] - 6371e3)
 
 plt.plot(results.t, results.y[3])
 plt.plot(results.t, results.y[4])
 plt.plot(results.t, results.y[5])
 
-print(results.y[6][results.t.size-1])
-print(results.y[7][results.t.size-1])
-print(results.y[8][results.t.size-1])
-print(results.y[9][results.t.size-1])
-#theta = math.acos(results.y[6])
-#plt.plot(results.t, theta)
+thetas = q1totheta(results.y[6])
+plt.plot(results.t, thetas)
 
 plt.legend(['x', 'y', 'z', 'v_x', 'v_y', 'v_z', 'theta'])
 plt.show()
