@@ -22,11 +22,6 @@ def rotateVectorQ(quat, vec):
     v_prime = vec + 2 * np.cross(r, (s*vec + np.cross(r, vec)) ) / m
     return v_prime
 
-vector = np.array([1, 0, 0])
+bruh = np.zeros([3, 2])
 
-angle = math.pi/2
-axis = [0, 1, 0]
-int_ori = np.array([math.cos(angle * -1/2), math.sin(angle * -1/2)*axis[0], math.sin(angle * -1/2)*axis[1], math.sin(angle * -1/2)*axis[2]])
-
-result_vector = rotateFrameQ(int_ori, vector)
-print(result_vector)
+print(bruh.shape[0])

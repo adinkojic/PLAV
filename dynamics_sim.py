@@ -6,6 +6,7 @@ import time
 import math
 import j2_harmonic_gravity as j2grav
 from numba import jit
+import wgs84
 '''
 Implenting physics simulation by using an RungeKutta integrator at a fixed timestep 
 
@@ -30,6 +31,10 @@ def rotateVectorQ(quat, vec):
     
     v_prime = vec + 2 * np.cross(r, (s*vec + np.cross(r, vec)) ) / m
     return v_prime
+
+@jit
+def quat_from_angle_axis(angle, axis):
+    return np.array([math.cos(angle), math.sin(angle)*axis[0], math.sin(angle)*axis[1], math.sin(angle)*axis[2]])
 
 
 @jit
@@ -111,42 +116,68 @@ def q1totheta(q1):
         result[i] = math.acos(q1[i])*2
     return result
 
+#multiplies quaternions
+@jit(parallel = True)
+def quat_mulitply(q1, q2):
+    q3 = np.zeros(4)
+    q3[0] = q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3]
+    q3[1] = q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2]
+    q3[2] = q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1]
+    q3[3] = q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]
+    return q3
+
+def init_state(lat, long, alt, velocity, bearing, elevation, roll):
+    init_pos = wgs84.from_lat_long_alt(lat, long, alt)
+    
+    init_vel = velocity
+
+    #set initial orientation based on bearing elevation roll
+    #find latitude rotation quaternion first
+    lat_quat = quat_from_angle_axis(lat * math.pi/180, [0, 1, 0])
+    #find long rotation from quaternion second
+    lon_quat = quat_from_angle_axis(long* math.pi/180, [0, 0, 1])
+    #TODO: implement bearing elevation roll
+    init_ori = quat_mulitply(lat_quat, lon_quat)
+
+    init_rte = np.array([0, 0, 0])
+
+    y0 = np.append(init_pos, np.append(init_vel, np.append(init_ori, init_rte) ))
+    return y0
+
 code_start_time = time.time()
 
-inital_alt = 0
+inital_alt = 5
 inital_lat = 0
 inital_lon = 0
 
+init_velocity = np.array([0, 0, 0])
 
-radius_from_earthcm = 
+axis = np.array([1, 0, 0])
+angle = 0
 
-int_pos = np.array([0, 0, 6371e3])
-int_vel = np.array([0, 0, 0])
-angle = -math.pi/2 * 1/2
-axis = [0, 1, 0]
-
-int_ori = np.array([math.cos(angle), math.sin(angle)*axis[0], math.sin(angle)*axis[1], math.sin(angle)*axis[2]])
-int_rte = np.array([0, 2*math.pi, 0])
-
-y0 = np.append(int_pos, np.append(int_vel, np.append(int_ori, int_rte) ))
+y0 = init_state(inital_lat, inital_lon, inital_alt, init_velocity, 0, 0, 0)
 
 
-results = scipy.integrate.solve_ivp(fun = x_dot, t_span = [0, 1], y0=y0, max_step = 0.001)
+results = scipy.integrate.solve_ivp(fun = x_dot, t_span = [0, 1], y0=y0, max_step = 0.01)
 
 
 print("took ", time.time()-code_start_time)
 
+figure, axis = plt.subplots(2,1)
 
-plt.plot(results.t, results.y[0])
-plt.plot(results.t, results.y[1])
-plt.plot(results.t, results.y[2] - 6371e3)
+lat_long_h_results = wgs84.to_lat_long_xyz_array(results.y[0:3])
 
-plt.plot(results.t, results.y[3])
-plt.plot(results.t, results.y[4])
-plt.plot(results.t, results.y[5])
+axis[1].plot(results.t, lat_long_h_results[0])
+axis[1].plot(results.t, lat_long_h_results[1])
+axis[0].plot(results.t, lat_long_h_results[2])
+
+axis[0].plot(results.t, results.y[3])
+axis[0].plot(results.t, results.y[4])
+axis[0].plot(results.t, results.y[5])
 
 thetas = q1totheta(results.y[6])
-plt.plot(results.t, thetas)
+axis[0].plot(results.t, thetas)
 
-plt.legend(['x', 'y', 'z', 'v_x', 'v_y', 'v_z', 'theta'])
+axis[1].legend(['lat', 'long'])
+axis[0].legend(['h', 'v_x', 'v_y', 'v_z', 'theta'])
 plt.show()
