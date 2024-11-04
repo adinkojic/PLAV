@@ -7,34 +7,11 @@ import math
 import j2_harmonic_gravity as j2grav
 from numba import jit
 import wgs84
+import quaternion_math as quat
 '''
 Implenting physics simulation by using an RungeKutta integrator at a fixed timestep 
 
 '''
-
-#frame rotation algorithm
-@jit #this line makes it use numba's compiler that runs much faster (closer to C!)
-def rotateFrameQ(quat, vec):
-    s = quat[0] #scalar part (rotation angle)
-    r = np.array([ quat[1],  quat[2],  quat[3]]) #vector part (rotation axis)
-    m = quat[0]*quat[0] + quat[1]*quat[1] + quat[2]*quat[2] + quat[3]*quat[3]
-    
-    v_prime = vec + 2 * np.cross(r, (s*vec + np.cross(r, vec)) ) / m
-    return v_prime
-
-#vector rotation algorithm
-@jit
-def rotateVectorQ(quat, vec):
-    s = quat[0] #scalar part (rotation angle)
-    r = np.array([-quat[1], -quat[2], -quat[3]]) #vector part (rotation axis)
-    m = quat[0]*quat[0] + quat[1]*quat[1] + quat[2]*quat[2] + quat[3]*quat[3]
-    
-    v_prime = vec + 2 * np.cross(r, (s*vec + np.cross(r, vec)) ) / m
-    return v_prime
-
-@jit
-def quat_from_angle_axis(angle, axis):
-    return np.array([math.cos(angle), math.sin(angle)*axis[0], math.sin(angle)*axis[1], math.sin(angle)*axis[2]])
 
 
 @jit
@@ -47,7 +24,7 @@ def get_forces(state):
 
     # Rotate the gravitational force to the body frame
     orientation = np.array([state[6], state[7], state[8], state[9] ])  # Quaternion (q0, q1, q2, q3)
-    grotated = rotateFrameQ(orientation, gravity)
+    grotated = quat.rotateFrameQ(orientation, gravity)
 
     return grotated
 
@@ -68,7 +45,7 @@ def x_dot(t, y):
     #xdot ydot zdot are vx, vy, vz
     v_body = np.array([ y[3], y[4], y[5] ])
     orientation = np.array([y[6], y[7], y[8], y[9]])
-    v_inertial = rotateVectorQ(orientation, v_body)
+    v_inertial = quat.rotateVectorQ(orientation, v_body)
     omega = np.array([ y[10], y[11], y[12]])
 
     x_dot[0] = v_inertial[0]
@@ -116,15 +93,7 @@ def q1totheta(q1):
         result[i] = math.acos(q1[i])*2
     return result
 
-#multiplies quaternions
-@jit(parallel = True)
-def quat_mulitply(q1, q2):
-    q3 = np.zeros(4)
-    q3[0] = q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3]
-    q3[1] = q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2]
-    q3[2] = q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1]
-    q3[3] = q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]
-    return q3
+
 
 def init_state(lat, long, alt, velocity, bearing, elevation, roll):
     init_pos = wgs84.from_lat_long_alt(lat, long, alt)
@@ -133,11 +102,11 @@ def init_state(lat, long, alt, velocity, bearing, elevation, roll):
 
     #set initial orientation based on bearing elevation roll
     #find latitude rotation quaternion first
-    lat_quat = quat_from_angle_axis(lat * math.pi/180, [0, 1, 0])
+    lat_quat = quat.from_angle_axis(lat * math.pi/180, [0, 1, 0])
     #find long rotation from quaternion second
-    lon_quat = quat_from_angle_axis(long* math.pi/180, [0, 0, 1])
+    lon_quat = quat.from_angle_axis(long* math.pi/180, [0, 0, 1])
     #TODO: implement bearing elevation roll
-    init_ori = quat_mulitply(lat_quat, lon_quat)
+    init_ori = quat.mulitply(lat_quat, lon_quat)
 
     init_rte = np.array([0, 0, 0])
 
