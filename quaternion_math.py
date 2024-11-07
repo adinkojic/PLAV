@@ -35,3 +35,20 @@ def mulitply(q1, q2):
     q3[2] = q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1]
     q3[3] = q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]
     return q3
+
+#aka roll, pitch, yaw
+#@jit
+def to_euler(q):
+    phi   = math.atan2(2*(q[0]*q[1] + q[2]*q[3]), (1-2*(q[1]**2 + q[2]**2)))
+    theta = 2*math.atan2(math.sqrt(1+2*(q[0]*q[2] - q[1]*q[3])), math.sqrt(1-2*(q[0]*q[2] -q[1]*q[3]))) - math.pi/2
+    psi   = math.atan2(2*(q[0]*q[3] + q[1]*q[2]), (1-2*(q[2]**2 + q[3]**2)))
+
+    return np.array([phi, theta, psi]) #idk why you gotta sub pi
+
+#@jit
+def from_euler(roll, pitch, yaw):
+    quat_yaw   = from_angle_axis(yaw,   np.array([0, 0, 1]))
+    quat_pitch = from_angle_axis(pitch, np.array([0, 1, 0]))
+    quat_roll  = from_angle_axis(roll,  np.array([1, 0, 0]))
+
+    return mulitply(quat_yaw, mulitply(quat_pitch,quat_roll))

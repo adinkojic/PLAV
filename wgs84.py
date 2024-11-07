@@ -65,18 +65,18 @@ def to_lat_long_xyz_array(xyz_array):
 
 #compute frame rotation from NED to XYZ
 @jit
-def from_NED_lat_long_h(llh, orientation = [1, 0, 0, 0]):
+def from_NED_lat_long_h(llh):
     #h not used
     #first orient to 0,0, combined with lat around y
     quat1= quat.from_angle_axis(llh[0]*math.pi/180 + math.pi/2, np.array([0, -1, 0]) )
     #apply rotation of lon around z
     quat2= quat.from_angle_axis(llh[1]*math.pi/180, np.array([0, 0, 1,]) )
 
-    result = quat.mulitply(orientation, quat.mulitply(quat2, quat1))
+    result = quat.mulitply(quat2, quat1)
     return result
 
 #might be a little cheap does same as above lol
 @jit
-def from_NED_xyz(xyz, orientation = [1, 0, 0, 0]):
+def from_NED_xyz(xyz):
     llh = to_lat_long_alt(xyz)
-    return from_NED_lat_long_h(llh, orientation)
+    return from_NED_lat_long_h(llh)

@@ -100,13 +100,12 @@ def init_state(lat, long, alt, velocity, bearing, elevation, roll):
     
     init_vel = velocity
 
-    #set initial orientation based on bearing elevation roll
-    #find latitude rotation quaternion first
-    lat_quat = quat.from_angle_axis(lat * math.pi/180, [0, 1, 0])
-    #find long rotation from quaternion second
-    lon_quat = quat.from_angle_axis(long* math.pi/180, [0, 0, 1])
-    #TODO: implement bearing elevation roll
-    init_ori = quat.mulitply(lat_quat, lon_quat)
+    #first apply bearing stuff
+    init_ori_ned = quat.from_euler(roll,elevation,bearing) #roll pitch yaw
+
+    ned_to_wgs84 = wgs84.from_NED_lat_long_h(np.array([lat, long, h]))
+
+    init_ori = quat.mulitply(ned_to_wgs84, init_ori_ned)
 
     init_rte = np.array([0, 0, 0])
 
