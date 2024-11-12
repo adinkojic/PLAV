@@ -4,7 +4,7 @@ import math
 import quaternion_math as quat
 import wgs84
 
-lat = 90
+lat = 0
 long = 0
 h = 0
 

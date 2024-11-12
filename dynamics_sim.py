@@ -93,6 +93,8 @@ def q1totheta(q1):
         result[i] = math.acos(q1[i])*2
     return result
 
+def init_velocity(airspeed, alpha, beta):
+    pass
 
 
 def init_state(lat, long, alt, velocity, bearing, elevation, roll):
@@ -101,11 +103,12 @@ def init_state(lat, long, alt, velocity, bearing, elevation, roll):
     init_vel = velocity
 
     #first apply bearing stuff
-    init_ori_ned = quat.from_euler(roll,elevation,bearing) #roll pitch yaw
+    init_ori_ned = quat.from_euler(roll*math.pi/180,elevation*math.pi/180,bearing*math.pi/180) #roll pitch yaw
 
-    ned_to_wgs84 = wgs84.from_NED_lat_long_h(np.array([lat, long, h]))
+    ned_to_wgs84 = wgs84.from_NED_lat_long_h(np.array([lat, long, alt]))
 
-    init_ori = quat.mulitply(ned_to_wgs84, init_ori_ned)
+    init_ori = quat.mulitply(init_ori_ned, ned_to_wgs84)
+    print(init_ori)
 
     init_rte = np.array([0, 0, 0])
 
@@ -118,12 +121,16 @@ inital_alt = 5
 inital_lat = 0
 inital_lon = 0
 
+
+init_airspeed = 18 #meters per second
+init_alpha = 5 #degrees
+init_beta  = 
 init_velocity = np.array([0, 0, 0])
 
-axis = np.array([1, 0, 0])
-angle = 0
 
-y0 = init_state(inital_lat, inital_lon, inital_alt, init_velocity, 0, 0, 0)
+
+
+y0 = init_state(inital_lat, inital_lon, inital_alt, init_velocity, bearing=0, elevation=0, roll=0)
 
 
 results = scipy.integrate.solve_ivp(fun = x_dot, t_span = [0, 1], y0=y0, max_step = 0.01)

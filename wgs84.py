@@ -68,11 +68,11 @@ def to_lat_long_xyz_array(xyz_array):
 def from_NED_lat_long_h(llh):
     #h not used
     #first orient to 0,0, combined with lat around y
-    quat1= quat.from_angle_axis(llh[0]*math.pi/180 + math.pi/2, np.array([0, -1, 0]) )
+    quat1= quat.from_angle_axis(llh[0]*math.pi/180 + math.pi/2, np.array([0, 1, 0]) )
     #apply rotation of lon around z
-    quat2= quat.from_angle_axis(llh[1]*math.pi/180, np.array([0, 0, 1,]) )
+    quat2= quat.from_angle_axis(llh[1]*math.pi/180, np.array([0, 0, -1,]) )
 
-    result = quat.mulitply(quat2, quat1)
+    result = quat.mulitply(quat1, quat2)
     return result
 
 #might be a little cheap does same as above lol
