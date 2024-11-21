@@ -24,6 +24,7 @@ def rotateVectorQ(quat, vec):
 
 @jit
 def from_angle_axis(angle, axis):
+    #axis = axis / np.linalg.norm(axis)
     return np.array([math.cos(angle/2), math.sin(angle/2)*axis[0], math.sin(angle/2)*axis[1], math.sin(angle/2)*axis[2]])
 
 #multiplies quaternions
@@ -48,7 +49,7 @@ def to_euler(q):
 #@jit
 def from_euler(roll, pitch, yaw):
     quat_yaw   = from_angle_axis(yaw,   np.array([0, 0, 1]))
-    quat_pitch = from_angle_axis(pitch, np.array([0, -1, 0]))
-    quat_roll  = from_angle_axis(roll,  np.array([-1, 0, 0]))
+    quat_pitch = from_angle_axis(pitch, np.array([0, 1, 0]))
+    quat_roll  = from_angle_axis(roll,  np.array([1, 0, 0]))
 
-    return mulitply(quat_roll, mulitply(quat_pitch,quat_yaw))
+    return mulitply(quat_yaw, mulitply(quat_pitch,quat_roll))

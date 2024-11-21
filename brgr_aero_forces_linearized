@@ -1,6 +1,0 @@
-import math
-import numpy as np
-from numba import jit
-
-'''BRGR Glide Vehicle Aero Sim
-TODO: simulation for high altitude'''
