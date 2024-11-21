@@ -67,7 +67,7 @@ def get_wind_to_stability_axis(alpha, beta):
 
     return quat.mulitply(alpha_rot, beta_rot)
 
-
+#TODO: test and implement grid fins
 @jit
 def get_aero_forces(state):
     Aref = 0.2 #m**2
