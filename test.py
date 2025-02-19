@@ -5,12 +5,18 @@ import quaternion_math as quat
 import wgs84
 import brgr_aero_forces_linearized as aero
 
+from aircraftconfig import AircraftConfig
+
 @jit
-def yer(aa):
-    bruh = np.array([aa]).clip(-5,5)
-    return bruh[0]
-velocity = aero.from_alpha_beta(15, 5, 0)
+def get_gravity(phi, h):
+    """gets gravity accel from lat and altitude
+    phi: latitude
+    h: altitude"""
+    graivty = 9.780327*(1 +5.3024e-3*np.sin(phi)**2 - 5.8e-6*np.sin(2*phi)**2) \
+            - (3.0877e-6 - 4.4e-9*np.sin(phi)**2)*h + 7.2e-14*h**2
+    return graivty
 
-test_state = np.array([0, 0, 0, velocity[0], velocity[1] , velocity[2], 0, 0 ,0, 0, 0, 0, 0])
+phi = 0.698132
 
-print(aero.get_aero_forces(test_state))
+print(get_gravity(phi, 0))
+print(get_gravity(phi, 9000))

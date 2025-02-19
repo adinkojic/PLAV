@@ -1,0 +1,33 @@
+{
+    "modeldate":"1/10/25",
+    "hasgridfins":false,
+    "lengthunits":"meters",
+    "angleunits":"radians",
+    "massunits": "kilograms",
+
+    "mass": 1.8,
+    "inertiatensor": [
+        [0.039616, 0.0003565, -0.00026592],
+        [0.0003565, 0.08273, 2.647e-5],
+        [-0.00026592, 2.647e-5, 0.1192]
+    ],
+
+    "cref": 0.1778,
+    "bref": 1.1938,
+    "Sref": 0.2274,
+
+    "alplamax": 0.261799,
+    "alplamin":-0.174533,
+    "betamax":  0.174533,
+    "betamin": -0.174533,
+
+    "C_L0": 0.384,
+    "C_La": 4.446,
+    "C_D0": 0.0088,
+    "k2": 0.055,
+
+    "C_M0": 0.055,
+    "C_Ma": 0.1432,
+    "C_Mq": 0
+
+}
