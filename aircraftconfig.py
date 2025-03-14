@@ -155,13 +155,25 @@ class AircraftConfig(object):
 
         p, q, r = self.omega[0], self.omega[1], self.omega[2]
 
+        
+        
+
+        if abs(self.airspeed) < 0.1: #avoids div/0
+            p_hat = 0
+            q_hat = 0
+            r_hat = 0
+        else:
+            p_hat = self.bref * p/2/self.airspeed
+            q_hat = self.cmac * q/2/self.airspeed
+            r_hat = self.bref * r/2/self.airspeed
+
         C_L = self.C_L0 + self.C_La * alpha
         C_D = self.C_D0 + self.epsilon * C_L**2
-        C_m = self.C_m0 + self.C_ma * alpha + self.C_mq * q
+        C_m = self.C_m0 + self.C_ma * alpha + self.C_mq * q_hat
 
         C_Y = self.C_Y #side force
-        C_l = self.C_l + self.C_lr * r + self.C_lp * p #roll TODO:beta dependence
-        C_n = self.C_np * p + self.C_nr * r #yaw force, TODO: beta dependence
+        C_l = self.C_l + self.C_lr * r_hat + self.C_lp * p_hat #roll TODO:beta dependence
+        C_n = self.C_np * p_hat + self.C_nr * r_hat #yaw force, TODO: beta dependence
 
         return C_L,C_D,C_m, C_Y, C_l, C_n
 
