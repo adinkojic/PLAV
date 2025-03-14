@@ -15,9 +15,11 @@ from numba import jit
 import quaternion_math as quat
 import brgr_aero_forces_linearized as aero #remove this line
 from aircraftconfig import AircraftConfig
-import ussa1976
+#import ussa1976
+from atmosphere import Atmosphere
 
 def init_aircraft(config_file):
+    """Init aircraft from json file"""
     mass = config_file['mass']
     inertia = np.array(config_file['inertiatensor'])
     cmac = config_file['cref']
@@ -53,7 +55,7 @@ def get_gravity(phi, h):
     return graivty
 
 @jit
-def x_dot(t, y, aircraft_config):
+def x_dot(t, y, aircraft_config, atmosphere):
     """Implements standard NED equations
     [q1 q2 q3 q4], [p q r], (lambda) long, (phi)lat, alt, vn, ve, vd,
     q4 is the angle q13 is the axis """
@@ -86,11 +88,17 @@ def x_dot(t, y, aircraft_config):
 
     gravity = get_gravity(lat, altitude)
 
-    v_body = quat.rotateVectorQ(q, np.array([vn, ve, vd]))
+    
 
-    pdt = ussa1976.get_pressure_density_temp(altitude)
+    atmosphere.update_conditions(altitude, time = t)
+
+    air_density = atmosphere.get_density()
+    air_temperature = atmosphere.get_temperature()
+
+    #adds wind
+    v_airspeed = quat.rotateVectorQ(q, np.array([vn, ve, vd]) + atmosphere.get_wind_ned())
     #solving for acceleration, which is velocity_dot
-    aircraft_config.update_conditions(altitude,  v_body, omega, pdt[1], pdt[2])
+    aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, air_temperature)
 
 
     body_forces_stab, moments = aircraft_config.get_forces()
@@ -183,11 +191,17 @@ def quat_euler_helper(q0, q1, q2, q3, size):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('tumblingbrick.json', 'r') as file:
+with open('aircraftConfigs/sphere.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
 aircraft = init_aircraft(modelparam)
+
+wind_alt_profile = np.array([0, 10000], dtype='d')
+wind_speed_profile = np.array([6.096, 6.096], dtype='d')
+wind_direction_profile = np.array([0, 0], dtype='d')
+#init atmosphere config
+atmosphere = Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile)
 
 
 inital_alt = 9144
@@ -202,18 +216,18 @@ init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
 #init_velocity = np.array([1, 0, 0])
 
 
-init_rte = np.array([0.17446000406876, 0.349066, 0.523599], dtype='d')
+init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
 
 y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=0, roll=0, init_omega=init_rte)
 
 #pump sim ocne
-scipy.integrate.solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,), y0=y0, max_step=0.001)
+scipy.integrate.solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.001)
 
 print('Sim started...')
 
 sim_start_time = time.perf_counter()
 
-results=scipy.integrate.solve_ivp(fun=x_dot, t_span=[0, 30], args=(aircraft,), y0=y0,max_step=0.001)
+results=scipy.integrate.solve_ivp(fun=x_dot, t_span=[0, 30], args=(aircraft,atmosphere), y0=y0,max_step=0.001)
 
 sim_end_time = time.perf_counter()
 
@@ -259,5 +273,6 @@ print("code took ", time.perf_counter()-code_start_time)
 print("sim took ", sim_end_time-sim_start_time)
 
 print(results.y[1].size)
+print(results.y[9][-1]*3.281)
 
 plt.show()
