@@ -50,6 +50,33 @@ spec = [
 
 ]
 
+def init_aircraft(config_file):
+    """Init aircraft from json file"""
+    mass = config_file['mass']
+    inertia = np.array(config_file['inertiatensor'])
+    cmac = config_file['cref']
+    Sref = config_file['Sref']
+    bref = config_file['bref']
+    C_L0 = config_file['C_L0']
+    C_La = config_file['C_La']
+    C_D0 = config_file['C_D0']
+    epsilon = config_file['k2']
+    C_m0 = config_file['C_m0']
+    C_ma = config_file['C_ma']
+    C_mq = config_file['C_mq']
+
+    C_Y  = config_file['C_Y']
+    C_l  = config_file['C_l']
+    C_lp = config_file['C_lp']
+    C_lr = config_file['C_lr']
+    C_np = config_file['C_np']
+    C_nr = config_file['C_nr']
+
+    aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                 C_Y, C_l, C_lp, C_lr, C_np, C_nr )
+
+    return aircraft_model
+
 @jit
 def get_dynamic_viscosity(temperature):
     """Equation 51 of USSA1976"""
@@ -64,19 +91,18 @@ def get_dynamic_viscosity(temperature):
 def velocity_to_alpha_beta(velocity_body):
     """Gets velocity to alpha beta, assumes x direction is datum"""
     airspeed = math.sqrt(velocity_body[0]**2 + velocity_body[1]**2 + velocity_body[2]**2)
-    temp = math.sqrt(velocity_body[0]**2 + velocity_body[2]**2)
-    beta = math.atan2(velocity_body[1], temp)
-    alpha = -math.atan2(velocity_body[2], velocity_body[0])
+    beta = math.asin(velocity_body[1]/airspeed)
+    alpha = math.atan2(velocity_body[2], velocity_body[0])
 
     return airspeed, alpha, beta
 
 @jit
-def get_wind_to_stability_axis(alpha, beta):
-    """Gets velocity to stability axis, assumes x direction is datum"""
-    beta_rot  = quat.from_angle_axis(beta, np.array([0, 0, 1]))
-    alpha_rot = quat.from_angle_axis(alpha, np.array([0, -1, 0]))
+def get_wind_to_body_axis(alpha, beta):
+    """Gets velocity to body axis, assumes x direction is datum"""
+    beta_rot  = quat.from_angle_axis(-beta, np.array([0, 0, 1]))
+    alpha_rot = quat.from_angle_axis(alpha, np.array([0, 1, 0]))
 
-    return quat.mulitply(alpha_rot, beta_rot)
+    return quat.mulitply(beta_rot, alpha_rot)
 
 @jitclass(spec)
 class AircraftConfig(object):
@@ -142,7 +168,6 @@ class AircraftConfig(object):
     def get_mass(self):
         """Returns mass in kg"""
         return self.mass
-    
 
     def get_Re(self, density, viscosity):
         """Gets reynolds number from given conditions"""
@@ -155,9 +180,7 @@ class AircraftConfig(object):
 
         p, q, r = self.omega[0], self.omega[1], self.omega[2]
 
-        
-        
-
+        #non-dimensional airspeed
         if abs(self.airspeed) < 0.1: #avoids div/0
             p_hat = 0
             q_hat = 0
@@ -192,11 +215,11 @@ class AircraftConfig(object):
         body_yawing_moment   = C_n * qbar * self.Sref * self.bref
         body_rolling_moment  = C_l * qbar * self.Sref * self.bref
 
-        wind_to_stab = get_wind_to_stability_axis(self.alpha, self.beta)
+        wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
 
-        body_forces_wind = np.array([-body_drag, body_side, body_lift])
-        body_forces_stab = quat.rotateVectorQ(wind_to_stab, body_forces_wind)
+        body_forces_wind = np.array([-body_drag, body_side, -body_lift])
+        body_forces_body = quat.rotateVectorQ(wind_to_body, body_forces_wind)
 
         moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
 
-        return body_forces_stab, moments
+        return body_forces_body, moments

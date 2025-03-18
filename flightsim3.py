@@ -14,36 +14,9 @@ import matplotlib.pyplot as plt
 from numba import jit
 import quaternion_math as quat
 import brgr_aero_forces_linearized as aero #remove this line
-from aircraftconfig import AircraftConfig
+from aircraftconfig import AircraftConfig, init_aircraft
 #import ussa1976
 from atmosphere import Atmosphere
-
-def init_aircraft(config_file):
-    """Init aircraft from json file"""
-    mass = config_file['mass']
-    inertia = np.array(config_file['inertiatensor'])
-    cmac = config_file['cref']
-    Sref = config_file['Sref']
-    bref = config_file['bref']
-    C_L0 = config_file['C_L0']
-    C_La = config_file['C_La']
-    C_D0 = config_file['C_D0']
-    epsilon = config_file['k2']
-    C_m0 = config_file['C_m0']
-    C_ma = config_file['C_ma']
-    C_mq = config_file['C_mq']
-
-    C_Y  = config_file['C_Y']
-    C_l  = config_file['C_l']
-    C_lp = config_file['C_lp']
-    C_lr = config_file['C_lr']
-    C_np = config_file['C_np']
-    C_nr = config_file['C_nr']
-
-    aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                 C_Y, C_l, C_lp, C_lr, C_np, C_nr )
-
-    return aircraft_model
 
 @jit
 def get_gravity(phi, h):
@@ -101,8 +74,8 @@ def x_dot(t, y, aircraft_config, atmosphere):
     aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, air_temperature)
 
 
-    body_forces_stab, moments = aircraft_config.get_forces()
-    forces_ned = quat.rotateFrameQ(q, body_forces_stab)
+    body_forces_body, moments = aircraft_config.get_forces()
+    forces_ned = quat.rotateFrameQ(q, body_forces_body)
 
     ## figure out forces here
     #in NED frame
@@ -165,29 +138,6 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
     return y0
 
 
-@jit
-def q1totheta(q1):
-    result = np.zeros(q1.size)
-    for i in range(0, q1.size):
-        result[i] = np.acos(q1[i])*2 - math.pi
-    return result
-
-@jit
-def quat_mag(quat, size):
-    result = np.zeros(size)
-    for i in range(0, size):
-        result[i] = np.sqrt(quat[0][i]**2 + quat[1][i]**2 + quat[2][i]**2 + quat[3][i]**2)
-    return result
-
-@jit
-def quat_euler_helper(q0, q1, q2, q3, size):
-
-    rpy = np.zeros((size, 3))
-    for i in range(size):
-        rpy[i][:] = quat.to_euler(np.array([q0[i], q1[i], q2[i], q3[i]]))
-    return rpy
-
-
 code_start_time = time.perf_counter()
 
 #load aircraft config
@@ -199,7 +149,7 @@ aircraft = init_aircraft(modelparam)
 
 wind_alt_profile = np.array([0, 10000], dtype='d')
 wind_speed_profile = np.array([6.096, 6.096], dtype='d')
-wind_direction_profile = np.array([0, 0], dtype='d')
+wind_direction_profile = np.array([270, 270], dtype='d')
 #init atmosphere config
 atmosphere = Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile)
 
@@ -218,7 +168,7 @@ init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
 
 init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=0, roll=0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=-90, roll=0, init_omega=init_rte)
 
 #pump sim ocne
 scipy.integrate.solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.001)
@@ -252,10 +202,10 @@ axis[2][0].plot(results.t, results.y[1])
 axis[2][0].plot(results.t, results.y[2])
 axis[2][0].plot(results.t, results.y[3])
 
-thetas = q1totheta(results.y[3])
+thetas = quat.q1totheta(results.y[3])
 axis[3][0].plot(results.t, thetas)
 
-rollpitchyaw=quat_euler_helper(results.y[0], results.y[1], results.y[2],results.y[3],results.t.size)
+rollpitchyaw=quat.quat_euler_helper(results.y[0], results.y[1], results.y[2],results.y[3],results.t.size)
 axis[3][1].plot(results.t, rollpitchyaw)
 
 #omega_dot = omega_dot_helper(results.y[4], results.y[5], results.y[6], results.t.size)

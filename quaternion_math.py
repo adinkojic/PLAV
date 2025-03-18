@@ -60,3 +60,28 @@ def from_euler(roll, pitch, yaw):
     quat_roll  = from_angle_axis(roll,  np.array([1, 0, 0]))
 
     return mulitply(quat_yaw, mulitply(quat_pitch,quat_roll))
+
+@jit
+def q1totheta(q1):
+    """q1 to theta value around the vector
+    assumes q1 is angle part"""
+    result = np.zeros(q1.size)
+    for i in range(0, q1.size):
+        result[i] = np.acos(q1[i])*2 - math.pi
+    return result
+
+@jit
+def quat_mag(quat, size):
+    """quaternion magnitute, should always be one"""
+    result = np.zeros(size)
+    for i in range(0, size):
+        result[i] = np.sqrt(quat[0][i]**2 + quat[1][i]**2 + quat[2][i]**2 + quat[3][i]**2)
+    return result
+
+@jit
+def quat_euler_helper(q0, q1, q2, q3, size):
+    """for arrays"""
+    rpy = np.zeros((size, 3))
+    for i in range(size):
+        rpy[i][:] = to_euler(np.array([q0[i], q1[i], q2[i], q3[i]]))
+    return rpy
