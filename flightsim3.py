@@ -141,34 +141,45 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/sphere.json', 'r') as file:
+with open('aircraftConfigs/case10ballisticSphere2.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
 aircraft = init_aircraft(modelparam)
 
-wind_alt_profile = np.array([0, 10000], dtype='d')
-wind_speed_profile = np.array([6.096, 6.096], dtype='d')
-wind_direction_profile = np.array([270, 270], dtype='d')
+use_file_atmosphere = True
+if use_file_atmosphere:
+    wind_alt_profile       = np.array(modelparam['wind_alt_profile'], dtype='d')
+    wind_speed_profile     = np.array(modelparam['wind_speed_profile'], dtype='d')
+    wind_direction_profile = np.array(modelparam['wind_direction_profile'], dtype='d')
+else:
+    wind_alt_profile = np.array([0, 0], dtype='d')
+    wind_speed_profile = np.array([0, 0], dtype='d')
+    wind_direction_profile = np.array([0, 0], dtype='d')
 #init atmosphere config
 atmosphere = Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile)
 
+use_file_init_conditions = True
+if use_file_init_conditions:
+    inital_alt    = modelparam['init_alt']
+    init_velocity = modelparam['init_vel']
+    init_rte      = modelparam['init_rot']
 
-inital_alt = 9144
-init_x = 0
-init_y = 0
+    init_x = modelparam['init_lat']
+    init_y = modelparam['init_lon']
+else:
+    inital_alt = 9144
+    init_x = 0
+    init_y = 0
 
+    init_airspeed = 20 #meters per second
+    init_alpha = 0 #degrees
+    init_beta  = 0
+    #init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
+    init_velocity = [0.0, 0.0, 0.0]
+    init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
 
-init_airspeed = 0 #meters per second
-init_alpha = 0 #degrees
-init_beta  = 0
-init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
-#init_velocity = np.array([1, 0, 0])
-
-
-init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
-
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=-90, roll=0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=0, roll=0, init_omega=init_rte)
 
 #pump sim ocne
 scipy.integrate.solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.001)
@@ -185,17 +196,17 @@ sim_end_time = time.perf_counter()
 
 figure, axis = plt.subplots(4,2)
 
-axis[0][0].plot(results.t, results.y[7])
-axis[0][0].plot(results.t, results.y[8])
+axis[0][0].plot(results.t, results.y[7]*180/math.pi)
+axis[0][0].plot(results.t, results.y[8]*180/math.pi)
 
-axis[0][1].plot(results.t, results.y[9])
+axis[0][1].plot(results.t, results.y[9]*3.281)
 
-axis[1][1].plot(results.t, results.y[10])
-axis[1][1].plot(results.t, results.y[11])
-axis[1][1].plot(results.t, results.y[12])
-axis[1][0].plot(results.t, results.y[4])
-axis[1][0].plot(results.t, results.y[5])
-axis[1][0].plot(results.t, results.y[6])
+axis[1][1].plot(results.t, results.y[10]*3.281)
+axis[1][1].plot(results.t, results.y[11]*3.281)
+axis[1][1].plot(results.t, results.y[12]*3.281)
+axis[1][0].plot(results.t, results.y[4]*180/math.pi)
+axis[1][0].plot(results.t, results.y[5]*180/math.pi)
+axis[1][0].plot(results.t, results.y[6]*180/math.pi)
 
 axis[2][0].plot(results.t, results.y[0])
 axis[2][0].plot(results.t, results.y[1])
@@ -206,7 +217,7 @@ thetas = quat.q1totheta(results.y[3])
 axis[3][0].plot(results.t, thetas)
 
 rollpitchyaw=quat.quat_euler_helper(results.y[0], results.y[1], results.y[2],results.y[3],results.t.size)
-axis[3][1].plot(results.t, rollpitchyaw)
+axis[3][1].plot(results.t, rollpitchyaw *180/math.pi)
 
 #omega_dot = omega_dot_helper(results.y[4], results.y[5], results.y[6], results.t.size)
 #axis[2][1].plot(results.t, omega_dot)
@@ -224,5 +235,6 @@ print("sim took ", sim_end_time-sim_start_time)
 
 print(results.y[1].size)
 print(results.y[9][-1]*3.281)
+print(results.y[8][-1]* 57.296)
 
 plt.show()

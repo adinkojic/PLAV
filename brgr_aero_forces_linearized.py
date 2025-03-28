@@ -13,7 +13,7 @@ TODO: simulation for high altitude'''
 def from_alpha_beta(airspeed, alpha, beta):
     x = airspeed * math.cos(alpha * math.pi/180) * math.cos(beta * math.pi/180)
     y = airspeed * math.sin(beta  * math.pi/180)
-    z = airspeed * math.sin(-alpha * math.pi/180) * math.cos(beta * math.pi/180)
+    z = airspeed * math.sin(alpha * math.pi/180) * math.cos(beta * math.pi/180)
 
     return np.array([x,y,z])
 

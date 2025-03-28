@@ -1,0 +1,55 @@
+{
+    "modeldate":"2/16/25",
+    "hasgridfins":false,
+    "lengthunits":"meters",
+    "angleunits":"radians",
+    "massunits": "kilograms",
+
+    "init_alt": 9144,
+    "init_vel": [0, 0, 0],
+    "init_rot": [0.17446000406876, 0.349066, 0.523599],
+    "init_lat": 0.0,
+    "init_lon": 0.0,
+    
+    "wind_alt_profile": [0, 0],
+    "wind_speed_profile": [0, 0],
+    "wind_direction_profile": [0, 0],
+
+    "mass": 2.2679619056149,
+    "inertiatensor": [
+        [0.00256821747 , 0.0, 0.0],
+        [0.0, 0.00842101104, 0.0],
+        [0.0, 0.0, 0.00975465594]
+    ],
+
+    "Sref": 0.02064491355,
+    "cref": 0.203201016,
+    "bref": 0.101598984,
+    
+
+    "alpha_max": 1.5708,
+    "alpha_min":-1.5708,
+    "beta_max":  1.5708,
+    "beta_min": -1.5708,
+
+    "C_L0": 0.0,
+    "C_La": 0.0,
+    "C_D0": 0.0,
+    "k2": 0.0,
+
+    "C_m0": 0.0,
+    "C_ma": 0.0,
+    "C_mq": -1.0,
+
+    "C_Yb":  0.0,
+    "C_l":  0.0,
+    "C_lp": -1.0,
+    "C_lr": 0.0,
+    "C_np": 0.0,
+    "C_nr": -1.0,
+
+    "C_Db": 0.0,
+    "C_mbb": 0.0
+
+
+}
