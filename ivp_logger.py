@@ -3,6 +3,7 @@
 import numpy as np
 from numba import float64, int64    # import the types
 from numba.experimental import jitclass
+
 spec = [
     ('data', float64[:,:]),
     ('data_columns', int64),
@@ -40,3 +41,8 @@ class IVPLogger(object):
         """Returns the whole data array"""
         self.trim_excess()
         return self.data
+    
+    def return_data_size(self):
+        """Returns the size of data"""
+        self.trim_excess()
+        return self.valid_data_size

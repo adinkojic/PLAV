@@ -131,7 +131,7 @@ class AircraftConfig(object):
     def __init__(self,mass, inertia, cmac, Sref, bref, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
                  C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, alpha_max = 0.174533, alpha_min =-0.174533, beta_max= 0.174533, beta_min=-0.174533 ):
         self.mass = mass
-        self.inertiamatrix = inertia
+        self.inertiamatrix = np.ascontiguousarray(inertia)
         self.cmac = cmac
         self.Sref = Sref
         self.bref = bref
@@ -187,7 +187,7 @@ class AircraftConfig(object):
 
     def get_inertia_matrix(self):
         """Returns inertia matrix as 2d np array"""
-        return self.inertiamatrix
+        return np.ascontiguousarray(self.inertiamatrix)
 
     def get_mass(self):
         """Returns mass in kg"""
