@@ -145,7 +145,7 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case1sphereDragless.json', 'r') as file:
+with open('aircraftConfigs/case3tumblingBrickDamping.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
