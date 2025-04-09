@@ -14,11 +14,10 @@ from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 from numba import jit
 import quaternion_math as quat
-import brgr_aero_forces_linearized as aero #remove this line
 from aircraftconfig import AircraftConfig, init_aircraft
 #import ussa1976
 from atmosphere import Atmosphere
-from ivp_logger import IVPLogger
+from step_logging import SimDataLogger
 
 
 @jit
@@ -31,7 +30,7 @@ def get_gravity(phi, h):
     return graivty
 
 @jit
-def x_dot(t, y, aircraft_config, atmosphere):
+def x_dot(t, y, aircraft_config, atmosphere, log = None):
     """Implements standard NED equations
     [q1 q2 q3 q4], [p q r], (lambda) long, (phi)lat, alt, vn, ve, vd,
     q4 is the angle q13 is the axis """
@@ -62,19 +61,19 @@ def x_dot(t, y, aircraft_config, atmosphere):
     omega_NI = omega_e * np.array([np.cos(lat), 0, -np.sin(lat)]) + np.array( \
         [(ve)/(R_lamb + altitude), -(vn)/(R_phi + altitude), -(ve * np.tan(lat))/(R_lamb + altitude)])
 
-    gravity = get_gravity(lat, altitude)
-
-    
+    gravity = get_gravity(lat, altitude)    
 
     atmosphere.update_conditions(altitude, time = t)
 
     air_density = atmosphere.get_density()
     air_temperature = atmosphere.get_temperature()
+    static_pressure = atmosphere.get_pressure()
+    speed_of_sound = atmosphere.get_speed_of_sound()
 
     #adds wind
     v_airspeed = quat.rotateVectorQ(q, np.array([vn, ve, vd]) + atmosphere.get_wind_ned())
     #solving for acceleration, which is velocity_dot
-    aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, air_temperature)
+    aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, air_temperature, speed_of_sound)
 
 
     body_forces_body, moments = aircraft_config.get_forces()
@@ -124,6 +123,15 @@ def x_dot(t, y, aircraft_config, atmosphere):
     x_dot[10] = vn_dot
     x_dot[11] = ve_dot
     x_dot[12] = vd_dot
+
+    mach = aircraft_config.get_mach()
+    dynamic_pressure = aircraft_config.get_qbar()
+    true_airspeed = aircraft_config.get_airspeed()
+
+    if log is not None:
+        log.load_line(t, y, body_forces_body, \
+                    moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
+                    true_airspeed, air_density, static_pressure, air_temperature)
 
     return x_dot
 
@@ -190,12 +198,14 @@ class Simulator(object):
         self.state = init_state
         self.t_span = time_span
         self.time = time_span[0]
-        self.logger = IVPLogger(14)
+        self.sim_log = SimDataLogger()
         self.t_step = t_step
         self.aircraft = aircraft
         self.atmosphere = atmosphere
 
-        self.logger.append_data(np.append(time_span[0], [init_state]))
+        #log the inital state
+        x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
+        self.sim_log.save_line()
 
     def advance_timestep(self):
         """advance timestep function, updates timestep and saves values"""
@@ -207,9 +217,9 @@ class Simulator(object):
 
         time = np.array([new_state.t[-1]])
  
-        data_to_append = np.append(time, [new_state.y[:,-1]])
-
-        self.logger.append_data(data_to_append)
+        #get stuff
+        x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
+        self.sim_log.save_line()
 
     def run_sim(self):
         """runs the sim, could also include control inputs"""
@@ -218,15 +228,15 @@ class Simulator(object):
 
     def return_results(self):
         """logger"""
-        return self.logger.return_data()
+        return self.sim_log.return_data()
     
     def return_time_steps(self):
         """returns number of timesteps saved"""
-        return self.logger.return_data_size()
+        return self.sim_log.return_data_size()
 
 y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=0, roll=0, init_omega=init_rte)
 
-#pump sim ocne
+#pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.001)
 
 t_span = np.array([0.0, 30.0])
@@ -246,45 +256,46 @@ figure, axis = plt.subplots(4,2)
 print(sim_object.return_time_steps())
 print(np.size(sim_data[:,10]))
 
-axis[0][0].plot(sim_data[:,0], sim_data[:,8]*180/math.pi)
-axis[0][0].plot(sim_data[:,0], sim_data[:,9]*180/math.pi)
+axis[0][0].plot(sim_data[0], sim_data[8]*180/math.pi)
+axis[0][0].plot(sim_data[0], sim_data[9]*180/math.pi)
 
-axis[0][1].plot(sim_data[:,0], sim_data[:,10]*3.281)
+axis[0][1].plot(sim_data[0], sim_data[10]*3.281)
 
-axis[1][1].plot(sim_data[:,0], sim_data[:,11]*3.281)
-axis[1][1].plot(sim_data[:,0], sim_data[:,12]*3.281)
-axis[1][1].plot(sim_data[:,0], sim_data[:,13]*3.281)
-axis[1][0].plot(sim_data[:,0], sim_data[:,5]*180/math.pi)
-axis[1][0].plot(sim_data[:,0], sim_data[:,6]*180/math.pi)
-axis[1][0].plot(sim_data[:,0], sim_data[:,7]*180/math.pi)
+axis[1][1].plot(sim_data[0], sim_data[11]*3.281)
+axis[1][1].plot(sim_data[0], sim_data[12]*3.281)
+axis[1][1].plot(sim_data[0], sim_data[13]*3.281)
+axis[1][0].plot(sim_data[0], sim_data[5]*180/math.pi)
+axis[1][0].plot(sim_data[0], sim_data[6]*180/math.pi)
+axis[1][0].plot(sim_data[0], sim_data[7]*180/math.pi)
 
-axis[2][0].plot(sim_data[:,0], sim_data[:,1])
-axis[2][0].plot(sim_data[:,0], sim_data[:,2])
-axis[2][0].plot(sim_data[:,0], sim_data[:,3])
-axis[2][0].plot(sim_data[:,0], sim_data[:,0])
+axis[2][0].plot(sim_data[0], sim_data[1])
+axis[2][0].plot(sim_data[0], sim_data[2])
+axis[2][0].plot(sim_data[0], sim_data[3])
+axis[2][0].plot(sim_data[0], sim_data[0])
 
-thetas = quat.q1totheta(sim_data[:,4])
-axis[3][0].plot(sim_data[:,0], thetas)
+thetas = quat.q1totheta(sim_data[4])
+axis[3][0].plot(sim_data[0], thetas)
 
-rollpitchyaw=quat.quat_euler_helper(sim_data[:,1], sim_data[:,2], sim_data[:,3],sim_data[:,4],sim_data[:,0].size)
-axis[3][1].plot(sim_data[:,0], rollpitchyaw *180/math.pi)
+rollpitchyaw=quat.quat_euler_helper(sim_data[1], sim_data[2], sim_data[3],sim_data[4],sim_data[0].size)
+axis[3][1].plot(sim_data[0], rollpitchyaw *180/math.pi)
 
-#omega_dot = omega_dot_helper(results.y[4], results.y[5], results.y[6], results.t.size)
-#axis[2][1].plot(results.t, omega_dot)
+
+axis[2][1].plot(sim_data[0], sim_data[19] /  1.356) #N moment
 
 axis[0][0].legend(['lat', 'lon'])
 axis[0][1].legend(['alt'])
 axis[1][0].legend(['p', 'q', 'r'])
 axis[1][1].legend(['v_n', 'v_e', 'v_d', 'p', 'q', 'r'])
 axis[2][0].legend(['q1', 'q2', 'q3', 'q4'])
+axis[2][1].legend(['moment N'])
 axis[3][0].legend(['theta'])
 axis[3][1].legend(['roll', 'pitch', 'yaw'])
 
 print("code took ", time.perf_counter()-code_start_time)
 print("sim took ", sim_end_time-sim_start_time)
 
-print(sim_data[:,0].size)
-print(sim_data[-1][10]*3.281)
-print(sim_data[-1][9]* 57.296)
+print(sim_data[0].size)
+print(sim_data[10][-1]*3.281)
+print(sim_data[9][-1]* 57.296)
 
 plt.show()

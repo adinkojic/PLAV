@@ -61,6 +61,13 @@ class Atmosphere(object):
         """Returns pressure [Pa]"""
         return self.current_pressure
 
+    def get_speed_of_sound(self):
+        """Speed of sounds [m/s]"""
+        gamma_air = 1.4
+        r_air = 287.052874
+
+        return np.sqrt(gamma_air*r_air*self.current_temperature)
+
     def get_wind_ned(self):
         """Returns wind speed NED [m/s]"""
         wind_speed = np.interp(self.current_alt, self.wind_alt, self.wind_speed)

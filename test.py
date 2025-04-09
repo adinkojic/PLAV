@@ -1,126 +1,53 @@
-import time
+"""test file"""
 
 import numpy as np
-from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
-from numba import jit
-from numba import float64, int64    # import the types
-from ivp_logger import IVPLogger
-from numba.experimental import jitclass
+from step_logging import SimDataLogger
 
+bruh = SimDataLogger()
 
-# Define the RHS of the ODE, including position, velocity, and forces
+alt_lon_lat = np.array([3.0, 3.1, 3.2])
+ned_velocity = np.array([4.0, 4.1, 4.2])
+body_rate = np.array([2.0, 2.1, 2.3])
+quat = np.array([1.0, 1.1, 1.2, 1.3])
 
-@jit
-def rhs(t, y):
-    # Unpack position (x, y) and velocity (vx, vy)
-    x, y, vx, vy = y
+aero_body_force = np.array([5.0, 5.1, 5.2])
+aero_body_moment = np.array([6.0, 6.1, 6.2])
 
-    g = 9.81
-    #y force gravity and drag
-    force_y = -g  - 0.1 * vy 
-    
-    dxdt = vx
-    dydt = vy
-    dvxdt = 0.0  # no horizontal forces
-    dvydt = force_y
+local_gravity = 7.0
+speed_of_sound = 8.0
 
-    return np.array([dxdt, dydt, dvxdt, dvydt])
+mach = 9.0
+dynamic_pressure = 10.0
+true_airspeed = 11.0
 
+air_density = 12.0
+ambient_pressure = 13.0
+ambient_temperature = 14.0
 
+state = np.concat((quat, body_rate, alt_lon_lat, ned_velocity))
 
+bruh.load_line(state, aero_body_force, aero_body_moment, local_gravity, speed_of_sound, \
+        mach, dynamic_pressure, true_airspeed, air_density, ambient_pressure, ambient_temperature)
 
-class Simulator(object):
-    """A sim object is required to store all the required data nicely."""
-    def __init__(self, init_state, time_span, t_step = 0.1):
-        self.state = init_state
-        self.t_span = time_span
-        self.time = time_span[0]
-        self.logger = IVPLogger(5)
-        self.t_step = t_step
+print(bruh.data)
 
-        self.logger.append_data(np.append(time_span[0], [init_state]))
+print(bruh.make_line())
 
-    def advance_timestep(self):
-        """advance timestep function, updates timestep and saves values"""
+bruh.save_line()
+print(bruh.data)
+bruh.save_line()
+print("size", np.size(bruh.data) // bruh.data_columns)
+print("vals", bruh.valid_data_size)
+print(bruh.tried)
+bruh.save_line()
+print("size", np.size(bruh.data) // bruh.data_columns)
+print("vals", bruh.valid_data_size)
+print(bruh.tried)
+print(bruh.new_data_attempt)
+print(bruh.data)
 
-        t_span=np.array([self.time, self.time + self.t_step])
-        new_state = solve_ivp(fun = rhs, t_span = t_span, y0=self.state)
-        self.state = new_state.y[:,-1]
-        self.time = new_state.t[-1]
+print(bruh.valid_data_size)
 
+data = bruh.return_data()
 
-
-        time = np.array([new_state.t[-1]])
-        forces = np.array([0.0])
- 
-        data_to_append = np.append(time, [new_state.y[:,-1]])
-
-        self.logger.append_data(data_to_append)
-
-    def run_sim(self):
-        """runs the sim, could also include control inputs"""
-        while self.time < self.t_span[1]:
-            self.advance_timestep()
-
-    def return_results(self):
-        """logger"""
-        return self.logger.return_data()
-    
-    def return_time_steps(self):
-        """returns number of timesteps saved"""
-        return self.logger.return_data_size()
-    
-    
-
-
-code_start_time = time.perf_counter()
-
-
-# Initial conditions: x0, y0, vx0, vy0
-y0 = np.array([0.0, 0.0, 0.0, 10.0])  # Initial position (x, y) and velocity (vx, vy)
-
-t_span = np.array([0.0, 2.0])
-
-#pump sim once
-solve_ivp(fun = rhs, t_span = t_span, y0=y0)
-
-t_step = 0.01
-
-
-ivp_start_time = time.perf_counter()
-sol = solve_ivp(fun = rhs, t_span=t_span, y0=y0, max_step=t_step)
-ivp_end_time = time.perf_counter()
-
-sim_object = Simulator(y0, t_span, t_step=t_step)
-
-sim_start_time = time.perf_counter()
-sim_object.run_sim()
-sim_end_time = time.perf_counter()
-
-
-data = sim_object.return_results()
-y2 = data[:,2]
-t2 = data[:,0]
-
-# Extract positions and velocities from the solution
-x, y, vx, vy = sol.y
-
-
-# Plot the trajectory of the ball
-plt.plot(sol.t, y)
-plt.plot(t2, y2)
-plt.xlabel('Position x (m)')
-plt.ylabel('Position y (m)')
-plt.title('Projectile motion of the ball')
-plt.grid(True)
-
-print("code took ", time.perf_counter()-code_start_time)
-print("ivp took ", ivp_end_time-ivp_start_time)
-print("sim took ", sim_end_time-sim_start_time)
-print("timesteps: ", sim_object.return_time_steps())
-print("time per step", (sim_end_time-sim_start_time) /sim_object.return_time_steps())
-print("time rate ivp", (t_span[1]-t_span[0])/(ivp_end_time-ivp_start_time))
-print("time rate sim", (t_span[1]-t_span[0])/(sim_end_time-sim_start_time))
-
-plt.show()
+print(data)

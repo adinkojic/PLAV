@@ -32,6 +32,7 @@ spec = [
     ('omega', float64[:]),
     ('density', float64),
     ('temperature', float64),
+    ('mach', float64),
 
     #areodynamics
     ('C_L0', float64),
@@ -167,8 +168,9 @@ class AircraftConfig(object):
         self.reynolds = 0
         self.density = 0
         self.temperature = 0
+        self.mach = 0
 
-    def update_conditions(self, altitude, velocity, omega, density, temperature):
+    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
         """Update altitude and velocity it thinks it's at
         Call this before every get_forces()"""
         self.altitude = altitude
@@ -183,6 +185,8 @@ class AircraftConfig(object):
 
         dynamic_viscosity = get_dynamic_viscosity(temperature)
         self.reynolds = self.get_Re(density, dynamic_viscosity)
+
+        self.mach = self.airspeed/speed_of_sound
 
 
     def get_inertia_matrix(self):
@@ -204,6 +208,18 @@ class AircraftConfig(object):
     def get_beta(self):
         """Returns beta in rad"""
         return self.beta
+    
+    def get_mach(self):
+        """Returns mach [nd]"""
+        return self.mach
+    
+    def get_qbar(self):
+        """Returns dyanmic pressure [Pa]"""
+        return 0.5 * self.density *self.airspeed**2
+    
+    def get_airspeed(self):
+        """Returns airspeed [m/s]"""
+        return self.airspeed
 
     def get_coeff(self):
         """Gets aircraft aero coeff from given conditions"""
