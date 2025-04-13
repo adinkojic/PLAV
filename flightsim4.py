@@ -133,12 +133,13 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
     alpha = aircraft_config.get_alpha()
     beta  = aircraft_config.get_beta()
+    reynolds = aircraft_config.get_reynolds()
 
     if log is not None:
         log.load_line(t, y, body_forces_body, \
                     moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, static_pressure, air_temperature, \
-                    alpha, beta)
+                    alpha, beta, reynolds)
 
     return x_dot
 
@@ -240,14 +241,14 @@ class Simulator(object):
         """returns number of timesteps saved"""
         return self.sim_log.return_data_size()
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=-2.2, roll=0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=-2.2, roll=0.0, init_omega=init_rte)
 
 #pump sim once
-solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.001)
+solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
-t_span = np.array([0.0, 30.0])
+t_span = np.array([0.0, 120.0])
 
-sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.001)
+sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
 print("Sim started...")
 
@@ -338,10 +339,21 @@ alpha_beta.plot(sim_data[0], sim_data[29]*180/math.pi,pen=(40, 30, 200), name="B
 
 quat_plot = win.addPlot(title="Rotation Quaternion vs Time")
 quat_plot.addLegend()
-quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="real")
+quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="1")
 quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
 quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
 quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
+
+win.nextRow()
+
+air_density_plot = win.addPlot(title="Air density [kg/m^3] vs Time")
+air_density_plot.plot(sim_data[0], sim_data[24],pen=(20,5,130),name="Air Density")
+
+air_pressure = win.addPlot(title="Air Pressusre [Pa] vs Time")
+air_pressure.plot(sim_data[0], sim_data[25],pen=(120,5,20),name="Air Pressure")
+
+reynolds_plot = win.addPlot(title="Reynolds Number vs Time")
+reynolds_plot.plot(sim_data[0], sim_data[30],pen=(240,240,255),name="Reynolds Number")
 
 print("code took ", time.perf_counter()-code_start_time)
 print("sim took ", sim_end_time-sim_start_time)

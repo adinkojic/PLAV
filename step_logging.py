@@ -33,6 +33,7 @@ spec = [
     #derived
     ('alpha', float64),
     ('beta', float64),
+    ('reynolds', float64),
 
     ('data', float64[:,:]),
     ('data_columns', int64),
@@ -69,6 +70,7 @@ class SimDataLogger(object):
 
         self.alpha = 0.0
         self.beta = 0.0
+        self.reynolds = 0.0
 
         line = self.make_line()
 
@@ -80,7 +82,8 @@ class SimDataLogger(object):
 
     def load_line(self, time, state, aero_body_force, \
                     aero_body_moment, local_gravity, speed_of_sound, mach ,dynamic_pressure, \
-                    true_airspeed, air_density, ambient_pressure, ambient_temperature, alpha, beta):
+                    true_airspeed, air_density, ambient_pressure, ambient_temperature, \
+                    alpha, beta, reynolds):
         """Loads a line of data for the object so it can be used for the logger"""
 
         self.time = np.array([time])
@@ -105,6 +108,7 @@ class SimDataLogger(object):
 
         self.alpha = np.array([alpha])
         self.beta = np.array([beta])
+        self.reynolds = np.array([reynolds])
 
     def make_line(self):
         """Makes a line of data"""
@@ -118,7 +122,7 @@ class SimDataLogger(object):
             self.aero_body_moment[0], self.aero_body_moment[1], self.aero_body_moment[2], \
             self.local_gravity, self.speed_of_sound, self.mach, self.dynamic_pressure, \
             self.air_density, self.ambient_pressure, self.ambient_temperature, \
-            self.true_airspeed, self.alpha, self.beta
+            self.true_airspeed, self.alpha, self.beta, self.reynolds
          ])
         return line
 
