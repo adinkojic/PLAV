@@ -18,6 +18,8 @@ from aircraftconfig import AircraftConfig, init_aircraft
 #import ussa1976
 from atmosphere import Atmosphere
 from step_logging import SimDataLogger
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore
 
 
 @jit
@@ -245,6 +247,13 @@ sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.001)
 
 print("Sim started...")
 
+app = pg.mkQApp("6DoF Sim")
+win = pg.GraphicsLayoutWidget(show=True, title="Basic plotting examples")
+win.resize(1500,800)
+win.setWindowTitle('6DoF Sim')
+pg.setConfigOptions(antialias=True)
+
+
 sim_start_time = time.perf_counter()
 sim_object.run_sim()
 sim_end_time = time.perf_counter()
@@ -256,40 +265,53 @@ figure, axis = plt.subplots(4,2)
 print(sim_object.return_time_steps())
 print(np.size(sim_data[:,10]))
 
-axis[0][0].plot(sim_data[0], sim_data[8]*180/math.pi)
-axis[0][0].plot(sim_data[0], sim_data[9]*180/math.pi)
+long_lat_plot = win.addPlot(title="Long Lat [deg] vs Time")
+long_lat_plot.addLegend()
+long_lat_plot.plot(sim_data[0], sim_data[8]*180/math.pi, pen=(40,40,240), name="Latitiude")
+long_lat_plot.plot(sim_data[0], sim_data[9]*180/math.pi, pen=(130,20,130), name="Longitude")
+long_lat_plot.addLegend(frame=True, colCount=2)
 
-axis[0][1].plot(sim_data[0], sim_data[10]*3.281)
+altitude_plot = win.addPlot(title="Altitude [ft] vs Time")
+#altitude_plot.addLegend()
+altitude_plot.plot(sim_data[0], sim_data[10]*3.281,pen=(240,20,20), name="Altitude")
 
-axis[1][1].plot(sim_data[0], sim_data[11]*3.281)
-axis[1][1].plot(sim_data[0], sim_data[12]*3.281)
-axis[1][1].plot(sim_data[0], sim_data[13]*3.281)
-axis[1][0].plot(sim_data[0], sim_data[5]*180/math.pi)
-axis[1][0].plot(sim_data[0], sim_data[6]*180/math.pi)
-axis[1][0].plot(sim_data[0], sim_data[7]*180/math.pi)
+path_plot = win.addPlot(title="Flight Path [long,lat]")
+#path_plot.addLegend()
+path_plot.plot(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi,pen=(120,120,120), name="Path")
 
-axis[2][0].plot(sim_data[0], sim_data[1])
-axis[2][0].plot(sim_data[0], sim_data[2])
-axis[2][0].plot(sim_data[0], sim_data[3])
-axis[2][0].plot(sim_data[0], sim_data[0])
+win.nextRow()
 
-thetas = quat.q1totheta(sim_data[4])
-axis[3][0].plot(sim_data[0], thetas)
+velocity_plot = win.addPlot(title="Velocity [ft/s] vs Time [s]")
+velocity_plot.addLegend()
+velocity_plot.plot(sim_data[0], sim_data[11]*3.281,pen=(240,20,20), name="Vn")
+velocity_plot.plot(sim_data[0], sim_data[12]*3.281,pen=(20,240,20), name="Ve")
+velocity_plot.plot(sim_data[0], sim_data[13]*3.281,pen=(240,20,240), name="Vd")
+
+body_rate_plot = win.addPlot(title="Body Rate [deg/s] vs Time [s]")
+body_rate_plot.addLegend()
+body_rate_plot.plot(sim_data[0], sim_data[5]*180/math.pi,pen=(240,240,20), name="p")
+body_rate_plot.plot(sim_data[0], sim_data[6]*180/math.pi,pen=(20,240,240), name="q")
+body_rate_plot.plot(sim_data[0], sim_data[7]*180/math.pi,pen=(240,20,240), name="r")
 
 rollpitchyaw=quat.quat_euler_helper(sim_data[1], sim_data[2], sim_data[3],sim_data[4],sim_data[0].size)
-axis[3][1].plot(sim_data[0], rollpitchyaw *180/math.pi)
+euler_plot = win.addPlot(title="Euler Angles [deg] vs Time")
+euler_plot.addLegend()
+euler_plot.plot(sim_data[0], rollpitchyaw[:,0] *180/math.pi,pen=(240,20,20), name="roll")
+euler_plot.plot(sim_data[0], rollpitchyaw[:,1] *180/math.pi,pen=(120,240,20), name="pitch")
+euler_plot.plot(sim_data[0], rollpitchyaw[:,2] *180/math.pi,pen=(120,20,240), name="yaw")
 
+win.nextRow()
 
-axis[2][1].plot(sim_data[0], sim_data[19] /  1.356) #N moment
+quat_plot = win.addPlot(title="Rotation Quaternion vs Time")
+quat_plot.addLegend()
+quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="real")
+quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
+quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
+quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
 
-axis[0][0].legend(['lat', 'lon'])
-axis[0][1].legend(['alt'])
-axis[1][0].legend(['p', 'q', 'r'])
-axis[1][1].legend(['v_n', 'v_e', 'v_d', 'p', 'q', 'r'])
-axis[2][0].legend(['q1', 'q2', 'q3', 'q4'])
-axis[2][1].legend(['moment N'])
-axis[3][0].legend(['theta'])
-axis[3][1].legend(['roll', 'pitch', 'yaw'])
+local_gravity = win.addPlot(title="Local Gravity [ft/s^2] vs Time")
+local_gravity.plot(sim_data[0], sim_data[20] *3.2808,pen=(10,130,20), name="Gravity")
+
 
 print("code took ", time.perf_counter()-code_start_time)
 print("sim took ", sim_end_time-sim_start_time)
@@ -298,4 +320,5 @@ print(sim_data[0].size)
 print(sim_data[10][-1]*3.281)
 print(sim_data[9][-1]* 57.296)
 
-plt.show()
+#plt.show()
+pg.exec()
