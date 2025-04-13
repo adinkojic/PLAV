@@ -217,7 +217,6 @@ class Simulator(object):
         self.state = new_state.y[:,-1]
         self.time = new_state.t[-1]
 
-        time = np.array([new_state.t[-1]])
  
         #get stuff
         x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
@@ -247,10 +246,10 @@ sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.001)
 
 print("Sim started...")
 
-app = pg.mkQApp("6DoF Sim")
-win = pg.GraphicsLayoutWidget(show=True, title="Basic plotting examples")
+app = pg.mkQApp(modelparam['title'])
+win = pg.GraphicsLayoutWidget(show=True, title=modelparam['title'])
 win.resize(1500,800)
-win.setWindowTitle('6DoF Sim')
+win.setWindowTitle(modelparam['title'])
 pg.setConfigOptions(antialias=True)
 
 
@@ -302,15 +301,27 @@ euler_plot.plot(sim_data[0], rollpitchyaw[:,2] *180/math.pi,pen=(120,20,240), na
 
 win.nextRow()
 
-quat_plot = win.addPlot(title="Rotation Quaternion vs Time")
-quat_plot.addLegend()
-quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="real")
-quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
-quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
-quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
+#quat_plot = win.addPlot(title="Rotation Quaternion vs Time")
+#quat_plot.addLegend()
+#quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="real")
+#quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
+#quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
+#quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
 
 local_gravity = win.addPlot(title="Local Gravity [ft/s^2] vs Time")
 local_gravity.plot(sim_data[0], sim_data[20] *3.2808,pen=(10,130,20), name="Gravity")
+
+body_forces = win.addPlot(title="Body force [lbf] vs Time")
+body_forces.addLegend()
+body_forces.plot(sim_data[0], sim_data[14] / 4.448, pen=(40, 40, 255), name="X")
+body_forces.plot(sim_data[0], sim_data[15] / 4.448, pen=(40, 255, 40), name="Y")
+body_forces.plot(sim_data[0], sim_data[16] / 4.448, pen=(255, 40, 40), name="Z")
+
+body_moment = win.addPlot(title="Body Moment [ft lbf] vs Time")
+body_moment.addLegend()
+body_moment.plot(sim_data[0], sim_data[17] / 1.356, pen=(40, 40, 180), name="X")
+body_moment.plot(sim_data[0], sim_data[18] / 1.356, pen=(40, 180, 40), name="Y")
+body_moment.plot(sim_data[0], sim_data[19] / 1.356, pen=(180, 40, 40), name="Z")
 
 
 print("code took ", time.perf_counter()-code_start_time)

@@ -3,10 +3,9 @@ Abstracted away from any special state config"""
 import math
 
 import numpy as np
-from numba import float64, bool    # import the types
+from numba import float64    # import the types
 from numba.experimental import jitclass
 from numba import jit
-
 import quaternion_math as quat
 
 
