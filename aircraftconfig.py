@@ -222,10 +222,10 @@ class AircraftConfig(object):
 
     def get_coeff(self):
         """Gets aircraft aero coeff from given conditions"""
-        aa = np.array([self.alpha]).clip(self.alpha_max, self.alpha_min)
-        alpha = aa[0]
-        bb = np.array([self.beta]).clip(self.beta_max, self.beta_min)
-        beta = bb[0]
+        #aa = np.array([self.alpha]).clip(self.alpha_max, self.alpha_min)
+        #alpha = aa[0]
+        #bb = np.array([self.beta]).clip(self.beta_max, self.beta_min)
+        #beta = bb[0]
 
         p, q, r = self.omega[0], self.omega[1], self.omega[2]
 
@@ -239,13 +239,13 @@ class AircraftConfig(object):
             q_hat = self.cmac * q/2/self.airspeed
             r_hat = self.bref * r/2/self.airspeed
 
-        C_L = self.C_L0 + self.C_La * alpha
-        C_D = self.C_D0 + self.epsilon * C_L**2 #+ self.C_Db * abs(beta)
-        C_m = self.C_m0 + self.C_ma * alpha + self.C_mq * q_hat #+ self.C_mbb * beta ** 2
+        C_L = self.C_L0 + self.C_La * self.alpha
+        C_D = self.C_D0 + self.epsilon * C_L**2 #+ self.C_Db * abs(self.beta)
+        C_m = self.C_m0 + self.C_ma * self.alpha + self.C_mq * q_hat #+ self.C_mbb * self.beta ** 2
 
-        C_Yb =self.C_Yb * beta #side force
-        C_l = self.C_l + self.C_lr * r_hat + self.C_lp * p_hat #roll
-        C_n = self.C_np * p_hat + self.C_nr * r_hat #yaw force
+        C_Yb = 0.0#self.C_Yb * self.beta #side force
+        C_l = 0.0#self.C_l + self.C_lr * r_hat + self.C_lp * p_hat #roll
+        C_n = 0.0#self.C_np * p_hat + self.C_nr * r_hat #yaw force
 
         return C_L,C_D,C_m, C_Yb, C_l, C_n
 

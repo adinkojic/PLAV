@@ -20,6 +20,7 @@ from atmosphere import Atmosphere
 from step_logging import SimDataLogger
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
+from matplotlib import colormaps
 
 
 @jit
@@ -130,10 +131,14 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     dynamic_pressure = aircraft_config.get_qbar()
     true_airspeed = aircraft_config.get_airspeed()
 
+    alpha = aircraft_config.get_alpha()
+    beta  = aircraft_config.get_beta()
+
     if log is not None:
         log.load_line(t, y, body_forces_body, \
                     moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
-                    true_airspeed, air_density, static_pressure, air_temperature)
+                    true_airspeed, air_density, static_pressure, air_temperature, \
+                    alpha, beta)
 
     return x_dot
 
@@ -155,7 +160,7 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case3tumblingBrickDamping.json', 'r') as file:
+with open('aircraftConfigs/openvspgfequivalentMod.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -235,7 +240,7 @@ class Simulator(object):
         """returns number of timesteps saved"""
         return self.sim_log.return_data_size()
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=0, roll=0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=-2.2, roll=0, init_omega=init_rte)
 
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.001)
@@ -274,9 +279,12 @@ altitude_plot = win.addPlot(title="Altitude [ft] vs Time")
 #altitude_plot.addLegend()
 altitude_plot.plot(sim_data[0], sim_data[10]*3.281,pen=(240,20,20), name="Altitude")
 
+cm = pg.colormap.get('CET-L17')
+cm.reverse()
+pen0 = cm.getPen( span=(0.0,3e-6), width=2 )
 path_plot = win.addPlot(title="Flight Path [long,lat]")
 #path_plot.addLegend()
-path_plot.plot(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi,pen=(120,120,120), name="Path")
+path_plot.plot(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi,pen =pen0, name="Path")
 
 win.nextRow()
 
@@ -301,12 +309,6 @@ euler_plot.plot(sim_data[0], rollpitchyaw[:,2] *180/math.pi,pen=(120,20,240), na
 
 win.nextRow()
 
-#quat_plot = win.addPlot(title="Rotation Quaternion vs Time")
-#quat_plot.addLegend()
-#quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="real")
-#quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
-#quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
-#quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
 
 local_gravity = win.addPlot(title="Local Gravity [ft/s^2] vs Time")
 local_gravity.plot(sim_data[0], sim_data[20] *3.2808,pen=(10,130,20), name="Gravity")
@@ -323,6 +325,23 @@ body_moment.plot(sim_data[0], sim_data[17] / 1.356, pen=(40, 40, 180), name="X")
 body_moment.plot(sim_data[0], sim_data[18] / 1.356, pen=(40, 180, 40), name="Y")
 body_moment.plot(sim_data[0], sim_data[19] / 1.356, pen=(180, 40, 40), name="Z")
 
+win.nextRow()
+
+airspeed = win.addPlot(title="Airspeed [TAS] vs Time")
+#airspeed.addLegend()
+airspeed.plot(sim_data[0], sim_data[27]*1.944,pen=(40, 40, 180), name="airspeed")
+
+alpha_beta = win.addPlot(title="Airspeed [TAS] vs Time")
+alpha_beta.addLegend()
+alpha_beta.plot(sim_data[0], sim_data[28]*180/math.pi,pen=(200, 30, 40), name="Alpha")
+alpha_beta.plot(sim_data[0], sim_data[29]*180/math.pi,pen=(40, 30, 200), name="Beta")
+
+quat_plot = win.addPlot(title="Rotation Quaternion vs Time")
+quat_plot.addLegend()
+quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="real")
+quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
+quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
+quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
 
 print("code took ", time.perf_counter()-code_start_time)
 print("sim took ", sim_end_time-sim_start_time)

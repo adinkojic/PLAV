@@ -1,4 +1,5 @@
 {
+    "title": "OpenVSP Grid Fin Equivalent",
     "modeldate":"3/24/25",
     "hasgridfins":false,
     "lengthunits":"meters",

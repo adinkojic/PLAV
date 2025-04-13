@@ -30,6 +30,10 @@ spec = [
     ('ambient_pressure', float64),
     ('ambient_temperature', float64),
 
+    #derived
+    ('alpha', float64),
+    ('beta', float64),
+
     ('data', float64[:,:]),
     ('data_columns', int64),
     ('valid_data_size', int64)
@@ -63,6 +67,9 @@ class SimDataLogger(object):
         self.ambient_pressure = 0.0
         self.ambient_temperature = 0.0
 
+        self.alpha = 0.0
+        self.beta = 0.0
+
         line = self.make_line()
 
         data_columns = np.size(line)
@@ -73,7 +80,7 @@ class SimDataLogger(object):
 
     def load_line(self, time, state, aero_body_force, \
                     aero_body_moment, local_gravity, speed_of_sound, mach ,dynamic_pressure, \
-                    true_airspeed, air_density, ambient_pressure, ambient_temperature):
+                    true_airspeed, air_density, ambient_pressure, ambient_temperature, alpha, beta):
         """Loads a line of data for the object so it can be used for the logger"""
 
         self.time = np.array([time])
@@ -96,6 +103,9 @@ class SimDataLogger(object):
         self.ambient_pressure = np.array([ambient_pressure])
         self.ambient_temperature = np.array([ambient_temperature])
 
+        self.alpha = np.array([alpha])
+        self.beta = np.array([beta])
+
     def make_line(self):
         """Makes a line of data"""
 
@@ -107,7 +117,8 @@ class SimDataLogger(object):
             self.aero_body_force[0], self.aero_body_force[1], self.aero_body_force[2], \
             self.aero_body_moment[0], self.aero_body_moment[1], self.aero_body_moment[2], \
             self.local_gravity, self.speed_of_sound, self.mach, self.dynamic_pressure, \
-            self.air_density, self.ambient_pressure, self.ambient_temperature
+            self.air_density, self.ambient_pressure, self.ambient_temperature, \
+            self.true_airspeed, self.alpha, self.beta
          ])
         return line
 
