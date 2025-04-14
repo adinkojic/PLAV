@@ -1,0 +1,55 @@
+{
+    "title": "OpenVSP Grid Fin Mod",
+    "modeldate":"3/24/25",
+    "hasgridfins":false,
+    "lengthunits":"meters",
+    "angleunits":"radians",
+    "massunits": "kilograms",
+
+    "init_alt": 120,
+    "init_vel": [0, 0, 0.1],
+    "init_rot": [0.0, 0.0, 0.0],
+    "init_lat": 0.0,
+    "init_lon": 0.0,
+
+    "wind_alt_profile": [0, 0],
+    "wind_speed_profile": [0, 0],
+    "wind_direction_profile": [0, 0],
+
+    "mass": 1.8,
+    "inertiatensor": [
+        [0.039616, 0.0, 0.0],
+        [0.0, 0.08273, 0.0],
+        [0.0, 0.0, 0.1192]
+    ],
+
+    "Sref": 0.13645134,
+    "cref": 0.1143,
+    "bref": 1.1938,
+    
+
+    "alpha_max": 0.261799,
+    "alpha_min":-0.174533,
+    "beta_max":  0.174533,
+    "beta_min": -0.174533,
+
+    "C_L0": 0.44,
+    "C_La": 5.2521,
+    "C_D0": 0.02457,
+    "k2": 0.028,
+    "C_Db": 0.03667,
+
+    "C_m0": 0.02,
+    "C_ma": -0.72087,
+    "C_mq": -0.5,
+    "C_mbb": 27.575,
+
+    "C_nb": -0.038197,
+    "C_Yb":  -0.2005,
+    "C_l" :  0.0,
+    "C_lp": -0.1,
+    "C_lr": -0.1,
+    "C_np": -0.1,
+    "C_nr": -0.1
+
+}
