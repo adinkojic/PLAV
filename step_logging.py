@@ -46,7 +46,7 @@ spec = [
 class SimDataLogger(object):
     """Jitted Logger Object to Run in the Function as an arg"""
 
-    def __init__(self):
+    def __init__(self, preallocated = 1):
         self.time = 0.0
 
         self.lon_lat_alt = np.zeros(3)
@@ -77,7 +77,7 @@ class SimDataLogger(object):
         data_columns = np.size(line)
 
         self.data_columns = int64(np.size(line))
-        self.data = np.zeros((data_columns, 1))
+        self.data = np.zeros((data_columns, int64(preallocated)))
         self.valid_data_size = 0
 
     def load_line(self, time, state, aero_body_force, \

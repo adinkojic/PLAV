@@ -206,10 +206,11 @@ class Simulator(object):
         self.state = init_state
         self.t_span = time_span
         self.time = time_span[0]
-        self.sim_log = SimDataLogger()
+        self.sim_log = SimDataLogger(preallocated=1.1*(time_span[1]-time_span[0]) / t_step)
         self.t_step = t_step
         self.aircraft = aircraft
         self.atmosphere = atmosphere
+        self.start_time = None
 
         #log the inital state
         x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
@@ -228,25 +229,38 @@ class Simulator(object):
         x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
         self.sim_log.save_line()
 
+    def update_real_time(self, time_warp = 1.0):
+        """Updates the real time sim, try to call with a delay in between"""
+        if self.start_time is None:
+            self.start_time = time.time()
+
+        frame_time = (time.time() - self.start_time) * time_warp
+        while self.time < frame_time:
+            self.advance_timestep()
+
+        return self.return_results()
+
+
     def run_sim(self):
-        """runs the sim, could also include control inputs"""
+        """runs the sim until t_span"""
         while self.time < self.t_span[1]:
             self.advance_timestep()
 
     def return_results(self):
         """logger"""
         return self.sim_log.return_data()
-    
+
     def return_time_steps(self):
         """returns number of timesteps saved"""
         return self.sim_log.return_data_size()
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=-2.2, roll=0.0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=-89, roll=0.0, init_omega=init_rte)
 
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
-t_span = np.array([0.0, 120.0])
+real_time = True
+t_span = np.array([0.0, 5.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -254,113 +268,169 @@ print("Sim started...")
 
 app = pg.mkQApp(modelparam['title'])
 win = pg.GraphicsLayoutWidget(show=True, title=modelparam['title'])
-win.resize(1500,800)
+win.resize(1500,900)
 win.setWindowTitle(modelparam['title'])
 pg.setConfigOptions(antialias=True)
 
 
-sim_start_time = time.perf_counter()
-sim_object.run_sim()
-sim_end_time = time.perf_counter()
+if real_time is False:
+    sim_start_time = time.perf_counter()
+    sim_object.run_sim()
+    sim_end_time = time.perf_counter()
 
 sim_data = sim_object.return_results()
-
-figure, axis = plt.subplots(4,2)
-
 print(sim_object.return_time_steps())
-print(np.size(sim_data[:,10]))
+print(np.size(sim_data))
 
 long_lat_plot = win.addPlot(title="Long Lat [deg] vs Time")
 long_lat_plot.addLegend()
-long_lat_plot.plot(sim_data[0], sim_data[8]*180/math.pi, pen=(40,40,240), name="Latitiude")
-long_lat_plot.plot(sim_data[0], sim_data[9]*180/math.pi, pen=(130,20,130), name="Longitude")
+lat = long_lat_plot.plot(sim_data[0], sim_data[8]*180/math.pi, pen=(40,40,240), name="Latitiude")
+lon = long_lat_plot.plot(sim_data[0], sim_data[9]*180/math.pi, pen=(130,20,130), name="Longitude")
 long_lat_plot.addLegend(frame=True, colCount=2)
 
 altitude_plot = win.addPlot(title="Altitude [ft] vs Time")
 #altitude_plot.addLegend()
-altitude_plot.plot(sim_data[0], sim_data[10]*3.281,pen=(240,20,20), name="Altitude")
+alt = altitude_plot.plot(sim_data[0], sim_data[10]*3.281,pen=(240,20,20), name="Altitude")
 
 cm = pg.colormap.get('CET-L17')
 cm.reverse()
 pen0 = cm.getPen( span=(0.0,3e-6), width=2 )
 path_plot = win.addPlot(title="Flight Path [long,lat]")
 #path_plot.addLegend()
-path_plot.plot(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi,pen =pen0, name="Path")
+path = path_plot.plot(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi,pen =pen0, name="Path")
 
 win.nextRow()
 
 velocity_plot = win.addPlot(title="Velocity [ft/s] vs Time [s]")
 velocity_plot.addLegend()
-velocity_plot.plot(sim_data[0], sim_data[11]*3.281,pen=(240,20,20), name="Vn")
-velocity_plot.plot(sim_data[0], sim_data[12]*3.281,pen=(20,240,20), name="Ve")
-velocity_plot.plot(sim_data[0], sim_data[13]*3.281,pen=(240,20,240), name="Vd")
+vn = velocity_plot.plot(sim_data[0], sim_data[11]*3.281,pen=(240,20,20), name="Vn")
+ve = velocity_plot.plot(sim_data[0], sim_data[12]*3.281,pen=(20,240,20), name="Ve")
+vd = velocity_plot.plot(sim_data[0], sim_data[13]*3.281,pen=(240,20,240), name="Vd")
 
 body_rate_plot = win.addPlot(title="Body Rate [deg/s] vs Time [s]")
 body_rate_plot.addLegend()
-body_rate_plot.plot(sim_data[0], sim_data[5]*180/math.pi,pen=(240,240,20), name="p")
-body_rate_plot.plot(sim_data[0], sim_data[6]*180/math.pi,pen=(20,240,240), name="q")
-body_rate_plot.plot(sim_data[0], sim_data[7]*180/math.pi,pen=(240,20,240), name="r")
+p = body_rate_plot.plot(sim_data[0], sim_data[5]*180/math.pi,pen=(240,240,20), name="p")
+q = body_rate_plot.plot(sim_data[0], sim_data[6]*180/math.pi,pen=(20,240,240), name="q")
+r = body_rate_plot.plot(sim_data[0], sim_data[7]*180/math.pi,pen=(240,20,240), name="r")
 
 rollpitchyaw=quat.quat_euler_helper(sim_data[1], sim_data[2], sim_data[3],sim_data[4],sim_data[0].size)
 euler_plot = win.addPlot(title="Euler Angles [deg] vs Time")
 euler_plot.addLegend()
-euler_plot.plot(sim_data[0], rollpitchyaw[:,0] *180/math.pi,pen=(240,20,20), name="roll")
-euler_plot.plot(sim_data[0], rollpitchyaw[:,1] *180/math.pi,pen=(120,240,20), name="pitch")
-euler_plot.plot(sim_data[0], rollpitchyaw[:,2] *180/math.pi,pen=(120,20,240), name="yaw")
+roll = euler_plot.plot(sim_data[0], rollpitchyaw[:,0] *180/math.pi,pen=(240,20,20), name="roll")
+pitch = euler_plot.plot(sim_data[0], rollpitchyaw[:,1] *180/math.pi,pen=(120,240,20), name="pitch")
+yaw = euler_plot.plot(sim_data[0], rollpitchyaw[:,2] *180/math.pi,pen=(120,20,240), name="yaw")
 
 win.nextRow()
 
 
 local_gravity = win.addPlot(title="Local Gravity [ft/s^2] vs Time")
-local_gravity.plot(sim_data[0], sim_data[20] *3.2808,pen=(10,130,20), name="Gravity")
+gravity = local_gravity.plot(sim_data[0], sim_data[20] *3.2808,pen=(10,130,20), name="Gravity")
 
 body_forces = win.addPlot(title="Body force [lbf] vs Time")
 body_forces.addLegend()
-body_forces.plot(sim_data[0], sim_data[14] / 4.448, pen=(40, 40, 255), name="X")
-body_forces.plot(sim_data[0], sim_data[15] / 4.448, pen=(40, 255, 40), name="Y")
-body_forces.plot(sim_data[0], sim_data[16] / 4.448, pen=(255, 40, 40), name="Z")
+fx = body_forces.plot(sim_data[0], sim_data[14] / 4.448, pen=(40, 40, 255), name="X")
+fy = body_forces.plot(sim_data[0], sim_data[15] / 4.448, pen=(40, 255, 40), name="Y")
+fz = body_forces.plot(sim_data[0], sim_data[16] / 4.448, pen=(255, 40, 40), name="Z")
 
 body_moment = win.addPlot(title="Body Moment [ft lbf] vs Time")
 body_moment.addLegend()
-body_moment.plot(sim_data[0], sim_data[17] / 1.356, pen=(40, 40, 180), name="X")
-body_moment.plot(sim_data[0], sim_data[18] / 1.356, pen=(40, 180, 40), name="Y")
-body_moment.plot(sim_data[0], sim_data[19] / 1.356, pen=(180, 40, 40), name="Z")
+mx = body_moment.plot(sim_data[0], sim_data[17] / 1.356, pen=(40, 40, 180), name="X")
+my = body_moment.plot(sim_data[0], sim_data[18] / 1.356, pen=(40, 180, 40), name="Y")
+mz = body_moment.plot(sim_data[0], sim_data[19] / 1.356, pen=(180, 40, 40), name="Z")
 
 win.nextRow()
 
 airspeed = win.addPlot(title="Airspeed [TAS] vs Time")
 #airspeed.addLegend()
-airspeed.plot(sim_data[0], sim_data[27]*1.944,pen=(40, 40, 180), name="airspeed")
+speed = airspeed.plot(sim_data[0], sim_data[27]*1.944,pen=(40, 40, 180), name="airspeed")
 
-alpha_beta = win.addPlot(title="Airspeed [TAS] vs Time")
+alpha_beta = win.addPlot(title="Alpha Beta [deg] vs Time")
 alpha_beta.addLegend()
-alpha_beta.plot(sim_data[0], sim_data[28]*180/math.pi,pen=(200, 30, 40), name="Alpha")
-alpha_beta.plot(sim_data[0], sim_data[29]*180/math.pi,pen=(40, 30, 200), name="Beta")
+alpha = alpha_beta.plot(sim_data[0], sim_data[28]*180/math.pi,pen=(200, 30, 40), name="Alpha")
+beta = alpha_beta.plot(sim_data[0], sim_data[29]*180/math.pi,pen=(40, 30, 200), name="Beta")
 
 quat_plot = win.addPlot(title="Rotation Quaternion vs Time")
 quat_plot.addLegend()
-quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="1")
-quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
-quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
-quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
+q1 = quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="1")
+q2 = quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
+q3 = quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
+q4 = quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
 
 win.nextRow()
 
 air_density_plot = win.addPlot(title="Air density [kg/m^3] vs Time")
-air_density_plot.plot(sim_data[0], sim_data[24],pen=(20,5,130),name="Air Density")
+rho = air_density_plot.plot(sim_data[0], sim_data[24],pen=(20,5,130),name="Air Density")
 
 air_pressure = win.addPlot(title="Air Pressusre [Pa] vs Time")
-air_pressure.plot(sim_data[0], sim_data[25],pen=(120,5,20),name="Air Pressure")
+pressure = air_pressure.plot(sim_data[0], sim_data[25],pen=(120,5,20),name="Air Pressure")
 
 reynolds_plot = win.addPlot(title="Reynolds Number vs Time")
-reynolds_plot.plot(sim_data[0], sim_data[30],pen=(240,240,255),name="Reynolds Number")
+re = reynolds_plot.plot(sim_data[0], sim_data[30],pen=(240,240,255),name="Reynolds Number")
 
-print("code took ", time.perf_counter()-code_start_time)
-print("sim took ", sim_end_time-sim_start_time)
+def update():
+    global long_lat_plot, altitude_plot, path_plot, velocity_plot, \
+        body_rate_plot, euler_plot, local_gravity, body_forces, \
+        body_moment, airspeed, alpha_beta, quat_plot, air_density_plot, \
+        air_pressure, reynolds_plot, sim_data, \
+        lat, lon, alt, path, vn, ve, vd, p, q, r, roll, pitch, yaw, gravity,\
+        fx, fy, fz, mx, my, mz, speed, alpha, beta, q1, q2, q3, q4, rho, pressure,\
+        re
+    
+    sim_data = sim_object.update_real_time()
 
-print(sim_data[0].size)
-print(sim_data[10][-1]*3.281)
-print(sim_data[9][-1]* 57.296)
+    lat.setData(sim_data[0], sim_data[8]*180/math.pi)
+    lon.setData(sim_data[0], sim_data[9]*180/math.pi)
+    alt.setData(sim_data[0], sim_data[10]*3.281)
+    path.setData(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi)
+
+    vn.setData(sim_data[0], sim_data[11]*3.281)
+    ve.setData(sim_data[0], sim_data[12]*3.281)
+    vd.setData(sim_data[0], sim_data[13]*3.281)
+
+    p.setData(sim_data[0], sim_data[5]*180/math.pi)
+    q.setData(sim_data[0], sim_data[6]*180/math.pi)
+    r.setData(sim_data[0], sim_data[7]*180/math.pi)
+
+    #unoptimized af gotta fix
+    rollpitchyaw=quat.quat_euler_helper(sim_data[1], sim_data[2], sim_data[3],sim_data[4],sim_data[0].size)
+    roll.setData(sim_data[0], rollpitchyaw[:,0] *180/math.pi)
+    pitch.setData(sim_data[0], rollpitchyaw[:,1] *180/math.pi)
+    yaw.setData(sim_data[0], rollpitchyaw[:,2] *180/math.pi)
+
+    gravity.setData(sim_data[0], sim_data[20] *3.2808)
+
+    fx.setData(sim_data[0], sim_data[14] / 4.448)
+    fy.setData(sim_data[0], sim_data[15] / 4.448)
+    fz.setData(sim_data[0], sim_data[16] / 4.448)
+
+    mx.setData(sim_data[0], sim_data[17] / 1.356)
+    my.setData(sim_data[0], sim_data[18] / 1.356)
+    mz.setData(sim_data[0], sim_data[19] / 1.356)
+
+    speed.setData(sim_data[0], sim_data[27]*1.944)
+    alpha.setData(sim_data[0], sim_data[28]*180/math.pi)
+    beta.setData(sim_data[0], sim_data[29]*180/math.pi)
+
+    q1.setData(sim_data[0], sim_data[1])
+    q2.setData(sim_data[0], sim_data[2])
+    q3.setData(sim_data[0], sim_data[3])
+    q4.setData(sim_data[0], sim_data[4])
+
+    rho.setData(sim_data[0], sim_data[24])
+    pressure.setData(sim_data[0], sim_data[25])
+    re.setData(sim_data[0], sim_data[30])
+
+if real_time:
+    timer = QtCore.QTimer()
+    timer.timeout.connect(update)
+    timer.start(50)
+else:
+    print("code took ", time.perf_counter()-code_start_time)
+    print("sim took ", sim_end_time-sim_start_time)
+
+    print(sim_data[0].size)
+    print(sim_data[10][-1]*3.281)
+    print(sim_data[9][-1]* 57.296)
 
 #plt.show()
 pg.exec()
