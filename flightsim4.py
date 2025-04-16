@@ -263,11 +263,18 @@ class Simulator(object):
             self.paused = False
             self.start_time = time.time()
 
+    def pause_or_unpause_sim(self):
+        """Flips state of sim"""
+        if self.paused:
+            self.unpause_sim()
+        else:
+            self.pause_sim()
 
     def run_sim(self):
         """runs the sim until t_span"""
         while self.time < self.t_span[1]:
             self.advance_timestep()
+        self.time_at_last_pause = self.t_span[1]
 
     def return_results(self):
         """logger"""
@@ -282,7 +289,7 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
-real_time = True
+real_time = False
 t_span = np.array([0.0, 30.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
@@ -293,7 +300,7 @@ print("Sim started...")
 app = QtWidgets.QApplication([])
 main_window = QtWidgets.QMainWindow()
 main_window.setWindowTitle(modelparam['title'])
-main_window.resize(1600, 1000)
+main_window.resize(1600, 900)
 
 pg.setConfigOptions(antialias=True)
 
@@ -309,21 +316,16 @@ main_layout.addWidget(plot_widget)
 
 # Create control panel with Pause/Unpause buttons
 button_layout = QtWidgets.QHBoxLayout()
-pause_button = QtWidgets.QPushButton("Pause")
-unpause_button = QtWidgets.QPushButton("Unpause")
+pause_button = QtWidgets.QPushButton("Pause/Play")
+#unpause_button = QtWidgets.QPushButton("Unpause")
 button_layout.addWidget(pause_button)
-button_layout.addWidget(unpause_button)
+#button_layout.addWidget(unpause_button)
 main_layout.addLayout(button_layout)
 
 # Connect buttons to simulation control
-pause_button.clicked.connect(sim_object.pause_sim)
-unpause_button.clicked.connect(sim_object.unpause_sim)
+pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
+#unpause_button.clicked.connect(sim_object.unpause_sim)
 
-#app = pg.mkQApp(modelparam['title'])
-#win = pg.GraphicsLayoutWidget(show=True, title=modelparam['title'])
-#win.resize(1500,900)
-#win.setWindowTitle(modelparam['title'])
-#pg.setConfigOptions(antialias=True)
 
 
 if real_time is False:
@@ -474,11 +476,11 @@ def update():
     pressure.setData(sim_data[0], sim_data[25])
     re.setData(sim_data[0], sim_data[30])
 
-if real_time:
-    timer = QtCore.QTimer()
-    timer.timeout.connect(update)
-    timer.start(50)
-else:
+
+timer = QtCore.QTimer()
+timer.timeout.connect(update)
+timer.start(50)
+if not real_time:
     print("code took ", time.perf_counter()-code_start_time)
     print("sim took ", sim_end_time-sim_start_time)
 
