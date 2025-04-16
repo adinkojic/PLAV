@@ -1,53 +1,30 @@
-"""test file"""
+from PyQt6 import QtWidgets  # Should work with PyQt5 / PySide2 / PySide6 as well
+import pyqtgraph as pg
 
-import numpy as np
-from step_logging import SimDataLogger
+# Always start by initializing Qt (only once per application)
+app = QtWidgets.QApplication([])
 
-bruh = SimDataLogger()
+# Define a top-level widget to hold everything
+w = QtWidgets.QWidget()
+w.setWindowTitle('PyQtGraph example')
 
-alt_lon_lat = np.array([3.0, 3.1, 3.2])
-ned_velocity = np.array([4.0, 4.1, 4.2])
-body_rate = np.array([2.0, 2.1, 2.3])
-quat = np.array([1.0, 1.1, 1.2, 1.3])
+# Create some widgets to be placed inside
+btn = QtWidgets.QPushButton('press me')
+text = QtWidgets.QLineEdit('enter text')
+listWidget = QtWidgets.QListWidget()
+plot = pg.PlotWidget()
 
-aero_body_force = np.array([5.0, 5.1, 5.2])
-aero_body_moment = np.array([6.0, 6.1, 6.2])
+# Create a grid layout to manage the widgets size and position
+layout = QtWidgets.QGridLayout()
+w.setLayout(layout)
 
-local_gravity = 7.0
-speed_of_sound = 8.0
+# Add widgets to the layout in their proper positions
+layout.addWidget(btn, 0, 0)  # button goes in upper-left
+layout.addWidget(text, 1, 0)  # text edit goes in middle-left
+layout.addWidget(listWidget, 2, 0)  # list widget goes in bottom-left
+layout.addWidget(plot, 0, 1, 3, 1)  # plot goes on right side, spanning 3 rows
+# Display the widget as a new window
+w.show()
 
-mach = 9.0
-dynamic_pressure = 10.0
-true_airspeed = 11.0
-
-air_density = 12.0
-ambient_pressure = 13.0
-ambient_temperature = 14.0
-
-state = np.concat((quat, body_rate, alt_lon_lat, ned_velocity))
-
-bruh.load_line(state, aero_body_force, aero_body_moment, local_gravity, speed_of_sound, \
-        mach, dynamic_pressure, true_airspeed, air_density, ambient_pressure, ambient_temperature)
-
-print(bruh.data)
-
-print(bruh.make_line())
-
-bruh.save_line()
-print(bruh.data)
-bruh.save_line()
-print("size", np.size(bruh.data) // bruh.data_columns)
-print("vals", bruh.valid_data_size)
-print(bruh.tried)
-bruh.save_line()
-print("size", np.size(bruh.data) // bruh.data_columns)
-print("vals", bruh.valid_data_size)
-print(bruh.tried)
-print(bruh.new_data_attempt)
-print(bruh.data)
-
-print(bruh.valid_data_size)
-
-data = bruh.return_data()
-
-print(data)
+# Start the Qt event loop
+app.exec()  # or app.exec_() for PyQt5 / PySide2

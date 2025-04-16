@@ -21,6 +21,9 @@ from step_logging import SimDataLogger
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
 from matplotlib import colormaps
+#from pyqtgraph.Qt import QtWidgets
+from PyQt6 import QtWidgets, QtCore
+
 
 
 @jit
@@ -152,7 +155,7 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
     init_vel = velocity
 
     #first apply bearing stuff
-    init_ori_ned = quat.from_euler(roll*math.pi/180,-elevation*math.pi/180,-bearing*math.pi/180) #roll pitch yaw
+    init_ori_ned = quat.from_euler(roll*math.pi/180,elevation*math.pi/180,bearing*math.pi/180) #roll pitch yaw
 
 
     y0 = np.append(np.append(init_ori_ned, init_omega), np.append(init_pos, init_vel))
@@ -212,6 +215,10 @@ class Simulator(object):
         self.atmosphere = atmosphere
         self.start_time = None
 
+        self.paused = True
+        self.elapsed_time = 0.0
+        self.time_at_last_pause = 0.0
+
         #log the inital state
         x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
         self.sim_log.save_line()
@@ -234,11 +241,27 @@ class Simulator(object):
         if self.start_time is None:
             self.start_time = time.time()
 
-        frame_time = (time.time() - self.start_time) * time_warp
-        while self.time < frame_time:
-            self.advance_timestep()
+        if self.paused:
+            pass
+        else:
+            self.elapsed_time = (time.time() - self.start_time) * time_warp + self.time_at_last_pause
+            while self.time < self.elapsed_time:
+                self.advance_timestep()
 
         return self.return_results()
+    
+    def pause_sim(self):
+        """Pauses the sim, saving time at stop"""
+        if not self.paused:
+            self.paused = True
+            self.time_at_last_pause = self.elapsed_time
+        
+
+    def unpause_sim(self):
+        """Unpauses sim, starts counting time again"""
+        if self.paused:
+            self.paused = False
+            self.start_time = time.time()
 
 
     def run_sim(self):
@@ -254,23 +277,53 @@ class Simulator(object):
         """returns number of timesteps saved"""
         return self.sim_log.return_data_size()
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=-89, roll=0.0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=2, roll=0.0, init_omega=init_rte)
 
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
 real_time = True
-t_span = np.array([0.0, 5.0])
+t_span = np.array([0.0, 30.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
 print("Sim started...")
 
-app = pg.mkQApp(modelparam['title'])
-win = pg.GraphicsLayoutWidget(show=True, title=modelparam['title'])
-win.resize(1500,900)
-win.setWindowTitle(modelparam['title'])
+# Create main Qt application
+app = QtWidgets.QApplication([])
+main_window = QtWidgets.QMainWindow()
+main_window.setWindowTitle(modelparam['title'])
+main_window.resize(1600, 1000)
+
 pg.setConfigOptions(antialias=True)
+
+# Create a central widget and layout
+central_widget = QtWidgets.QWidget()
+main_layout = QtWidgets.QVBoxLayout()
+central_widget.setLayout(main_layout)
+main_window.setCentralWidget(central_widget)
+
+# Create plot area using pyqtgraph GraphicsLayoutWidget
+plot_widget = pg.GraphicsLayoutWidget()
+main_layout.addWidget(plot_widget)
+
+# Create control panel with Pause/Unpause buttons
+button_layout = QtWidgets.QHBoxLayout()
+pause_button = QtWidgets.QPushButton("Pause")
+unpause_button = QtWidgets.QPushButton("Unpause")
+button_layout.addWidget(pause_button)
+button_layout.addWidget(unpause_button)
+main_layout.addLayout(button_layout)
+
+# Connect buttons to simulation control
+pause_button.clicked.connect(sim_object.pause_sim)
+unpause_button.clicked.connect(sim_object.unpause_sim)
+
+#app = pg.mkQApp(modelparam['title'])
+#win = pg.GraphicsLayoutWidget(show=True, title=modelparam['title'])
+#win.resize(1500,900)
+#win.setWindowTitle(modelparam['title'])
+#pg.setConfigOptions(antialias=True)
 
 
 if real_time is False:
@@ -282,90 +335,91 @@ sim_data = sim_object.return_results()
 print(sim_object.return_time_steps())
 print(np.size(sim_data))
 
-long_lat_plot = win.addPlot(title="Long Lat [deg] vs Time")
+long_lat_plot = plot_widget.addPlot(title="Long Lat [deg] vs Time")
 long_lat_plot.addLegend()
 lat = long_lat_plot.plot(sim_data[0], sim_data[8]*180/math.pi, pen=(40,40,240), name="Latitiude")
 lon = long_lat_plot.plot(sim_data[0], sim_data[9]*180/math.pi, pen=(130,20,130), name="Longitude")
 long_lat_plot.addLegend(frame=True, colCount=2)
 
-altitude_plot = win.addPlot(title="Altitude [ft] vs Time")
+altitude_plot = plot_widget.addPlot(title="Altitude [ft] vs Time")
 #altitude_plot.addLegend()
 alt = altitude_plot.plot(sim_data[0], sim_data[10]*3.281,pen=(240,20,20), name="Altitude")
 
 cm = pg.colormap.get('CET-L17')
 cm.reverse()
 pen0 = cm.getPen( span=(0.0,3e-6), width=2 )
-path_plot = win.addPlot(title="Flight Path [long,lat]")
+path_plot = plot_widget.addPlot(title="Flight Path [long,lat]")
 #path_plot.addLegend()
 path = path_plot.plot(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi,pen =pen0, name="Path")
 
-win.nextRow()
+plot_widget.nextRow()
 
-velocity_plot = win.addPlot(title="Velocity [ft/s] vs Time [s]")
+velocity_plot = plot_widget.addPlot(title="Velocity [ft/s] vs Time [s]")
 velocity_plot.addLegend()
 vn = velocity_plot.plot(sim_data[0], sim_data[11]*3.281,pen=(240,20,20), name="Vn")
 ve = velocity_plot.plot(sim_data[0], sim_data[12]*3.281,pen=(20,240,20), name="Ve")
 vd = velocity_plot.plot(sim_data[0], sim_data[13]*3.281,pen=(240,20,240), name="Vd")
 
-body_rate_plot = win.addPlot(title="Body Rate [deg/s] vs Time [s]")
+body_rate_plot = plot_widget.addPlot(title="Body Rate [deg/s] vs Time [s]")
 body_rate_plot.addLegend()
 p = body_rate_plot.plot(sim_data[0], sim_data[5]*180/math.pi,pen=(240,240,20), name="p")
 q = body_rate_plot.plot(sim_data[0], sim_data[6]*180/math.pi,pen=(20,240,240), name="q")
 r = body_rate_plot.plot(sim_data[0], sim_data[7]*180/math.pi,pen=(240,20,240), name="r")
 
 rollpitchyaw=quat.quat_euler_helper(sim_data[1], sim_data[2], sim_data[3],sim_data[4],sim_data[0].size)
-euler_plot = win.addPlot(title="Euler Angles [deg] vs Time")
+euler_plot = plot_widget.addPlot(title="Euler Angles [deg] vs Time")
 euler_plot.addLegend()
 roll = euler_plot.plot(sim_data[0], rollpitchyaw[:,0] *180/math.pi,pen=(240,20,20), name="roll")
 pitch = euler_plot.plot(sim_data[0], rollpitchyaw[:,1] *180/math.pi,pen=(120,240,20), name="pitch")
 yaw = euler_plot.plot(sim_data[0], rollpitchyaw[:,2] *180/math.pi,pen=(120,20,240), name="yaw")
 
-win.nextRow()
+plot_widget.nextRow()
 
 
-local_gravity = win.addPlot(title="Local Gravity [ft/s^2] vs Time")
+local_gravity = plot_widget.addPlot(title="Local Gravity [ft/s^2] vs Time")
 gravity = local_gravity.plot(sim_data[0], sim_data[20] *3.2808,pen=(10,130,20), name="Gravity")
 
-body_forces = win.addPlot(title="Body force [lbf] vs Time")
+body_forces = plot_widget.addPlot(title="Body force [lbf] vs Time")
 body_forces.addLegend()
 fx = body_forces.plot(sim_data[0], sim_data[14] / 4.448, pen=(40, 40, 255), name="X")
 fy = body_forces.plot(sim_data[0], sim_data[15] / 4.448, pen=(40, 255, 40), name="Y")
 fz = body_forces.plot(sim_data[0], sim_data[16] / 4.448, pen=(255, 40, 40), name="Z")
 
-body_moment = win.addPlot(title="Body Moment [ft lbf] vs Time")
+body_moment = plot_widget.addPlot(title="Body Moment [ft lbf] vs Time")
 body_moment.addLegend()
 mx = body_moment.plot(sim_data[0], sim_data[17] / 1.356, pen=(40, 40, 180), name="X")
 my = body_moment.plot(sim_data[0], sim_data[18] / 1.356, pen=(40, 180, 40), name="Y")
 mz = body_moment.plot(sim_data[0], sim_data[19] / 1.356, pen=(180, 40, 40), name="Z")
 
-win.nextRow()
+plot_widget.nextRow()
 
-airspeed = win.addPlot(title="Airspeed [TAS] vs Time")
+airspeed = plot_widget.addPlot(title="Airspeed [TAS] vs Time")
 #airspeed.addLegend()
 speed = airspeed.plot(sim_data[0], sim_data[27]*1.944,pen=(40, 40, 180), name="airspeed")
 
-alpha_beta = win.addPlot(title="Alpha Beta [deg] vs Time")
+alpha_beta = plot_widget.addPlot(title="Alpha Beta [deg] vs Time")
 alpha_beta.addLegend()
 alpha = alpha_beta.plot(sim_data[0], sim_data[28]*180/math.pi,pen=(200, 30, 40), name="Alpha")
 beta = alpha_beta.plot(sim_data[0], sim_data[29]*180/math.pi,pen=(40, 30, 200), name="Beta")
 
-quat_plot = win.addPlot(title="Rotation Quaternion vs Time")
+quat_plot = plot_widget.addPlot(title="Rotation Quaternion vs Time")
 quat_plot.addLegend()
 q1 = quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="1")
 q2 = quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
 q3 = quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
 q4 = quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
 
-win.nextRow()
+plot_widget.nextRow()
 
-air_density_plot = win.addPlot(title="Air density [kg/m^3] vs Time")
+air_density_plot = plot_widget.addPlot(title="Air density [kg/m^3] vs Time")
 rho = air_density_plot.plot(sim_data[0], sim_data[24],pen=(20,5,130),name="Air Density")
 
-air_pressure = win.addPlot(title="Air Pressusre [Pa] vs Time")
+air_pressure = plot_widget.addPlot(title="Air Pressusre [Pa] vs Time")
 pressure = air_pressure.plot(sim_data[0], sim_data[25],pen=(120,5,20),name="Air Pressure")
 
-reynolds_plot = win.addPlot(title="Reynolds Number vs Time")
+reynolds_plot = plot_widget.addPlot(title="Reynolds Number vs Time")
 re = reynolds_plot.plot(sim_data[0], sim_data[30],pen=(240,240,255),name="Reynolds Number")
+
 
 def update():
     global long_lat_plot, altitude_plot, path_plot, velocity_plot, \
@@ -432,5 +486,6 @@ else:
     print(sim_data[10][-1]*3.281)
     print(sim_data[9][-1]* 57.296)
 
-#plt.show()
+
+main_window.show()
 pg.exec()
