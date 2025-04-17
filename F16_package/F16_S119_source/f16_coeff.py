@@ -1,10 +1,14 @@
-"""F16 File from F16_S119"""
+"""F16 File from F16_S119
+it's all lookup tables"""
 import math
 
 import numpy as np
 from numba import float64
 from numba.experimental import jitclass
 from numba import jit
+import quaternion_math as quat
+
+from aircraftconfig import get_dynamic_viscosity, velocity_to_alpha_beta, get_wind_to_body_axis
 
 
 spec = [
@@ -12,6 +16,25 @@ spec = [
     ('rdr', float64),
     ('ail', float64),
     ('el', float64),
+
+    #geometrics
+    ('mass', float64),
+    ('cmac', float64),
+    ('Sref', float64),
+    ('bref', float64),
+    ('inertiamatrix', float64[:,:]),
+
+    #enviromentals
+    ('altitude', float64),
+    ('velocity', float64[:]),
+    ('airspeed', float64),
+    ('alpha', float64),
+    ('beta', float64),
+    ('reynolds', float64),
+    ('omega', float64[:]),
+    ('density', float64),
+    ('temperature', float64),
+    ('mach', float64),
 ]
 
 @jit
@@ -53,17 +76,123 @@ class F16_Lookup(object):
         self.ail  = 0.0
         self.el   = 0.0
 
+
+        self.mass = 637.1595 * 14.594 #kg
+        self.cmac = 11.32 / (39.37/12) #m
+        self.Sref = 300 / (39.37/12) **2 #m^2
+        self.bref = 30.0 / (39.37/12) #m
+
+        self.inertiamatrix = 1.3558179619 * np.array([
+            [9496.0, 0,982.0 ],
+            [0, 55814.0, 0],
+            [982.0, 0, 63100.0]
+        ]) #kg m^2
+
+        self.altitude = 0.0
+        self.velocity = np.zeros(3)
+        self.omega = np.zeros(3)
+        self.airspeed = 0
+        self.alpha = 0
+        self.beta = 0
+        self.reynolds = 0
+        self.density = 0
+        self.temperature = 0
+        self.mach = 0
+
+    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
+        """Update altitude and velocity it thinks it's at
+        Call this before every get_forces()"""
+        self.altitude = altitude
+        self.velocity = velocity
+        self.omega = omega
+
+        self.density = density
+        self.temperature = temperature
+
+
+        self.airspeed, self.alpha, self.beta = velocity_to_alpha_beta(velocity)
+
+        dynamic_viscosity = get_dynamic_viscosity(temperature)
+        self.reynolds = self.get_Re(density, dynamic_viscosity)
+
+        self.mach = self.airspeed/speed_of_sound
+
+    def get_inertia_matrix(self):
+        """Returns inertia matrix as 2d np array"""
+        return np.ascontiguousarray(self.inertiamatrix)
+
+    def get_mass(self):
+        """Returns mass in kg"""
+        return self.mass
+
+    def get_Re(self, density, viscosity):
+        """Gets reynolds number from given conditions"""
+        return self.airspeed * self.cmac * density/viscosity
+    
+    def get_alpha(self):
+        """Returns alpha in rad"""
+        return self.alpha
+    
+    def get_beta(self):
+        """Returns beta in rad"""
+        return self.beta
+    
+    def get_mach(self):
+        """Returns mach [nd]"""
+        return self.mach
+    
+    def get_qbar(self):
+        """Returns dyanmic pressure [Pa]"""
+        return 0.5 * self.density *self.airspeed**2
+    
+    def get_airspeed(self):
+        """Returns airspeed [m/s]"""
+        return self.airspeed
+    
+    def get_reynolds(self):
+        """Returns Reynolds Number"""
+        return self.reynolds
+
     def input_control(self, elevator, aileron, rudder):
         """Input the control deflections in degrees of the elevator, aileron, and rudder"""
         self.el = elevator
         self.ail = aileron
         self.rdr = rudder
 
-    def get_coeff(self, alpha, beta, el, ail, rdr, airspeed, pqr):
+    def get_forces(self):
+        """Gets forces on aircraft from state and known derivatives"""
+
+        rtd = 180/math.pi
+
+
+        C_X,C_Y,C_Z, C_l, C_m, C_n = self.get_coeff()
+
+        qbar = 0.5 * self.density *self.airspeed**2
+
+        #body_lift = C_L * qbar * self.Sref
+        #body_drag = C_D * qbar * self.Sref
+        body_x = C_X * qbar * self.Sref
+        body_y = C_Y * qbar * self.Sref
+        body_z = C_Z * qbar * self.Sref
+        body_pitching_moment = C_m * qbar * self.Sref * self.cmac
+        body_yawing_moment   = C_n * qbar * self.Sref * self.bref
+        body_rolling_moment  = C_l * qbar * self.Sref * self.bref
+
+        #wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
+
+        #body_forces_wind = np.array([-body_drag, body_side, -body_lift])
+        body_forces_body = np.array([body_x, body_y, body_z])
+
+        moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
+
+        return body_forces_body, moments
+
+    def get_coeff(self):
         """Gets the aerodynamic coefficients of the F16
         alpha and beta are in degrees"""
 
-        bspan = 30.0
+
+        bspan=30.0
         cbar=11.32
         dele=self.el/25.0
         dail=self.ail/20.0
@@ -71,7 +200,10 @@ class F16_Lookup(object):
         
         rtd = 180/math.pi
 
-        cxt=self.cx_lookup(alpha,el) # implement table lookup
+        alpha = self.alpha * rtd
+        beta = self.beta * rtd
+
+        cxt=self.cx_lookup(alpha,self.el) # implement table lookup
         cy=-0.02*beta+0.021*dail+0.086*drdr
         czt=self.cz_lookup(alpha)
         cz=czt*(1.-(beta/rtd)^2)-0.19*dele
@@ -80,20 +212,19 @@ class F16_Lookup(object):
         dclda=self.dlda_lookup(alpha,beta)
         dcldr=self.dldr_lookup(alpha,beta)
         cl=clt + dclda*dail + dcldr*drdr
-        cmt=self.cm_lookup(alpha,el)
+        cmt=self.cm_lookup(alpha,self.el)
         cnt=self.cn_lookup(alpha,beta)
         dcnda=self.dnda_lookup(alpha,beta)
-        dcndr=self.dndr_lookup(alpha,beta);
-        cn=cnt + dcnda*dail + dcndr*drdr;
+        dcndr=self.dndr_lookup(alpha,beta)
+        cn=cnt + dcnda*dail + dcndr*drdr
         
         # Add damping derivative contributions
         #  and cg position terms.
 
-        p = pqr[0]
-        q = pqr[1]
-        r = pqr[2]
-        
-        tvt=2*airspeed
+        p = self.omega[0]
+        q = self.omega[1]
+        r = self.omega[2]
+        tvt=2*self.airspeed
         b2v=bspan/tvt
         cq2v=cbar*q/tvt
 
