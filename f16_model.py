@@ -129,7 +129,11 @@ class F16_aircraft(object): #TODO: fix possible beta issue
 
         aero_pos_ft = (35 - CG_PCT_MAC)*CBAR/100
 
-        return np.array([aero_pos_ft/ (39.37/12), 0, 0])
+        return np.array([-aero_pos_ft/ (39.37/12), 0, 0])
+    
+    def get_xcp(self):
+        """returns x_cp with respect to CM"""
+        return self.cp_wrt_cm
 
     def get_inertia_matrix(self):
         """Returns inertia matrix as 2d np array"""
@@ -199,12 +203,6 @@ class F16_aircraft(object): #TODO: fix possible beta issue
 
         moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
 
-        #C_l/m/n don't include the offset form the cm
-        #cp_wrt_cm = self.get_aero_center_wrt_cm()
-
-        #why the fuck does this line lag so fucking hard
-        #moments = moments + np.cross(self.cp_wrt_cm,body_forces_body)
-        moments[1] = moments[1] + 0.3450336*body_forces_body[2]
 
         return body_forces_body, moments
 

@@ -85,6 +85,14 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
 
     body_forces_body, moments = aircraft_config.get_forces()
+    #torque from forces
+    x_cp = aircraft_config.get_xcp()
+    moments_with_torque = np.array([
+        moments[0] - x_cp[2]*body_forces_body[1] + x_cp[1]*body_forces_body[2],
+        moments[1] + x_cp[2]*body_forces_body[0] - x_cp[0]*body_forces_body[2],
+        moments[2] - x_cp[1]*body_forces_body[0] + x_cp[0]*body_forces_body[1],
+    ])
+
     forces_ned = quat.rotateFrameQ(q, body_forces_body)
 
     ## figure out forces here
@@ -102,7 +110,7 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     q4dot = 0.5*( omega[2]*q[0] +omega[1]*q[1] -omega[0]*q[2])
 
     #(11.27) in Engineeering Dyanmics (Kasdin and Paley)
-    omega_dot = np.linalg.solve(inertia_tensor, moments - np.cross(np.eye(3), omega) @ inertia_tensor @ omega)
+    omega_dot = np.linalg.solve(inertia_tensor, moments_with_torque - np.cross(np.eye(3), omega) @ inertia_tensor @ omega)
 
     lat_dot = vn/(R_phi+altitude)
     long_dot = ve/((R_lamb+altitude)*np.cos(lat))
@@ -166,7 +174,7 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case11steadyF16.json', 'r') as file:
+with open('aircraftConfigs/openvspgfequivalentMod.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -192,6 +200,7 @@ if use_file_init_conditions:
     inital_alt    = modelparam['init_alt']
     init_velocity = modelparam['init_vel']
     init_rte      = modelparam['init_rot']
+    init_ori   = np.array(modelparam['init_ori'])
 
     init_x = modelparam['init_lat']
     init_y = modelparam['init_lon']
@@ -206,6 +215,7 @@ else:
     #init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
     init_velocity = [0.0, 0.0, 0.0]
     init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
+    init_ori = np.array([0.0, 0.0, 0.0])
 
 
 class Simulator(object):
@@ -289,13 +299,13 @@ class Simulator(object):
         """returns number of timesteps saved"""
         return self.sim_log.return_data_size()
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=45, elevation=-1.5, roll=0.0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], elevation=init_ori[1], roll=init_ori[0], init_omega=init_rte)
 
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
 real_time = False
-t_span = np.array([0.0, 180.0])
+t_span = np.array([0.0, 60.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -489,9 +499,9 @@ if not real_time:
     print("code took ", time.perf_counter()-code_start_time)
     print("sim took ", sim_end_time-sim_start_time)
 
-    print(sim_data[0].size)
-    print(sim_data[10][-1]*3.281)
-    print(sim_data[9][-1]* 57.296)
+    print('data size: ', sim_data[0].size)
+    print('final alt', sim_data[10][-1]*3.281)
+    print('final lon', sim_data[9][-1]* 57.296)
 
 
 main_window.show()

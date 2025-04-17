@@ -13,6 +13,7 @@
     "init_rot": [0, 0.0, 0.0],
     "init_lat": 0.6286530522,
     "init_lon": -1.3207682151,
+    "init_ori": [0.0, 0.0, 45.0],
 
     "wind_alt_profile": [0, 0],
     "wind_speed_profile": [0, 0],

@@ -15,11 +15,8 @@ spec = [
     ('cmac', float64),
     ('Sref', float64),
     ('bref', float64),
-    ('alpha_max', float64),
-    ('alpha_min', float64), 
-    ('beta_max', float64),
-    ('beta_min', float64),
     ('inertiamatrix', float64[:,:]),
+    ('cp_wrt_cm', float64[:]),
 
     #enviromentals
     ('altitude', float64),
@@ -81,14 +78,11 @@ def init_aircraft(config_file):
     C_nr = config_file['C_nr']
 
     C_mbb = config_file['C_mbb']
-    alpha_max = config_file['alpha_max']
-    alpha_min = config_file['alpha_min']
-    beta_max = config_file['beta_max']
-    beta_min = config_file['beta_min']
+    
+    cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
 
-
-    aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, alpha_max, alpha_min, beta_max, beta_min)
+    aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db)
 
     return aircraft_model
 
@@ -128,13 +122,14 @@ class AircraftConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
     information and even giving forces"""
 
-    def __init__(self,mass, inertia, cmac, Sref, bref, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, alpha_max = 0.174533, alpha_min =-0.174533, beta_max= 0.174533, beta_min=-0.174533 ):
+    def __init__(self,mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db ):
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
         self.cmac = cmac
         self.Sref = Sref
         self.bref = bref
+        self.cp_wrt_cm = cp_wrt_cm
 
         self.C_L0 = C_L0
         self.C_La = C_La
@@ -153,10 +148,6 @@ class AircraftConfig(object):
         self.C_np  = C_np
         self.C_nr  = C_nr
 
-        self.alpha_max = alpha_max
-        self.alpha_min = alpha_min
-        self.beta_max  = beta_max
-        self.beta_min  = beta_min
 
         self.altitude = 0.0
         self.velocity = np.zeros(3)
@@ -187,6 +178,9 @@ class AircraftConfig(object):
 
         self.mach = self.airspeed/speed_of_sound
 
+    def get_xcp(self):
+        """returns x_cp with respect to CM"""
+        return self.cp_wrt_cm
 
     def get_inertia_matrix(self):
         """Returns inertia matrix as 2d np array"""
@@ -259,10 +253,10 @@ class AircraftConfig(object):
 
         body_lift = C_L * qbar * self.Sref
         body_drag = C_D * qbar * self.Sref
-        body_side = C_Y * qbar * self.Sref
+        body_side = 0.0#C_Y * qbar * self.Sref
         body_pitching_moment = C_m * qbar * self.Sref * self.cmac
-        body_yawing_moment   = C_n * qbar * self.Sref * self.bref
-        body_rolling_moment  = C_l * qbar * self.Sref * self.bref
+        body_yawing_moment   = 0.0#C_n * qbar * self.Sref * self.bref
+        body_rolling_moment  = 0.0#C_l * qbar * self.Sref * self.bref
 
         wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
 
