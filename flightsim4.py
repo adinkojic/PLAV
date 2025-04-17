@@ -175,7 +175,7 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/openvspgfequivalentMod.json', 'r') as file:
+with open('aircraftConfigs/openvspgfequivalent.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -306,7 +306,7 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], 
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
 real_time = False
-t_span = np.array([0.0, 1.0])
+t_span = np.array([0.0, 60.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 

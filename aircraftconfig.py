@@ -181,6 +181,56 @@ class AircraftConfig(object):
 
         self.mach = self.airspeed/speed_of_sound
 
+    def get_coeff(self):
+        """Gets aircraft aero coeff from given conditions"""
+
+        p, q, r = self.omega[0], self.omega[1], self.omega[2]
+
+        #non-dimensional airspeed
+        if abs(self.airspeed) < 0.1: #avoids div/0
+            p_hat = 0
+            q_hat = 0
+            r_hat = 0
+        else:
+            p_hat = self.bref * p/2/self.airspeed
+            q_hat = self.cmac * q/2/self.airspeed
+            r_hat = self.bref * r/2/self.airspeed
+
+        C_L = self.C_L0 + self.C_La * self.alpha #this needs to be limited but it isnt working right
+        C_D = self.C_D0 + self.epsilon * C_L**2 + self.C_Db * abs(self.beta)
+        C_m = self.C_m0 + self.C_mq * q_hat + self.C_mbb * self.beta ** 2
+        # + self.C_ma * self.alpha this is covered by crossing forces with x_cp
+
+        C_Y = self.C_Yb * self.beta #side force
+        C_l = self.C_l + self.C_lr * r_hat + self.C_lp * p_hat #roll
+        C_n = self.C_np * p_hat + self.C_nr * r_hat -self.C_nb * self.beta#yaw force
+
+        return C_L,C_D,C_m, C_Y, C_l, C_n
+
+    def get_forces(self):
+        """Gets forces on aircraft from state and known derivatives"""
+
+
+        C_L,C_D,C_m, C_Y, C_l, C_n = self.get_coeff()
+
+        qbar = 0.5 * self.density *self.airspeed**2
+
+        body_lift = C_L * qbar * self.Sref
+        body_drag = C_D * qbar * self.Sref
+        body_side = C_Y * qbar * self.Sref
+        body_pitching_moment = C_m * qbar * self.Sref * self.cmac
+        body_yawing_moment   = C_n * qbar * self.Sref * self.bref
+        body_rolling_moment  = C_l * qbar * self.Sref * self.bref
+
+        wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
+
+        body_forces_wind = np.array([-body_drag, body_side, -body_lift])
+        body_forces_body = quat.rotateVectorQ(wind_to_body, body_forces_wind)
+
+        moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
+
+        return body_forces_body, moments
+
     def get_xcp(self):
         """returns x_cp with respect to CM"""
         return self.cp_wrt_cm
@@ -220,52 +270,3 @@ class AircraftConfig(object):
     def get_reynolds(self):
         """Returns Reynolds Number"""
         return self.reynolds
-
-    def get_coeff(self):
-        """Gets aircraft aero coeff from given conditions"""
-
-        p, q, r = self.omega[0], self.omega[1], self.omega[2]
-
-        #non-dimensional airspeed
-        if abs(self.airspeed) < 0.1: #avoids div/0
-            p_hat = 0
-            q_hat = 0
-            r_hat = 0
-        else:
-            p_hat = self.bref * p/2/self.airspeed
-            q_hat = self.cmac * q/2/self.airspeed
-            r_hat = self.bref * r/2/self.airspeed
-
-        C_L = self.C_L0 + self.C_La * self.alpha #this needs to be limited but it isnt working right
-        C_D = self.C_D0 + self.epsilon * C_L**2 + self.C_Db * abs(self.beta)
-        C_m = self.C_m0 + self.C_ma * self.alpha + self.C_mq * q_hat + self.C_mbb * self.beta ** 2
-
-        C_Y = self.C_Yb * self.beta #side force
-        C_l = self.C_l + self.C_lr * r_hat + self.C_lp * p_hat #roll
-        C_n = self.C_np * p_hat + self.C_nr * r_hat -self.C_nb * self.beta#yaw force
-
-        return C_L,C_D,C_m, C_Y, C_l, C_n
-
-    def get_forces(self):
-        """Gets forces on aircraft from state and known derivatives"""
-
-
-        C_L,C_D,C_m, C_Y, C_l, C_n = self.get_coeff()
-
-        qbar = 0.5 * self.density *self.airspeed**2
-
-        body_lift = C_L * qbar * self.Sref
-        body_drag = C_D * qbar * self.Sref
-        body_side = C_Y * qbar * self.Sref
-        body_pitching_moment = C_m * qbar * self.Sref * self.cmac
-        body_yawing_moment   = C_n * qbar * self.Sref * self.bref
-        body_rolling_moment  = C_l * qbar * self.Sref * self.bref
-
-        wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
-
-        body_forces_wind = np.array([-body_drag, body_side, -body_lift])
-        body_forces_body = quat.rotateVectorQ(wind_to_body, body_forces_wind)
-
-        moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
-
-        return body_forces_body, moments

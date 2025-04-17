@@ -120,63 +120,6 @@ class F16_aircraft(object): #TODO: fix possible beta issue
 
         self.mach = self.airspeed/speed_of_sound
 
-    def get_aero_center_wrt_cm(self):
-        """get the position of the aerodynamic center
-        with respect to center of mass
-        returns meters"""
-        CG_PCT_MAC = 25 #percent
-        CBAR = 11.32
-
-        aero_pos_ft = (35 - CG_PCT_MAC)*CBAR/100
-
-        return np.array([-aero_pos_ft/ (39.37/12), 0, 0])
-    
-    def get_xcp(self):
-        """returns x_cp with respect to CM"""
-        return self.cp_wrt_cm
-
-    def get_inertia_matrix(self):
-        """Returns inertia matrix as 2d np array"""
-        return np.ascontiguousarray(self.inertiamatrix)
-
-    def get_mass(self):
-        """Returns mass in kg"""
-        return self.mass
-
-    def get_Re(self, density, viscosity):
-        """Gets reynolds number from given conditions"""
-        return self.airspeed * self.cmac * density/viscosity
-    
-    def get_alpha(self):
-        """Returns alpha in rad"""
-        return self.alpha
-    
-    def get_beta(self):
-        """Returns beta in rad"""
-        return self.beta
-    
-    def get_mach(self):
-        """Returns mach [nd]"""
-        return self.mach
-    
-    def get_qbar(self):
-        """Returns dyanmic pressure [Pa]"""
-        return 0.5 * self.density *self.airspeed**2
-    
-    def get_airspeed(self):
-        """Returns airspeed [m/s]"""
-        return self.airspeed
-    
-    def get_reynolds(self):
-        """Returns Reynolds Number"""
-        return self.reynolds
-
-    def input_control(self, elevator, aileron, rudder):
-        """Input the control deflections in degrees of the elevator, aileron, and rudder"""
-        self.el = elevator
-        self.ail = aileron
-        self.rdr = rudder
-
     def get_forces(self):
         """Gets forces on aircraft from state and known derivatives"""
 
@@ -256,6 +199,64 @@ class F16_aircraft(object): #TODO: fix possible beta issue
         cn=cn + b2v*(cnp_lookup(alpha)*p + cnr_lookup(alpha)*r)
 
         return cx, cy, cz, cl, cm, cn
+
+    def get_aero_center_wrt_cm(self):
+        """get the position of the aerodynamic center
+        with respect to center of mass
+        returns meters"""
+        CG_PCT_MAC = 25 #percent
+        CBAR = 11.32
+
+        aero_pos_ft = (35 - CG_PCT_MAC)*CBAR/100
+
+        return np.array([-aero_pos_ft/ (39.37/12), 0, 0])
+    
+    def get_xcp(self):
+        """returns x_cp with respect to CM"""
+        return self.cp_wrt_cm
+
+    def get_inertia_matrix(self):
+        """Returns inertia matrix as 2d np array"""
+        return np.ascontiguousarray(self.inertiamatrix)
+
+    def get_mass(self):
+        """Returns mass in kg"""
+        return self.mass
+
+    def get_Re(self, density, viscosity):
+        """Gets reynolds number from given conditions"""
+        return self.airspeed * self.cmac * density/viscosity
+    
+    def get_alpha(self):
+        """Returns alpha in rad"""
+        return self.alpha
+    
+    def get_beta(self):
+        """Returns beta in rad"""
+        return self.beta
+    
+    def get_mach(self):
+        """Returns mach [nd]"""
+        return self.mach
+    
+    def get_qbar(self):
+        """Returns dyanmic pressure [Pa]"""
+        return 0.5 * self.density *self.airspeed**2
+    
+    def get_airspeed(self):
+        """Returns airspeed [m/s]"""
+        return self.airspeed
+    
+    def get_reynolds(self):
+        """Returns Reynolds Number"""
+        return self.reynolds
+
+    def input_control(self, elevator, aileron, rudder):
+        """Input the control deflections in degrees of the elevator, aileron, and rudder"""
+        self.el = elevator
+        self.ail = aileron
+        self.rdr = rudder
+
 
 @jit(float64[:]())
 def get_alpha_table():
