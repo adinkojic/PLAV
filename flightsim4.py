@@ -165,7 +165,8 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
     init_vel = velocity
 
     #first apply bearing stuff
-    init_ori_ned = quat.from_euler(roll*math.pi/180,elevation*math.pi/180,bearing*math.pi/180) #roll pitch yaw
+    #roll pitch yaw
+    init_ori_ned = quat.from_euler(roll*math.pi/180,elevation*math.pi/180,bearing*math.pi/180)
 
 
     y0 = np.append(np.append(init_ori_ned, init_omega), np.append(init_pos, init_vel))
@@ -200,7 +201,7 @@ if use_file_init_conditions:
     inital_alt    = modelparam['init_alt']
     init_velocity = modelparam['init_vel']
     init_rte      = modelparam['init_rot']
-    init_ori   = np.array(modelparam['init_ori'])
+    init_ori   = np.array(modelparam['init_ori'], 'd')
 
     init_x = modelparam['init_lat']
     init_y = modelparam['init_lon']
@@ -305,7 +306,7 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], 
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
 real_time = False
-t_span = np.array([0.0, 60.0])
+t_span = np.array([0.0, 1.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 

@@ -3,9 +3,9 @@ https://www.ngdc.noaa.gov/stp/space-weather/online-publications/miscellaneous/us
 """
 
 import numpy as np
-from numba import jit
+from numba import jit, float64
 
-@jit
+@jit(float64[:](float64))
 def get_pressure_density_temp(altitude):
     """Gets pressure from altitude, page 11 of document
 
@@ -47,7 +47,7 @@ def get_pressure_density_temp(altitude):
 
     return np.array([pressure, density, temperature])
 
-@jit
+@jit(float64(float64))
 def get_dynamic_viscosity(temperature):
     """Equation 51 of USSA1976"""
     beta = 1.458e-6

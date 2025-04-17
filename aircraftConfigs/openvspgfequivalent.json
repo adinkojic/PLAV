@@ -9,11 +9,11 @@
     "useF16":false,
 
     "init_alt": 120,
-    "init_vel": [20, 0, 0.1],
-    "init_rot": [0, 0.0, 0.0],
+    "init_vel": [20.0, 0.0, 0.0],
+    "init_rot": [0.0, 0.0, 0.0],
     "init_lat": 0.0,
     "init_lon": 0.0,
-    "init_ori": [0.0, -2.0, 0.0],
+    "init_ori": [0.0, 1.0, 0.0],
 
     "wind_alt_profile": [0, 0],
     "wind_speed_profile": [0, 0],
