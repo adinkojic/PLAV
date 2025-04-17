@@ -11,7 +11,7 @@ import time
 import math
 import numpy as np
 from scipy.integrate import solve_ivp
-from numba import jit
+from numba import jit, float64
 from PyQt6 import QtWidgets, QtCore
 from pyqtgraph.Qt import QtCore
 from matplotlib import colormaps
@@ -28,7 +28,7 @@ import pyqtgraph as pg
 
 
 
-@jit
+@jit(float64(float64,float64))
 def get_gravity(phi, h):
     """gets gravity accel from lat and altitude
     phi: latitude
