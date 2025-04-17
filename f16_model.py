@@ -23,6 +23,7 @@ spec = [
     ('Sref', float64),
     ('bref', float64),
     ('inertiamatrix', float64[:,:]),
+    ('cp_wrt_cm', float64[:]),
 
     #enviromentals
     ('altitude', float64),
@@ -69,12 +70,12 @@ def bilinear_interp(x, y, x_grid, y_grid, z_grid):
     return numer/denom
 
 @jitclass(spec)
-class F16_aircraft(object):
+class F16_aircraft(object): #TODO: fix possible beta issue
     """Object used to lookup coefficients for F16 jet"""
     def __init__(self):
         self.rdr  = 0.0
         self.ail  = 0.0
-        self.el   = -0.68
+        self.el   = -3.25
 
 
         self.mass = 637.1595 * 14.594 #kg
@@ -99,6 +100,8 @@ class F16_aircraft(object):
         self.temperature = 0
         self.mach = 0
 
+        self.cp_wrt_cm = self.get_aero_center_wrt_cm()
+
     def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
         """Update altitude and velocity it thinks it's at
         Call this before every get_forces()"""
@@ -116,6 +119,17 @@ class F16_aircraft(object):
         self.reynolds = self.get_Re(density, dynamic_viscosity)
 
         self.mach = self.airspeed/speed_of_sound
+
+    def get_aero_center_wrt_cm(self):
+        """get the position of the aerodynamic center
+        with respect to center of mass
+        returns meters"""
+        CG_PCT_MAC = 25 #percent
+        CBAR = 11.32
+
+        aero_pos_ft = (35 - CG_PCT_MAC)*CBAR/100
+
+        return np.array([aero_pos_ft/ (39.37/12), 0, 0])
 
     def get_inertia_matrix(self):
         """Returns inertia matrix as 2d np array"""
@@ -185,6 +199,13 @@ class F16_aircraft(object):
 
         moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
 
+        #C_l/m/n don't include the offset form the cm
+        #cp_wrt_cm = self.get_aero_center_wrt_cm()
+
+        #why the fuck does this line lag so fucking hard
+        #moments = moments + np.cross(self.cp_wrt_cm,body_forces_body)
+        moments[1] = moments[1] + 0.3450336*body_forces_body[2]
+
         return body_forces_body, moments
 
     def get_coeff(self):
@@ -200,7 +221,7 @@ class F16_aircraft(object):
         
         rtd = 180/math.pi
 
-        alpha = self.alpha * rtd
+        alpha = self.alpha * rtd #object alpha is rad, this one is degrees
         beta = self.beta * rtd
 
         cxt=self.cx_lookup(alpha,self.el) # implement table lookup

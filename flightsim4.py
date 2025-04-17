@@ -289,13 +289,13 @@ class Simulator(object):
         """returns number of timesteps saved"""
         return self.sim_log.return_data_size()
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=45, elevation=2.64, roll=0.0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=45, elevation=-1.5, roll=0.0, init_omega=init_rte)
 
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
 real_time = False
-t_span = np.array([0.0, 60.0])
+t_span = np.array([0.0, 180.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
