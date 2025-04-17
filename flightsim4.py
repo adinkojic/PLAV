@@ -11,18 +11,20 @@ import time
 import math
 import numpy as np
 from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
 from numba import jit
+from PyQt6 import QtWidgets, QtCore
+from pyqtgraph.Qt import QtCore
+from matplotlib import colormaps
+
 import quaternion_math as quat
 from aircraftconfig import AircraftConfig, init_aircraft
+from f16_model import F16_aircraft
 #import ussa1976
 from atmosphere import Atmosphere
 from step_logging import SimDataLogger
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore
-from matplotlib import colormaps
+
 #from pyqtgraph.Qt import QtWidgets
-from PyQt6 import QtWidgets, QtCore
 
 
 
@@ -164,11 +166,14 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/openvspgfequivalentMod.json', 'r') as file:
+with open('aircraftConfigs/case11steadyF16.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
-aircraft = init_aircraft(modelparam)
+if modelparam['useF16']:
+    aircraft = F16_aircraft()
+else:
+    aircraft = init_aircraft(modelparam)
 
 use_file_atmosphere = True
 if use_file_atmosphere:
@@ -284,13 +289,13 @@ class Simulator(object):
         """returns number of timesteps saved"""
         return self.sim_log.return_data_size()
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=0, elevation=2, roll=0.0, init_omega=init_rte)
+y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=45, elevation=2.64, roll=0.0, init_omega=init_rte)
 
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
 real_time = False
-t_span = np.array([0.0, 30.0])
+t_span = np.array([0.0, 60.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 

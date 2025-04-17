@@ -6,6 +6,8 @@
     "angleunits":"radians",
     "massunits": "kilograms",
 
+    "useF16":false,
+
     "init_alt": 9144,
     "init_vel": [0, 0, 0],
     "init_rot": [0.17446000406876, 0.349066, 0.523599],

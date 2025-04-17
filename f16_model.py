@@ -69,12 +69,12 @@ def bilinear_interp(x, y, x_grid, y_grid, z_grid):
     return numer/denom
 
 @jitclass(spec)
-class F16_Lookup(object):
+class F16_aircraft(object):
     """Object used to lookup coefficients for F16 jet"""
     def __init__(self):
         self.rdr  = 0.0
         self.ail  = 0.0
-        self.el   = 0.0
+        self.el   = -0.68
 
 
         self.mass = 637.1595 * 14.594 #kg
@@ -206,7 +206,7 @@ class F16_Lookup(object):
         cxt=self.cx_lookup(alpha,self.el) # implement table lookup
         cy=-0.02*beta+0.021*dail+0.086*drdr
         czt=self.cz_lookup(alpha)
-        cz=czt*(1.-(beta/rtd)^2)-0.19*dele
+        cz=czt*(1.-(beta/rtd)**2)-0.19*dele
 
         clt=self.cl_lookup(alpha,beta)
         dclda=self.dlda_lookup(alpha,beta)
