@@ -79,19 +79,28 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     speed_of_sound = atmosphere.get_speed_of_sound()
 
     #adds wind
-    v_airspeed = quat.rotateVectorQ(q, np.array([vn, ve, vd]) + atmosphere.get_wind_ned())
+    v_airspeed = quat.rotateVectorQ(q, np.array([vn, ve, vd], 'd') + atmosphere.get_wind_ned())
     #solving for acceleration, which is velocity_dot
     aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, air_temperature, speed_of_sound)
 
 
-    body_forces_body, moments = aircraft_config.get_forces()
-    #torque from forces
+    aero_forces_body, aero_moments = aircraft_config.get_forces()
+    thrust = aircraft_config.calculate_thrust()
     x_cp = aircraft_config.get_xcp()
+
+    body_forces_body = np.array([
+        aero_forces_body[0] + thrust,
+        aero_forces_body[1],
+        aero_forces_body[2],
+        ], 'd')
+    #torque from forces
+
     moments_with_torque = np.array([
-        moments[0] - x_cp[2]*body_forces_body[1] + x_cp[1]*body_forces_body[2],
-        moments[1] + x_cp[2]*body_forces_body[0] - x_cp[0]*body_forces_body[2],
-        moments[2] - x_cp[1]*body_forces_body[0] + x_cp[0]*body_forces_body[1],
-    ])
+        aero_moments[0] - x_cp[2]*body_forces_body[1] + x_cp[1]*body_forces_body[2],
+        aero_moments[1] + x_cp[2]*body_forces_body[0] - x_cp[0]*body_forces_body[2],
+        aero_moments[2] - x_cp[1]*body_forces_body[0] + x_cp[0]*body_forces_body[1],
+    ], 'd')
+
 
     forces_ned = quat.rotateFrameQ(q, body_forces_body)
 
@@ -149,8 +158,8 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     reynolds = aircraft_config.get_reynolds()
 
     if log is not None:
-        log.load_line(t, y, body_forces_body, \
-                    moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
+        log.load_line(t, y, aero_forces_body, \
+                    aero_moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, static_pressure, air_temperature, \
                     alpha, beta, reynolds)
 
@@ -175,12 +184,13 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/openvspgfequivalent.json', 'r') as file:
+with open('aircraftConfigs/case12supersonicF16.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
 if modelparam['useF16']:
-    aircraft = F16_aircraft()
+    control_vector = np.array(modelparam['init_control'],'d')
+    aircraft = F16_aircraft(control_vector)
 else:
     aircraft = init_aircraft(modelparam)
 
@@ -205,6 +215,7 @@ if use_file_init_conditions:
 
     init_x = modelparam['init_lat']
     init_y = modelparam['init_lon']
+
 else:
     inital_alt = 9144
     init_x = 0
@@ -306,7 +317,7 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], 
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
 real_time = False
-t_span = np.array([0.0, 60.0])
+t_span = np.array([0.0, 180.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -342,7 +353,8 @@ main_layout.addLayout(button_layout)
 pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
 #unpause_button.clicked.connect(sim_object.unpause_sim)
 
-
+#meters to feet
+mtf = 39.37/12
 
 if real_time is False:
     sim_start_time = time.perf_counter()
@@ -361,7 +373,7 @@ long_lat_plot.addLegend(frame=True, colCount=2)
 
 altitude_plot = plot_widget.addPlot(title="Altitude [ft] vs Time")
 #altitude_plot.addLegend()
-alt = altitude_plot.plot(sim_data[0], sim_data[10]*3.281,pen=(240,20,20), name="Altitude")
+alt = altitude_plot.plot(sim_data[0], sim_data[10]*mtf,pen=(240,20,20), name="Altitude")
 
 cm = pg.colormap.get('CET-L17')
 cm.reverse()
@@ -374,9 +386,9 @@ plot_widget.nextRow()
 
 velocity_plot = plot_widget.addPlot(title="Velocity [ft/s] vs Time [s]")
 velocity_plot.addLegend()
-vn = velocity_plot.plot(sim_data[0], sim_data[11]*3.281,pen=(240,20,20), name="Vn")
-ve = velocity_plot.plot(sim_data[0], sim_data[12]*3.281,pen=(20,240,20), name="Ve")
-vd = velocity_plot.plot(sim_data[0], sim_data[13]*3.281,pen=(240,20,240), name="Vd")
+vn = velocity_plot.plot(sim_data[0], sim_data[11]*mtf,pen=(240,20,20), name="Vn")
+ve = velocity_plot.plot(sim_data[0], sim_data[12]*mtf,pen=(20,240,20), name="Ve")
+vd = velocity_plot.plot(sim_data[0], sim_data[13]*mtf,pen=(240,20,240), name="Vd")
 
 body_rate_plot = plot_widget.addPlot(title="Body Rate [deg/s] vs Time [s]")
 body_rate_plot.addLegend()
@@ -395,7 +407,7 @@ plot_widget.nextRow()
 
 
 local_gravity = plot_widget.addPlot(title="Local Gravity [ft/s^2] vs Time")
-gravity = local_gravity.plot(sim_data[0], sim_data[20] *3.2808,pen=(10,130,20), name="Gravity")
+gravity = local_gravity.plot(sim_data[0], sim_data[20] *mtf,pen=(10,130,20), name="Gravity")
 
 body_forces = plot_widget.addPlot(title="Body force [lbf] vs Time")
 body_forces.addLegend()
@@ -413,7 +425,7 @@ plot_widget.nextRow()
 
 airspeed = plot_widget.addPlot(title="Airspeed [TAS] vs Time")
 #airspeed.addLegend()
-speed = airspeed.plot(sim_data[0], sim_data[27]*1.944,pen=(40, 40, 180), name="airspeed")
+speed = airspeed.plot(sim_data[0], sim_data[27]*1.943844,pen=(40, 40, 180), name="airspeed")
 
 alpha_beta = plot_widget.addPlot(title="Alpha Beta [deg] vs Time")
 alpha_beta.addLegend()
@@ -452,12 +464,12 @@ def update():
 
     lat.setData(sim_data[0], sim_data[8]*180/math.pi)
     lon.setData(sim_data[0], sim_data[9]*180/math.pi)
-    alt.setData(sim_data[0], sim_data[10]*3.281)
+    alt.setData(sim_data[0], sim_data[10]*mtf)
     path.setData(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi)
 
-    vn.setData(sim_data[0], sim_data[11]*3.281)
-    ve.setData(sim_data[0], sim_data[12]*3.281)
-    vd.setData(sim_data[0], sim_data[13]*3.281)
+    vn.setData(sim_data[0], sim_data[11]*mtf)
+    ve.setData(sim_data[0], sim_data[12]*mtf)
+    vd.setData(sim_data[0], sim_data[13]*mtf)
 
     p.setData(sim_data[0], sim_data[5]*180/math.pi)
     q.setData(sim_data[0], sim_data[6]*180/math.pi)
@@ -469,7 +481,7 @@ def update():
     pitch.setData(sim_data[0], rollpitchyaw[:,1] *180/math.pi)
     yaw.setData(sim_data[0], rollpitchyaw[:,2] *180/math.pi)
 
-    gravity.setData(sim_data[0], sim_data[20] *3.2808)
+    gravity.setData(sim_data[0], sim_data[20] *mtf)
 
     fx.setData(sim_data[0], sim_data[14] / 4.448)
     fy.setData(sim_data[0], sim_data[15] / 4.448)
@@ -479,7 +491,7 @@ def update():
     my.setData(sim_data[0], sim_data[18] / 1.356)
     mz.setData(sim_data[0], sim_data[19] / 1.356)
 
-    speed.setData(sim_data[0], sim_data[27]*1.944)
+    speed.setData(sim_data[0], sim_data[27]*1.943844)
     alpha.setData(sim_data[0], sim_data[28]*180/math.pi)
     beta.setData(sim_data[0], sim_data[29]*180/math.pi)
 
@@ -501,8 +513,8 @@ if not real_time:
     print("sim took ", sim_end_time-sim_start_time)
 
     print('data size: ', sim_data[0].size)
-    print('final alt', sim_data[10][-1]*3.281)
-    print('final lon', sim_data[9][-1]* 57.296)
+    print('final alt', sim_data[10][-1]*mtf)
+    print('final lon', sim_data[9][-1]* 180/math.pi)
 
 
 main_window.show()

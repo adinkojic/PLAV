@@ -1,5 +1,6 @@
 """F16 File from F16_S119
-it's all lookup tables"""
+it's all lookup tables
+implements aero, inertia, and prop"""
 import math
 
 import numpy as np
@@ -16,6 +17,7 @@ spec = [
     ('rdr', float64),
     ('ail', float64),
     ('el', float64),
+    ('power', float64),
 
     #geometrics
     ('mass', float64),
@@ -72,10 +74,11 @@ def bilinear_interp(x, y, x_grid, y_grid, z_grid):
 @jitclass(spec)
 class F16_aircraft(object): #TODO: fix possible beta issue
     """Object used to lookup coefficients for F16 jet"""
-    def __init__(self):
-        self.rdr  = 0.0
-        self.ail  = 0.0
-        self.el   = -3.25
+    def __init__(self, init_control_vector):
+        self.rdr   = init_control_vector[0]
+        self.ail   = init_control_vector[1]
+        self.el    = init_control_vector[2]
+        self.power = init_control_vector[3]
 
 
         self.mass = 637.1595 * 14.594 #kg
@@ -142,6 +145,7 @@ class F16_aircraft(object): #TODO: fix possible beta issue
         #wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
 
         #body_forces_wind = np.array([-body_drag, body_side, -body_lift])
+
         body_forces_body = np.array([body_x, body_y, body_z])
 
         moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
@@ -199,6 +203,28 @@ class F16_aircraft(object): #TODO: fix possible beta issue
         cn=cn + b2v*(cnp_lookup(alpha)*p + cnr_lookup(alpha)*r)
 
         return cx, cy, cz, cl, cm, cn
+    
+    def calculate_thrust(self):
+        """Calculates the thrust
+        without afterburner FEX = T_IDLE + PWR*(T_MIL - T_IDLE)/MIL_PWR
+        with FEX = T_MIL + (PWR - MIL_PWR)*(T_MAX -T_MIL)/(100.0 - MIL_PWR)
+        afterburner kicks on after 50%"""
+        mil_power = 0.50
+
+        thrust = 0.0
+
+        if 0.0 <= self.power < mil_power:
+            t_idle = thrust_idle_lookup(self.altitude * (39.37 /12), self.mach)
+            t_mil  = thrust_mil_lookup(self.altitude * (39.37 /12), self.mach)
+
+            thrust = t_idle + self.power*(t_mil - t_idle)/mil_power
+        elif mil_power <= self.power <= 1.0:
+            t_mil  = thrust_mil_lookup(self.altitude * (39.37 /12), self.mach)
+            t_max  = thrust_max_lookup(self.altitude * (39.37 /12), self.mach)
+
+            thrust = t_mil + (self.power-mil_power)*(t_max - t_mil)/mil_power
+
+        return thrust * 4.448 #return it in newtons
 
     def get_aero_center_wrt_cm(self):
         """get the position of the aerodynamic center
@@ -494,3 +520,63 @@ def dndr_lookup(alpha, beta):
     ], 'd')
     dndr = bilinear_interp(alpha, beta, alpha_table, beta_table, table)
     return dndr
+
+@jit(float64[:]())
+def get_alt_table():
+    """get altitude [ft] table for lookups"""
+    alt_table = np.array([0.0, 10000, 20000, 30000, 40000, 50000], 'd')
+    return alt_table
+
+@jit(float64[:]())
+def get_mach_table():
+    """get mach [nd] table for lookups"""
+    mach_table = np.array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], 'd')
+    return mach_table
+
+@jit(float64(float64,float64))
+def thrust_idle_lookup(altitude, mach):
+    """Lookup for idle thrust, based on altitude and mach [ft], [nd]"""
+    mach_table = get_mach_table()
+    altitude_table = get_alt_table()
+    table = np.array([
+        [1060.0, 670.0, 880.0, 1140.0, 1500.0, 1860.0],
+        [635.0, 425.0, 690.0, 1010.0, 1330.0, 1700.0],
+        [60.0, 25.0, 345.0, 755.0, 1130.0, 1525.0],
+        [-1020.0, -710.0, -300.0, 350.0, 910.0, 1360.0],
+        [-2700.0, -1900.0, -1300.0, -247.0, 600.0, 1100.0],
+        [-3600.0, -1400.0, -595.0, -342.0, -200.0, 700.0]
+    ], 'd')
+    t_idle = bilinear_interp(altitude, mach, altitude_table, mach_table, table)
+    return t_idle
+
+@jit(float64(float64,float64))
+def thrust_mil_lookup(altitude, mach):
+    """Lookup for military thrust, based on altitude and mach [ft], [nd]"""
+    mach_table = get_mach_table()
+    altitude_table = get_alt_table()
+    table = np.array([
+        [12680.0, 9150.0, 6200.0, 3950.0, 2450.0, 1400.0],
+        [12680.0, 9150.0, 6313.0, 4040.0, 2470.0, 1400.0],
+        [12610.0, 9312.0, 6610.0, 4290.0, 2600.0, 1560.0],
+        [12640.0, 9839.0, 7090.0, 4660.0, 2840.0, 1660.0],
+        [12390.0, 10176.0, 7750.0, 5320.0, 3250.0, 1930.0],
+        [11680.0, 9848.0, 8050.0, 6100.0, 3800.0, 2310.0]
+    ], 'd')
+    t_mil = bilinear_interp(altitude, mach, altitude_table, mach_table, table)
+    return t_mil
+
+@jit(float64(float64,float64))
+def thrust_max_lookup(altitude, mach):
+    """Lookup for max thrust, based on altitude and mach [ft], [nd]"""
+    mach_table = get_mach_table()
+    altitude_table = get_alt_table()
+    table = np.array([
+        [20000.0, 15000.0, 10800.0, 7000.0, 4000.0, 2500.0],
+        [21420.0, 15700.0, 11225.0, 7323.0, 4435.0, 2600.0],
+        [22700.0, 16860.0, 12250.0, 8154.0, 5000.0, 2835.0],
+        [24240.0, 18910.0, 13760.0, 9285.0, 5700.0, 3215.3],
+        [28070.0, 21075.0, 15975.0, 11115.0, 6860.0, 3950.0],
+        [28885.0, 23319.0, 18300.0, 13484.0, 8642.0, 5057.0]
+    ], 'd')
+    t_max = bilinear_interp(altitude, mach, altitude_table, mach_table, table)
+    return t_max

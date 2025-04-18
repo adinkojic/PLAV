@@ -230,6 +230,10 @@ class AircraftConfig(object):
         moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
 
         return body_forces_body, moments
+    
+    def calculate_thurst(self):
+        """dummy for now, returns 0.0"""
+        return 0.0
 
     def get_xcp(self):
         """returns x_cp with respect to CM"""
