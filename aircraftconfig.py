@@ -79,10 +79,12 @@ def init_aircraft(config_file):
     C_nb = config_file['C_nb']
 
     C_mbb = config_file['C_mbb']
+
+    init_control_vector =  config_file['init_control']
     
     cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
 
-    aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+    aircraft_model = AircraftConfig(init_control_vector, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
                  C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb)
 
     return aircraft_model
@@ -124,7 +126,7 @@ class AircraftConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
     information and even giving forces"""
 
-    def __init__(self,mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+    def __init__(self, init_control_vector, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
                  C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb ):
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
@@ -132,6 +134,11 @@ class AircraftConfig(object):
         self.Sref = Sref
         self.bref = bref
         self.cp_wrt_cm = cp_wrt_cm
+
+        self.rdr   = init_control_vector[0]
+        self.ail   = init_control_vector[1]
+        self.el    = init_control_vector[2]
+        self.power = init_control_vector[3]
 
         self.C_L0 = C_L0
         self.C_La = C_La
@@ -162,6 +169,13 @@ class AircraftConfig(object):
         self.density = 0.0
         self.temperature = 0.0
         self.mach = 0.0
+
+    def update_control(self, control_vector):
+        """Give the simulation a new control vector"""
+        self.rdr   = control_vector[0]
+        self.ail   = control_vector[1]
+        self.el    = control_vector[2]
+        self.power = control_vector[3]
 
     def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
         """Update altitude and velocity it thinks it's at

@@ -105,6 +105,13 @@ class F16_aircraft(object): #TODO: fix possible beta issue
 
         self.cp_wrt_cm = self.get_aero_center_wrt_cm()
 
+    def update_control(self, control_vector):
+        """Give the simulation a new control vector"""
+        self.rdr   = control_vector[0]
+        self.ail   = control_vector[1]
+        self.el    = control_vector[2]
+        self.power = control_vector[3]
+
     def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
         """Update altitude and velocity it thinks it's at
         Call this before every get_forces()"""

@@ -81,6 +81,7 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     #adds wind
     v_airspeed = quat.rotateVectorQ(q, np.array([vn, ve, vd], 'd') + atmosphere.get_wind_ned())
     #solving for acceleration, which is velocity_dot
+    #aircraft_config.update_control(control_vect)
     aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, air_temperature, speed_of_sound)
 
 
@@ -246,6 +247,8 @@ class Simulator(object):
         self.elapsed_time = 0.0
         self.time_at_last_pause = 0.0
 
+        self.control_vec = None
+
         #log the inital state
         x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
         self.sim_log.save_line()
@@ -254,13 +257,13 @@ class Simulator(object):
         """advance timestep function, updates timestep and saves values"""
 
         local_t_span=np.array([self.time, self.time + self.t_step])
-        new_state = solve_ivp(fun = x_dot, t_span=local_t_span, args= (aircraft,atmosphere), y0=self.state)
+        new_state = solve_ivp(fun = x_dot, t_span=local_t_span, args= (self.aircraft,self.atmosphere), y0=self.state)
         self.state = new_state.y[:,-1]
         self.time = new_state.t[-1]
 
  
         #get stuff
-        x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
+        x_dot(self.time, self.state, self.aircraft, self.atmosphere, self.sim_log)
         self.sim_log.save_line()
 
     def update_real_time(self, time_warp = 1.0):
@@ -276,6 +279,11 @@ class Simulator(object):
                 self.advance_timestep()
 
         return self.return_results()
+    
+    def update_control_manual(self, pitch, roll):
+        """pass in a control vector for the simulation"""
+        joystick_command = np.array([0, roll*20.0, pitch*25.0, 0],'d')
+        self.aircraft.update_control(joystick_command)
     
     def pause_sim(self):
         """Pauses the sim, saving time at stop"""
@@ -316,7 +324,7 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], 
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
-real_time = False
+real_time = True
 t_span = np.array([0.0, 180.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
@@ -344,8 +352,12 @@ main_layout.addWidget(plot_widget)
 # Create control panel with Pause/Unpause buttons
 button_layout = QtWidgets.QHBoxLayout()
 pause_button = QtWidgets.QPushButton("Pause/Play")
+joystick = pg.JoystickButton()
+joystick.setFixedWidth(30)
+joystick.setFixedHeight(30)
 #unpause_button = QtWidgets.QPushButton("Unpause")
 button_layout.addWidget(pause_button)
+button_layout.addWidget(joystick)
 #button_layout.addWidget(unpause_button)
 main_layout.addLayout(button_layout)
 
@@ -460,6 +472,9 @@ def update():
         fx, fy, fz, mx, my, mz, speed, alpha, beta, q1, q2, q3, q4, rho, pressure,\
         re
     
+    x, y = joystick.getState()
+    sim_object.update_control_manual(roll=x, pitch=y)
+
     sim_data = sim_object.update_real_time()
 
     lat.setData(sim_data[0], sim_data[8]*180/math.pi)
