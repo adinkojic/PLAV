@@ -10,11 +10,12 @@ import json
 import time
 import math
 import numpy as np
-from scipy.integrate import solve_ivp
+#from scipy.integrate import solve_ivp
 from numba import jit, float64
 from PyQt6 import QtWidgets, QtCore
 from pyqtgraph.Qt import QtCore
 from matplotlib import colormaps
+import pyqtgraph as pg
 
 import quaternion_math as quat
 from aircraftconfig import AircraftConfig, init_aircraft
@@ -22,7 +23,7 @@ from f16_model import F16_aircraft
 #import ussa1976
 from atmosphere import Atmosphere
 from step_logging import SimDataLogger
-import pyqtgraph as pg
+from runge_kutta4 import basic_rk4
 
 #from pyqtgraph.Qt import QtWidgets
 
@@ -210,12 +211,20 @@ class Simulator(object):
     def advance_timestep(self):
         """advance timestep function, updates timestep and saves values"""
 
-        local_t_span=np.array([self.time, self.time + self.t_step])
-        new_state = solve_ivp(fun = x_dot, t_span=local_t_span, args= (self.aircraft,self.atmosphere), y0=self.state)
-        self.state = new_state.y[:,-1]
-        self.time = new_state.t[-1]
-
+        self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state, args= (self.aircraft,self.atmosphere))
  
+        #lat wrapparound probably doesnt work
+        #if self.state[7] < -math.pi:
+        #    self.state[7] = self.state[7] + math.pi
+        #elif self.state[7] > math.pi:
+        #    self.state[7] =self.state[7] - math.pi
+
+        #lon wrapparound
+        if self.state[8] < -math.pi:
+            self.state[8] = self.state[8] + 2.0*math.pi
+        elif self.state[8] > math.pi:
+            self.state[8] = self.state[8] - 2.0*math.pi
+
         #get stuff
         x_dot(self.time, self.state, self.aircraft, self.atmosphere, self.sim_log)
         self.sim_log.save_line()
@@ -277,7 +286,7 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case10ballisticSphere2.json', 'r') as file:
+with open('aircraftConfigs/case16IDL.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -327,10 +336,10 @@ else:
 y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], elevation=init_ori[1], roll=init_ori[0], init_omega=init_rte)
 
 #pump sim once
-solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
+basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere))
 
 real_time = False
-t_span = np.array([0.0, 30.0])
+t_span = np.array([0.0, 180.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -402,7 +411,7 @@ cm = pg.colormap.get('CET-L17')
 cm.reverse()
 pen0 = cm.getPen( span=(0.0,3e-6), width=2 )
 path_plot = plot_widget.addPlot(title="Flight Path [long,lat]")
-#path_plot.addLegend()
+path_plot.addLegend()
 path = path_plot.plot(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi,pen =pen0, name="Path")
 
 plot_widget.nextRow()
@@ -484,7 +493,7 @@ def update():
         re
     
     x, y = joystick.getState()
-    sim_object.update_control_manual(roll=x, pitch=y)
+    #sim_object.update_control_manual(roll=x, pitch=y)
 
     sim_data = sim_object.update_real_time()
 
