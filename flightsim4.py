@@ -185,55 +185,6 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
     y0 = np.append(np.append(init_ori_ned, init_omega), np.append(init_pos, init_vel))
     return y0
 
-code_start_time = time.perf_counter()
-
-#load aircraft config
-with open('aircraftConfigs/case12supersonicF16.json', 'r') as file:
-    modelparam = json.load(file)
-file.close()
-
-if modelparam['useF16']:
-    control_vector = np.array(modelparam['init_control'],'d')
-    aircraft = F16_aircraft(control_vector)
-else:
-    aircraft = init_aircraft(modelparam)
-
-use_file_atmosphere = True
-if use_file_atmosphere:
-    wind_alt_profile       = np.array(modelparam['wind_alt_profile'], dtype='d')
-    wind_speed_profile     = np.array(modelparam['wind_speed_profile'], dtype='d')
-    wind_direction_profile = np.array(modelparam['wind_direction_profile'], dtype='d')
-else:
-    wind_alt_profile = np.array([0, 0], dtype='d')
-    wind_speed_profile = np.array([0, 0], dtype='d')
-    wind_direction_profile = np.array([0, 0], dtype='d')
-#init atmosphere config
-atmosphere = Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile)
-
-use_file_init_conditions = True
-if use_file_init_conditions:
-    inital_alt    = modelparam['init_alt']
-    init_velocity = modelparam['init_vel']
-    init_rte      = modelparam['init_rot']
-    init_ori   = np.array(modelparam['init_ori'], 'd')
-
-    init_x = modelparam['init_lat']
-    init_y = modelparam['init_lon']
-
-else:
-    inital_alt = 9144
-    init_x = 0
-    init_y = 0
-
-    init_airspeed = 20 #meters per second
-    init_alpha = 0 #degrees
-    init_beta  = 0
-    #init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
-    init_velocity = [0.0, 0.0, 0.0]
-    init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
-    init_ori = np.array([0.0, 0.0, 0.0])
-
-
 class Simulator(object):
     """A sim object is required to store all the required data nicely."""
     def __init__(self, init_state, time_span, aircraft, atmosphere, t_step = 0.1):
@@ -322,13 +273,64 @@ class Simulator(object):
         """returns number of timesteps saved"""
         return self.sim_log.return_data_size()
 
+
+code_start_time = time.perf_counter()
+
+#load aircraft config
+with open('aircraftConfigs/case10ballisticSphere2.json', 'r') as file:
+    modelparam = json.load(file)
+file.close()
+
+if modelparam['useF16']:
+    control_vector = np.array(modelparam['init_control'],'d')
+    aircraft = F16_aircraft(control_vector)
+else:
+    aircraft = init_aircraft(modelparam)
+
+use_file_atmosphere = True
+if use_file_atmosphere:
+    wind_alt_profile       = np.array(modelparam['wind_alt_profile'], dtype='d')
+    wind_speed_profile     = np.array(modelparam['wind_speed_profile'], dtype='d')
+    wind_direction_profile = np.array(modelparam['wind_direction_profile'], dtype='d')
+else:
+    wind_alt_profile = np.array([0, 0], dtype='d')
+    wind_speed_profile = np.array([0, 0], dtype='d')
+    wind_direction_profile = np.array([0, 0], dtype='d')
+#init atmosphere config
+atmosphere = Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile)
+
+use_file_init_conditions = True
+if use_file_init_conditions:
+    inital_alt    = modelparam['init_alt']
+    init_velocity = modelparam['init_vel']
+    init_rte      = modelparam['init_rot']
+    init_ori   = np.array(modelparam['init_ori'], 'd')
+
+    init_x = modelparam['init_lat']
+    init_y = modelparam['init_lon']
+
+else:
+    inital_alt = 9144
+    init_x = 0
+    init_y = 0
+
+    init_airspeed = 20 #meters per second
+    init_alpha = 0 #degrees
+    init_beta  = 0
+    #init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
+    init_velocity = [0.0, 0.0, 0.0]
+    init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
+    init_ori = np.array([0.0, 0.0, 0.0])
+
+
+
 y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], elevation=init_ori[1], roll=init_ori[0], init_omega=init_rte)
 
 #pump sim once
 solve_ivp(fun = x_dot, t_span=[0, 0.001], args= (aircraft,atmosphere), y0=y0, max_step=0.01)
 
-real_time = True
-t_span = np.array([0.0, 180.0])
+real_time = False
+t_span = np.array([0.0, 30.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -470,6 +472,7 @@ pressure = air_pressure.plot(sim_data[0], sim_data[28],pen=(120,5,20),name="Air 
 reynolds_plot = plot_widget.addPlot(title="Reynolds Number vs Time")
 re = reynolds_plot.plot(sim_data[0], sim_data[33],pen=(240,240,255),name="Reynolds Number")
 
+print("compilation took ", time.perf_counter()-code_start_time)
 
 def update():
     global long_lat_plot, altitude_plot, path_plot, velocity_plot, \
@@ -503,7 +506,7 @@ def update():
     pitch.setData(sim_data[0], sim_data[15] *180/math.pi)
     yaw.setData(sim_data[0], sim_data[16] *180/math.pi)
 
-    gravity.setData(sim_data[0], sim_data[20] *mtf)
+    gravity.setData(sim_data[0], sim_data[23] *mtf)
 
     fx.setData(sim_data[0], sim_data[14] / 4.448)
     fy.setData(sim_data[0], sim_data[15] / 4.448)
@@ -531,7 +534,7 @@ timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(10)
 if not real_time:
-    print("code took ", time.perf_counter()-code_start_time)
+    
     print("sim took ", sim_end_time-sim_start_time)
 
     print('data size: ', sim_data[0].size)

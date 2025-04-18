@@ -8,6 +8,8 @@
 
     "useF16":false,
 
+    "has_control":false,
+
     "init_alt": 120,
     "init_vel": [0.0, 0.0, 0.1],
     "init_rot": [0.0, 0.0, 0.0],
@@ -50,5 +52,4 @@
     "C_lr": -0.1,
     "C_np": -0.1,
     "C_nr": -0.1
-
 }

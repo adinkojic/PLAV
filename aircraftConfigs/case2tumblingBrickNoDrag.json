@@ -56,7 +56,10 @@
     "C_nr": 0.0,
 
     "C_Db": 0.0,
-    "C_mbb": 0.0
+    "C_mbb": 0.0,
+    "C_nb": 0.0,
+
+    "has_control":false
 
 
 }

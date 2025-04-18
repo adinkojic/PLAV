@@ -18,6 +18,11 @@ spec = [
     ('inertiamatrix', float64[:,:]),
     ('cp_wrt_cm', float64[:]),
 
+    ('rdr', float64),
+    ('ail', float64),
+    ('el', float64),
+    ('power', float64),
+
     #enviromentals
     ('altitude', float64),
     ('velocity', float64[:]),
@@ -80,7 +85,10 @@ def init_aircraft(config_file):
 
     C_mbb = config_file['C_mbb']
 
-    init_control_vector =  config_file['init_control']
+    init_control_vector = np.zeros(4,'d')
+
+    if config_file['has_control']:
+        init_control_vector =  np.array(config_file['init_control'],'d')
     
     cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
 
@@ -245,7 +253,7 @@ class AircraftConfig(object):
 
         return body_forces_body, moments
     
-    def calculate_thurst(self):
+    def calculate_thrust(self):
         """dummy for now, returns 0.0"""
         return 0.0
 

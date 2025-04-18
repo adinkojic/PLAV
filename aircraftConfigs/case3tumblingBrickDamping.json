@@ -14,6 +14,7 @@
     "init_lat": 0.0,
     "init_lon": 0.0,
     "init_ori": [0.0, 0.0, 0.0],
+
     
     "wind_alt_profile": [0, 0],
     "wind_speed_profile": [0, 0],
@@ -54,7 +55,9 @@
     "C_nr": -1.0,
 
     "C_Db": 0.0,
-    "C_mbb": 0.0
+    "C_mbb": 0.0,
+    "C_nb": 0.0,
 
+    "has_control":false
 
 }
