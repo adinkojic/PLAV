@@ -158,8 +158,11 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     beta  = aircraft_config.get_beta()
     reynolds = aircraft_config.get_reynolds()
 
+    rollpitchyaw=quat.to_euler(q)
+
+
     if log is not None:
-        log.load_line(t, y, aero_forces_body, \
+        log.load_line(t, y, rollpitchyaw, aero_forces_body, \
                     aero_moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, static_pressure, air_temperature, \
                     alpha, beta, reynolds)
@@ -282,7 +285,7 @@ class Simulator(object):
     
     def update_control_manual(self, pitch, roll):
         """pass in a control vector for the simulation"""
-        joystick_command = np.array([0, roll*20.0, pitch*25.0, 0],'d')
+        joystick_command = np.array([0, roll, pitch, 0],'d')
         self.aircraft.update_control(joystick_command)
     
     def pause_sim(self):
@@ -334,16 +337,22 @@ print("Sim started...")
 # Create main Qt application
 app = QtWidgets.QApplication([])
 main_window = QtWidgets.QMainWindow()
+realtime_window = QtWidgets.QMainWindow()
 main_window.setWindowTitle(modelparam['title'])
+realtime_window.setWindowTitle('Real Time Flying')
 main_window.resize(1600, 900)
 
 pg.setConfigOptions(antialias=True)
 
 # Create a central widget and layout
 central_widget = QtWidgets.QWidget()
+instrument_widget = QtWidgets.QWidget()
 main_layout = QtWidgets.QVBoxLayout()
+controls_layout = QtWidgets.QVBoxLayout()
 central_widget.setLayout(main_layout)
+instrument_widget.setLayout(controls_layout)
 main_window.setCentralWidget(central_widget)
+realtime_window.setCentralWidget(instrument_widget)
 
 # Create plot area using pyqtgraph GraphicsLayoutWidget
 plot_widget = pg.GraphicsLayoutWidget()
@@ -359,7 +368,7 @@ joystick.setFixedHeight(30)
 button_layout.addWidget(pause_button)
 button_layout.addWidget(joystick)
 #button_layout.addWidget(unpause_button)
-main_layout.addLayout(button_layout)
+controls_layout.addLayout(button_layout)
 
 # Connect buttons to simulation control
 pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
@@ -408,41 +417,40 @@ p = body_rate_plot.plot(sim_data[0], sim_data[5]*180/math.pi,pen=(240,240,20), n
 q = body_rate_plot.plot(sim_data[0], sim_data[6]*180/math.pi,pen=(20,240,240), name="q")
 r = body_rate_plot.plot(sim_data[0], sim_data[7]*180/math.pi,pen=(240,20,240), name="r")
 
-rollpitchyaw=quat.quat_euler_helper(sim_data[1], sim_data[2], sim_data[3],sim_data[4],sim_data[0].size)
 euler_plot = plot_widget.addPlot(title="Euler Angles [deg] vs Time")
 euler_plot.addLegend()
-roll = euler_plot.plot(sim_data[0], rollpitchyaw[:,0] *180/math.pi,pen=(240,20,20), name="roll")
-pitch = euler_plot.plot(sim_data[0], rollpitchyaw[:,1] *180/math.pi,pen=(120,240,20), name="pitch")
-yaw = euler_plot.plot(sim_data[0], rollpitchyaw[:,2] *180/math.pi,pen=(120,20,240), name="yaw")
+roll = euler_plot.plot(sim_data[0], sim_data[14] *180/math.pi,pen=(240,20,20), name="roll")
+pitch = euler_plot.plot(sim_data[0], sim_data[15] *180/math.pi,pen=(120,240,20), name="pitch")
+yaw = euler_plot.plot(sim_data[0], sim_data[16] *180/math.pi,pen=(120,20,240), name="yaw")
 
 plot_widget.nextRow()
 
 
 local_gravity = plot_widget.addPlot(title="Local Gravity [ft/s^2] vs Time")
-gravity = local_gravity.plot(sim_data[0], sim_data[20] *mtf,pen=(10,130,20), name="Gravity")
+gravity = local_gravity.plot(sim_data[0], sim_data[23] *mtf,pen=(10,130,20), name="Gravity")
 
 body_forces = plot_widget.addPlot(title="Body force [lbf] vs Time")
 body_forces.addLegend()
-fx = body_forces.plot(sim_data[0], sim_data[14] / 4.448, pen=(40, 40, 255), name="X")
-fy = body_forces.plot(sim_data[0], sim_data[15] / 4.448, pen=(40, 255, 40), name="Y")
-fz = body_forces.plot(sim_data[0], sim_data[16] / 4.448, pen=(255, 40, 40), name="Z")
+fx = body_forces.plot(sim_data[0], sim_data[17] / 4.448, pen=(40, 40, 255), name="X")
+fy = body_forces.plot(sim_data[0], sim_data[18] / 4.448, pen=(40, 255, 40), name="Y")
+fz = body_forces.plot(sim_data[0], sim_data[19] / 4.448, pen=(255, 40, 40), name="Z")
 
 body_moment = plot_widget.addPlot(title="Body Moment [ft lbf] vs Time")
 body_moment.addLegend()
-mx = body_moment.plot(sim_data[0], sim_data[17] / 1.356, pen=(40, 40, 180), name="X")
-my = body_moment.plot(sim_data[0], sim_data[18] / 1.356, pen=(40, 180, 40), name="Y")
-mz = body_moment.plot(sim_data[0], sim_data[19] / 1.356, pen=(180, 40, 40), name="Z")
+mx = body_moment.plot(sim_data[0], sim_data[20] / 1.356, pen=(40, 40, 180), name="X")
+my = body_moment.plot(sim_data[0], sim_data[21] / 1.356, pen=(40, 180, 40), name="Y")
+mz = body_moment.plot(sim_data[0], sim_data[22] / 1.356, pen=(180, 40, 40), name="Z")
 
 plot_widget.nextRow()
 
 airspeed = plot_widget.addPlot(title="Airspeed [TAS] vs Time")
 #airspeed.addLegend()
-speed = airspeed.plot(sim_data[0], sim_data[27]*1.943844,pen=(40, 40, 180), name="airspeed")
+speed = airspeed.plot(sim_data[0], sim_data[30]*1.943844,pen=(40, 40, 180), name="airspeed")
 
 alpha_beta = plot_widget.addPlot(title="Alpha Beta [deg] vs Time")
 alpha_beta.addLegend()
-alpha = alpha_beta.plot(sim_data[0], sim_data[28]*180/math.pi,pen=(200, 30, 40), name="Alpha")
-beta = alpha_beta.plot(sim_data[0], sim_data[29]*180/math.pi,pen=(40, 30, 200), name="Beta")
+alpha = alpha_beta.plot(sim_data[0], sim_data[31]*180/math.pi,pen=(200, 30, 40), name="Alpha")
+beta = alpha_beta.plot(sim_data[0], sim_data[32]*180/math.pi,pen=(40, 30, 200), name="Beta")
 
 quat_plot = plot_widget.addPlot(title="Rotation Quaternion vs Time")
 quat_plot.addLegend()
@@ -454,13 +462,13 @@ q4 = quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
 plot_widget.nextRow()
 
 air_density_plot = plot_widget.addPlot(title="Air density [kg/m^3] vs Time")
-rho = air_density_plot.plot(sim_data[0], sim_data[24],pen=(20,5,130),name="Air Density")
+rho = air_density_plot.plot(sim_data[0], sim_data[27],pen=(20,5,130),name="Air Density")
 
 air_pressure = plot_widget.addPlot(title="Air Pressusre [Pa] vs Time")
-pressure = air_pressure.plot(sim_data[0], sim_data[25],pen=(120,5,20),name="Air Pressure")
+pressure = air_pressure.plot(sim_data[0], sim_data[28],pen=(120,5,20),name="Air Pressure")
 
 reynolds_plot = plot_widget.addPlot(title="Reynolds Number vs Time")
-re = reynolds_plot.plot(sim_data[0], sim_data[30],pen=(240,240,255),name="Reynolds Number")
+re = reynolds_plot.plot(sim_data[0], sim_data[33],pen=(240,240,255),name="Reynolds Number")
 
 
 def update():
@@ -491,10 +499,9 @@ def update():
     r.setData(sim_data[0], sim_data[7]*180/math.pi)
 
     #unoptimized af gotta fix
-    rollpitchyaw=quat.quat_euler_helper(sim_data[1], sim_data[2], sim_data[3],sim_data[4],sim_data[0].size)
-    roll.setData(sim_data[0], rollpitchyaw[:,0] *180/math.pi)
-    pitch.setData(sim_data[0], rollpitchyaw[:,1] *180/math.pi)
-    yaw.setData(sim_data[0], rollpitchyaw[:,2] *180/math.pi)
+    roll.setData(sim_data[0], sim_data[14] *180/math.pi)
+    pitch.setData(sim_data[0], sim_data[15] *180/math.pi)
+    yaw.setData(sim_data[0], sim_data[16] *180/math.pi)
 
     gravity.setData(sim_data[0], sim_data[20] *mtf)
 
@@ -502,27 +509,27 @@ def update():
     fy.setData(sim_data[0], sim_data[15] / 4.448)
     fz.setData(sim_data[0], sim_data[16] / 4.448)
 
-    mx.setData(sim_data[0], sim_data[17] / 1.356)
-    my.setData(sim_data[0], sim_data[18] / 1.356)
-    mz.setData(sim_data[0], sim_data[19] / 1.356)
+    mx.setData(sim_data[0], sim_data[20] / 1.356)
+    my.setData(sim_data[0], sim_data[21] / 1.356)
+    mz.setData(sim_data[0], sim_data[22] / 1.356)
 
-    speed.setData(sim_data[0], sim_data[27]*1.943844)
-    alpha.setData(sim_data[0], sim_data[28]*180/math.pi)
-    beta.setData(sim_data[0], sim_data[29]*180/math.pi)
+    speed.setData(sim_data[0], sim_data[30]*1.943844)
+    alpha.setData(sim_data[0], sim_data[31]*180/math.pi)
+    beta.setData(sim_data[0], sim_data[32]*180/math.pi)
 
     q1.setData(sim_data[0], sim_data[1])
     q2.setData(sim_data[0], sim_data[2])
     q3.setData(sim_data[0], sim_data[3])
     q4.setData(sim_data[0], sim_data[4])
 
-    rho.setData(sim_data[0], sim_data[24])
-    pressure.setData(sim_data[0], sim_data[25])
-    re.setData(sim_data[0], sim_data[30])
+    rho.setData(sim_data[0], sim_data[27])
+    pressure.setData(sim_data[0], sim_data[28])
+    re.setData(sim_data[0], sim_data[33])
 
 
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
-timer.start(50)
+timer.start(10)
 if not real_time:
     print("code took ", time.perf_counter()-code_start_time)
     print("sim took ", sim_end_time-sim_start_time)
@@ -533,4 +540,5 @@ if not real_time:
 
 
 main_window.show()
+realtime_window.show()
 pg.exec()

@@ -15,6 +15,7 @@ spec = [
     #rotationals
     ('body_rate', float64[:]),
     ('quat', float64[:]),
+    ('euler', float64[:]),
 
     #forces and moments
     ('aero_body_force', float64[:]),
@@ -53,6 +54,7 @@ class SimDataLogger(object):
         self.ned_velocity = np.zeros(3)
         self.body_rate = np.zeros(3)
         self.quat = np.zeros(4)
+        self.euler = np.zeros(3)
 
         self.aero_body_force = np.zeros(3)
         self.aero_body_moment = np.zeros(3)
@@ -80,7 +82,7 @@ class SimDataLogger(object):
         self.data = np.zeros((data_columns, int64(preallocated)))
         self.valid_data_size = 0
 
-    def load_line(self, time, state, aero_body_force, \
+    def load_line(self, time, state, rollpitchyaw, aero_body_force, \
                     aero_body_moment, local_gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, ambient_pressure, ambient_temperature, \
                     alpha, beta, reynolds):
@@ -91,6 +93,8 @@ class SimDataLogger(object):
         self.body_rate    = state[4:7]
         self.lon_lat_alt  = state[7:10]
         self.ned_velocity = state[10:13]
+
+        self.euler = rollpitchyaw
 
         self.aero_body_force  = aero_body_force
         self.aero_body_moment = aero_body_moment
@@ -118,6 +122,7 @@ class SimDataLogger(object):
             self.body_rate[0], self.body_rate[1], self.body_rate[2], \
             self.lon_lat_alt[0], self.lon_lat_alt[1], self.lon_lat_alt[2], \
             self.ned_velocity[0], self.ned_velocity[1], self.ned_velocity[2], \
+            self.euler[0], self.euler[1], self.euler[2], \
             self.aero_body_force[0], self.aero_body_force[1], self.aero_body_force[2], \
             self.aero_body_moment[0], self.aero_body_moment[1], self.aero_body_moment[2], \
             self.local_gravity, self.speed_of_sound, self.mach, self.dynamic_pressure, \
