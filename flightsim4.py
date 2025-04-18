@@ -16,6 +16,7 @@ from PyQt6 import QtWidgets, QtCore
 from pyqtgraph.Qt import QtCore
 from matplotlib import colormaps
 import pyqtgraph as pg
+from flightgear_python.fg_if import FDMConnection
 
 import quaternion_math as quat
 from aircraftconfig import AircraftConfig, init_aircraft
@@ -286,7 +287,7 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case16IDL.json', 'r') as file:
+with open('aircraftConfigs/case11steadyF16.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -339,7 +340,7 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], 
 basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere))
 
 real_time = False
-t_span = np.array([0.0, 180.0])
+t_span = np.array([0.0, 60.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -483,17 +484,43 @@ re = reynolds_plot.plot(sim_data[0], sim_data[33],pen=(240,240,255),name="Reynol
 
 print("compilation took ", time.perf_counter()-code_start_time)
 
+def fdm_callback(fdm_data, event_pipe):
+    """updates flight data for Flightgear"""
+    fdm_data.lat_rad = sim_data[8,-1]
+    fdm_data.lon_rad = sim_data[8,-1]
+    fdm_data.alt_m = sim_data[10,-1]
+    fdm_data.phi_rad = sim_data[14, -1]
+    fdm_data.theta_rad = sim_data[15,-1]
+    fdm_data.psi_rad = sim_data[16, -1]
+    fdm_data.alpha_rad = sim_data[31, -1]
+    fdm_data.beta_rad = sim_data[31, -1]
+    fdm_data.phidot_rad_per_s = sim_data[5,-1]
+    fdm_data.thetadot_rad_per_s = sim_data[6,-1]
+    fdm_data.psidot_rad_per_s = sim_data[7,-1]
+    fdm_data.v_north_ft_per_s = sim_data[11,-1]*mtf
+    fdm_data.v_east_ft_per_s = sim_data[12,-1]*mtf
+    fdm_data.v_down_ft_per_s = sim_data[13,-1]*mtf
+    return fdm_data  # return the whole structure
+
+#if __name__ == '__main__':  # NOTE: This is REQUIRED on Windows!
+#    fdm_conn = FDMConnection()
+#    fdm_event_pipe = fdm_conn.connect_rx('localhost', 5501, fdm_callback)
+#    fdm_conn.connect_tx('localhost', 5502)
+#    fdm_conn.start()  # Start the FDM RX/TX loop
+
 def update():
+    """Update loop for simulation"""
     global long_lat_plot, altitude_plot, path_plot, velocity_plot, \
         body_rate_plot, euler_plot, local_gravity, body_forces, \
         body_moment, airspeed, alpha_beta, quat_plot, air_density_plot, \
         air_pressure, reynolds_plot, sim_data, \
         lat, lon, alt, path, vn, ve, vd, p, q, r, roll, pitch, yaw, gravity,\
         fx, fy, fz, mx, my, mz, speed, alpha, beta, q1, q2, q3, q4, rho, pressure,\
-        re
+        re#, fdm_event_pipe
     
     x, y = joystick.getState()
-    #sim_object.update_control_manual(roll=x, pitch=y)
+    sim_object.update_control_manual(roll=x, pitch=y)
+    #fdm_event_pipe.parent_send()
 
     sim_data = sim_object.update_real_time()
 
@@ -537,6 +564,7 @@ def update():
     rho.setData(sim_data[0], sim_data[27])
     pressure.setData(sim_data[0], sim_data[28])
     re.setData(sim_data[0], sim_data[33])
+
 
 
 timer = QtCore.QTimer()

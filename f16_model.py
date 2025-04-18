@@ -19,6 +19,11 @@ spec = [
     ('el', float64),
     ('power', float64),
 
+    ('trim_rdr', float64),
+    ('trim_ail', float64),
+    ('trim_el', float64),
+    ('trim_power', float64),
+
     #geometrics
     ('mass', float64),
     ('cmac', float64),
@@ -75,10 +80,15 @@ def bilinear_interp(x, y, x_grid, y_grid, z_grid):
 class F16_aircraft(object): #TODO: fix possible beta issue
     """Object used to lookup coefficients for F16 jet"""
     def __init__(self, init_control_vector):
-        self.rdr   = init_control_vector[0]
-        self.ail   = init_control_vector[1]
-        self.el    = init_control_vector[2]
-        self.power = init_control_vector[3]
+        self.trim_rdr   = init_control_vector[0]
+        self.trim_ail   = init_control_vector[1]
+        self.trim_el    = init_control_vector[2]
+        self.trim_power = init_control_vector[3]
+
+        self.rdr   = 0.0
+        self.ail   = 0.0
+        self.el    = 0.0
+        self.power = 0.0
 
 
         self.mass = 637.1595 * 14.594 #kg
@@ -168,16 +178,16 @@ class F16_aircraft(object): #TODO: fix possible beta issue
 
         bspan=30.0
         cbar=11.32
-        dele=self.el/25.0
-        dail=self.ail/20.0
-        drdr=self.rdr/30.0
+        dele=(self.el+self.trim_el)/25.0
+        dail=(self.ail+self.trim_ail)/20.0
+        drdr=(self.rdr+self.trim_rdr)/30.0
         
         rtd = 180/math.pi
 
         alpha = self.alpha * rtd #object alpha is rad, this one is degrees
         beta = self.beta * rtd
 
-        cxt=cx_lookup(alpha,self.el) # implement table lookup
+        cxt=cx_lookup(alpha,self.el+self.trim_el) # implement table lookup
         cy=-0.02*beta+0.021*dail+0.086*drdr
         czt=cz_lookup(alpha)
         cz=czt*(1.-(beta/rtd)**2)-0.19*dele
@@ -186,7 +196,7 @@ class F16_aircraft(object): #TODO: fix possible beta issue
         dclda=dlda_lookup(alpha,beta)
         dcldr=dldr_lookup(alpha,beta)
         cl=clt + dclda*dail + dcldr*drdr
-        cmt=cm_lookup(alpha,self.el)
+        cmt=cm_lookup(alpha,self.el+self.trim_el)
         cnt=cn_lookup(alpha,beta)
         dcnda=dnda_lookup(alpha,beta)
         dcndr=dndr_lookup(alpha,beta)
