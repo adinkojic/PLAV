@@ -23,6 +23,11 @@ spec = [
     ('el', float64),
     ('power', float64),
 
+    ('trim_rdr', float64),
+    ('trim_ail', float64),
+    ('trim_el', float64),
+    ('trim_power', float64),
+
     #enviromentals
     ('altitude', float64),
     ('velocity', float64[:]),
@@ -61,7 +66,10 @@ spec = [
     ('C_XlutY', float64[:]),
     ('C_YlutY', float64[:]),
 
-    ('has_gridfins', int64)
+    ('has_gridfins', int64),
+    ('top_force',  float64[:]),
+    ('star_force', float64[:]),
+    ('port_force', float64[:])
 
 ]
 
@@ -208,11 +216,15 @@ class AircraftConfig(object):
         self.bref = bref
         self.cp_wrt_cm = cp_wrt_cm
 
-        self.rdr   = init_control_vector[0]
-        self.ail   = init_control_vector[1]
-        self.el    = init_control_vector[2]
-        self.power = init_control_vector[3]
+        self.trim_rdr   = init_control_vector[0]
+        self.trim_ail   = init_control_vector[1]
+        self.trim_el    = init_control_vector[2]
+        self.trim_power = init_control_vector[3]
 
+        self.rdr   = 0.0
+        self.ail   = 0.0
+        self.el    = 0.0
+        self.power = 0.0
 
         self.C_L0 = C_L0
         self.C_La = C_La
@@ -249,6 +261,9 @@ class AircraftConfig(object):
         self.C_YlutY  = C_YlutY
 
         self.has_gridfins = has_gridfins
+        self.top_force  = np.array([0.,0.,0.], 'd')
+        self.star_force = np.array([0.,0.,0.], 'd')
+        self.port_force = np.array([0.,0.,0.], 'd')
 
     def update_control(self, control_vector):
         """Give the simulation a new control vector"""
@@ -343,38 +358,42 @@ class AircraftConfig(object):
 
         yaw_adjustment_factor = 0.5
 
-        top_fin_theta  = -self.ail + self.rdr
-        star_fin_theta = -self.ail + self.rdr*yaw_adjustment_factor - self.el
-        port_fin_theta = -self.ail + self.rdr*yaw_adjustment_factor - self.el
+        ail_command = self.ail + self.trim_ail
+        el_command = self.el + self.trim_el
+        rdr_command = self.rdr + self.trim_rdr
+
+        top_fin_theta  = -ail_command * 0.2 + rdr_command * 0.2
+        star_fin_theta = -ail_command * 0.2 + rdr_command*yaw_adjustment_factor * 0.2 + el_command * 0.2
+        port_fin_theta = -ail_command * 0.2 + rdr_command*yaw_adjustment_factor * 0.2 - el_command * 0.2
 
         aab_top  = get_local_alpha_beta(self.velocity, top_fin_gamma,  top_fin_theta )
         aab_star = get_local_alpha_beta(self.velocity, star_fin_gamma, star_fin_theta)
         aab_port = get_local_alpha_beta(self.velocity, port_fin_gamma, port_fin_theta)
 
 
-        top_drag_angle  = np.sqrt(aab_top[1]**2  + aab_top[2]**2 )
-        star_drag_angle = np.sqrt(aab_star[1]**2 + aab_star[2]**2)
-        port_drag_angle = np.sqrt(aab_port[1]**2 + aab_port[2]**2)
+        top_drag_angle  = np.sqrt(aab_top[0]**2  + aab_top[1]**2 )
+        star_drag_angle = np.sqrt(aab_star[0]**2 + aab_star[1]**2)
+        port_drag_angle = np.sqrt(aab_port[0]**2 + aab_port[1]**2)
 
         top_drag  = np.interp(top_drag_angle,  self.C_XYlutX, self.C_XlutY)
         star_drag = np.interp(star_drag_angle, self.C_XYlutX, self.C_XlutY)
         port_drag = np.interp(port_drag_angle, self.C_XYlutX, self.C_XlutY)
 
 
-        top_normal  = np.interp(aab_top[1],  self.C_XYlutX, self.C_YlutY)
-        top_radial  = np.interp(aab_top[2],  self.C_XYlutX, self.C_YlutY) * 0.5
-        star_normal = np.interp(aab_star[1], self.C_XYlutX, self.C_YlutY)
-        star_radial = np.interp(aab_star[2], self.C_XYlutX, self.C_YlutY) * 0.5
-        port_normal = np.interp(aab_port[1], self.C_XYlutX, self.C_YlutY)
-        port_radial = np.interp(aab_port[2], self.C_XYlutX, self.C_YlutY) * 0.5
+        top_normal  = np.interp(aab_top[0],  self.C_XYlutX, self.C_YlutY)
+        top_radial  = np.interp(aab_top[1],  self.C_XYlutX, self.C_YlutY) * 0.5
+        star_normal = np.interp(aab_star[0], self.C_XYlutX, self.C_YlutY)
+        star_radial = np.interp(aab_star[1], self.C_XYlutX, self.C_YlutY) * 0.5
+        port_normal = np.interp(aab_port[0], self.C_XYlutX, self.C_YlutY)
+        port_radial = np.interp(aab_port[1], self.C_XYlutX, self.C_YlutY) * 0.5
 
         top_rot  = get_x_rotation_matrix(top_fin_gamma )
         star_rot = get_x_rotation_matrix(star_fin_gamma)
         port_rot = get_x_rotation_matrix(port_fin_gamma)
 
-        top_forces_ring  = np.array([-top_drag,  -top_radial*0.0, -top_normal*0.0],'d')
-        star_forces_ring = np.array([-star_drag, -star_radial*0.0,-star_normal*0.0],'d')
-        port_forces_ring = np.array([-port_drag, -port_radial*0.0,-port_normal*0.0],'d')
+        top_forces_ring  = np.array([-top_drag,  -top_radial, -top_normal],'d')
+        star_forces_ring = np.array([-star_drag, -star_radial,-star_normal],'d')
+        port_forces_ring = np.array([-port_drag, -port_radial,-port_normal],'d')
 
         #from coeff to real force
         top_force  = qbar * S * top_rot  @ top_forces_ring
@@ -392,9 +411,10 @@ class AircraftConfig(object):
         port_moment = np.cross(port_arm, port_force)
 
         total_force = top_force + star_force + port_force
+
         total_moment= top_moment+ star_moment+ port_moment
 
-        return total_force, 0.0*total_moment
+        return total_force, total_moment
 
     def calculate_thrust(self):
         """dummy for now, returns 0.0"""

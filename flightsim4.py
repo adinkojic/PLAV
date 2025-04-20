@@ -293,7 +293,7 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/openvspgfequivalentMod.json', 'r') as file:
+with open('aircraftConfigs/openvspmodel.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
