@@ -71,9 +71,9 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     omega_NI = omega_e * np.array([np.cos(lat), 0, -np.sin(lat)]) + np.array( \
         [(ve)/(R_lamb + altitude), -(vn)/(R_phi + altitude), -(ve * np.tan(lat))/(R_lamb + altitude)])
 
-    gravity = get_gravity(lat, altitude)    
+    gravity = get_gravity(lat, altitude)
 
-    atmosphere.update_conditions(altitude, time = t)
+    atmosphere.update_conditions(altitude)
 
     air_density = atmosphere.get_density()
     air_temperature = atmosphere.get_temperature()
@@ -230,6 +230,14 @@ class Simulator(object):
         x_dot(self.time, self.state, self.aircraft, self.atmosphere, self.sim_log)
         self.sim_log.save_line()
 
+    def latest_state(self):
+        """returns the most recent state
+        in lat [rad], lon [rad], alt [m], psi [rad], theta [rad], phi[rad]"""
+        lat_lon_alt = self.state[7:10]
+        psi_theta_phi = quat.to_euler(self.state[0:4])
+
+        return np.concatenate((lat_lon_alt,psi_theta_phi))
+
     def update_real_time(self, time_warp = 1.0):
         """Updates the real time sim, try to call with a delay in between"""
         if self.start_time is None:
@@ -238,12 +246,11 @@ class Simulator(object):
         if self.paused:
             pass
         else:
-            self.elapsed_time = (time.time() - self.start_time) * time_warp + self.time_at_last_pause
+            self.elapsed_time = (time.time() - self.start_time) * time_warp +self.time_at_last_pause
             while self.time < self.elapsed_time:
                 self.advance_timestep()
-
         return self.return_results()
-    
+
     def update_control_manual(self, pitch, roll):
         """pass in a control vector for the simulation"""
         joystick_command = np.array([0, roll, pitch, 0],'d')
@@ -253,8 +260,7 @@ class Simulator(object):
         """Pauses the sim, saving time at stop"""
         if not self.paused:
             self.paused = True
-            self.time_at_last_pause = self.elapsed_time
-        
+            self.time_at_last_pause = self.elapsed_time  
 
     def unpause_sim(self):
         """Unpauses sim, starts counting time again"""
@@ -287,7 +293,7 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case11steadyF16.json', 'r') as file:
+with open('aircraftConfigs/openvspgfequivalentMod.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -340,7 +346,8 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], 
 basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere))
 
 real_time = False
-t_span = np.array([0.0, 60.0])
+use_flight_gear = False
+t_span = np.array([0.0, 30.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -486,27 +493,25 @@ print("compilation took ", time.perf_counter()-code_start_time)
 
 def fdm_callback(fdm_data, event_pipe):
     """updates flight data for Flightgear"""
-    fdm_data.lat_rad = sim_data[8,-1]
-    fdm_data.lon_rad = sim_data[8,-1]
-    fdm_data.alt_m = sim_data[10,-1]
-    fdm_data.phi_rad = sim_data[14, -1]
-    fdm_data.theta_rad = sim_data[15,-1]
-    fdm_data.psi_rad = sim_data[16, -1]
-    fdm_data.alpha_rad = sim_data[31, -1]
-    fdm_data.beta_rad = sim_data[31, -1]
-    fdm_data.phidot_rad_per_s = sim_data[5,-1]
-    fdm_data.thetadot_rad_per_s = sim_data[6,-1]
-    fdm_data.psidot_rad_per_s = sim_data[7,-1]
-    fdm_data.v_north_ft_per_s = sim_data[11,-1]*mtf
-    fdm_data.v_east_ft_per_s = sim_data[12,-1]*mtf
-    fdm_data.v_down_ft_per_s = sim_data[13,-1]*mtf
+
+    current_pos = sim_object.latest_state()
+
+    fdm_data.lat_rad = current_pos[0]
+    fdm_data.lon_rad = current_pos[1]
+    fdm_data.alt_m = current_pos[2]
+    fdm_data.phi_rad = current_pos[3]
+    fdm_data.theta_rad = current_pos[4]
+    fdm_data.psi_rad = current_pos[5]
+    #fdm_data.alpha_rad = sim_data[31, -1]
+    #fdm_data.beta_rad = sim_data[31, -1]
+    #fdm_data.phidot_rad_per_s = sim_data[5,-1]
+    #fdm_data.thetadot_rad_per_s = sim_data[6,-1]
+    #fdm_data.psidot_rad_per_s = sim_data[7,-1]
+    #fdm_data.v_north_ft_per_s = sim_data[11,-1]*39.37/12
+    #fdm_data.v_east_ft_per_s = sim_data[12,-1]*39.37/12
+    #fdm_data.v_down_ft_per_s = sim_data[13,-1]*39.37/12
     return fdm_data  # return the whole structure
 
-#if __name__ == '__main__':  # NOTE: This is REQUIRED on Windows!
-#    fdm_conn = FDMConnection()
-#    fdm_event_pipe = fdm_conn.connect_rx('localhost', 5501, fdm_callback)
-#    fdm_conn.connect_tx('localhost', 5502)
-#    fdm_conn.start()  # Start the FDM RX/TX loop
 
 def update():
     """Update loop for simulation"""
@@ -516,11 +521,10 @@ def update():
         air_pressure, reynolds_plot, sim_data, \
         lat, lon, alt, path, vn, ve, vd, p, q, r, roll, pitch, yaw, gravity,\
         fx, fy, fz, mx, my, mz, speed, alpha, beta, q1, q2, q3, q4, rho, pressure,\
-        re#, fdm_event_pipe
+        re, fdm_event_pipe
     
     x, y = joystick.getState()
     sim_object.update_control_manual(roll=x, pitch=y)
-    #fdm_event_pipe.parent_send()
 
     sim_data = sim_object.update_real_time()
 
@@ -569,15 +573,30 @@ def update():
 
 timer = QtCore.QTimer()
 timer.timeout.connect(update)
-timer.start(10)
-if not real_time:
-    
+
+
+
+if not real_time:    
     print("sim took ", sim_end_time-sim_start_time)
 
     print('data size: ', sim_data[0].size)
     print('final alt', sim_data[10][-1]*mtf)
     print('final lon', sim_data[9][-1]* 180/math.pi)
 
+
+
+fdm_event_pipe = None
+if __name__ == '__main__' and use_flight_gear:  # NOTE: This is REQUIRED on Windows!
+    print("Starting FlightGear Connection")
+    fdm_conn = FDMConnection()
+    print('broke after fdm')
+    fdm_event_pipe = fdm_conn.connect_rx('localhost', 5501, fdm_callback)
+    print('broke at pipe')
+    fdm_conn.connect_tx('localhost', 5502)
+    print('broke at start')
+    fdm_conn.start()  # Start the FDM RX/TX loop
+    print("Started FlightGear Connection")
+timer.start(10)
 
 main_window.show()
 realtime_window.show()

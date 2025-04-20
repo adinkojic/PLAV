@@ -3,7 +3,7 @@ Abstracted away from any special state config"""
 import math
 
 import numpy as np
-from numba import float64
+from numba import float64, int64
 from numba.experimental import jitclass
 from numba import jit, types
 import quaternion_math as quat
@@ -57,6 +57,12 @@ spec = [
     ('C_np', float64),
     ('C_nr', float64),
 
+    ('C_XYlutX', float64[:]),
+    ('C_XlutY', float64[:]),
+    ('C_YlutY', float64[:]),
+
+    ('has_gridfins', int64)
+
 ]
 
 def init_aircraft(config_file):
@@ -85,15 +91,36 @@ def init_aircraft(config_file):
 
     C_mbb = config_file['C_mbb']
 
-    init_control_vector = np.zeros(4,'d')
 
-    if config_file['has_control']:
-        init_control_vector =  np.array(config_file['init_control'],'d')
-    
     cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
 
-    aircraft_model = AircraftConfig(init_control_vector, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb)
+    #init_control_vector = np.zeros(4,'d')
+
+    #C_XYlutX = np.array([0],'d')
+    #C_XlutY  = np.array([0],'d')
+    #C_YlutY  = np.array([0],'d')
+    #inital trim controls
+    if config_file['has_control']:
+        init_control_vector =  np.array(config_file['init_control'],'d')
+
+        #for glider with grid fins
+        if config_file['hasgridfins']:
+            C_XYlutX = np.array(config_file['C_XYlutX'],'d')
+            C_XlutY  = np.array(config_file['C_XlutY'], 'd')
+            C_YlutY  = np.array(config_file['C_YlutY'], 'd')
+
+            print('wit gf')
+            aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
+        else:
+            print('no gf')
+            aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                    C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector)
+    else:
+        print('no control')
+        aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                     C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb)
+        
 
     return aircraft_model
 
@@ -107,7 +134,7 @@ def get_dynamic_viscosity(temperature):
 
     return mu
 
-@jit
+@jit(float64[:](float64[:]))
 def velocity_to_alpha_beta(velocity_body):
     """Gets velocity to alpha beta, assumes x direction is datum"""
     airspeed = math.sqrt(velocity_body[0]**2 + velocity_body[1]**2 + velocity_body[2]**2)
@@ -118,7 +145,7 @@ def velocity_to_alpha_beta(velocity_body):
         beta = 0.0
     alpha = math.atan2(velocity_body[2], velocity_body[0])
 
-    return airspeed, alpha, beta
+    return np.array([airspeed, alpha, beta], 'd')
 
 @jit(float64[:](float64, float64))
 def get_wind_to_body_axis(alpha, beta):
@@ -129,13 +156,51 @@ def get_wind_to_body_axis(alpha, beta):
 
     return result
 
+@jit#(float64[:](float64[:], float64, float64))
+def get_local_alpha_beta(velocity, gamma, theta):
+    """Gets the local Alpha and Beta of a fin
+    velocity is the local velocity [m/s]
+    gamma is the rotation around +X, 0 is starboard [rad]
+    theta is the angle of deflection of the surface [rad]"""
+
+    x_chord_prime = np.array([np.cos(theta), 0.0, -np.sin(theta)], 'd')
+    x_normal_prime = np.array([np.sin(theta), 0.0, np.cos(theta)], 'd')
+    x_radial_prime = np.array([0.0, 1.0, 0.0], 'd')
+
+    rotation_around_body = get_x_rotation_matrix(gamma)
+
+    x_chord  = rotation_around_body @ x_chord_prime
+    x_normal = rotation_around_body @ x_normal_prime
+    x_radial = rotation_around_body @ x_radial_prime
+
+    u = np.dot(velocity, x_chord)
+    v = np.dot(velocity, x_radial)
+    w = np.dot(velocity, x_normal)
+
+    local_velocity = np.array([u, v, w], 'd')
+
+    #airspeed, alpha, beta
+    aab = velocity_to_alpha_beta(local_velocity)
+
+    return np.array([aab[1], aab[2]], 'd')
+
+@jit(float64[:,:](float64))
+def get_x_rotation_matrix(angle):
+    """gets a rotation matrix about X, useful for grid fins [rad]"""
+    rotation_around_body = np.array([ [1., 0, 0], \
+                         [0, np.cos(angle), -np.sin(angle)], \
+                         [0, np.sin(angle), np.cos(angle)] ], 'd')
+    return np.ascontiguousarray(rotation_around_body)
+
 @jitclass(spec)
 class AircraftConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
     information and even giving forces"""
 
-    def __init__(self, init_control_vector, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb ):
+    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
+                init_control_vector = np.zeros(4), has_gridfins = 0, \
+                C_XYlutX = np.array([0.0, 0.0]), C_XlutY =np.array([0.0, 0.0]), C_YlutY = np.array([0.0, 0.0])):
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
         self.cmac = cmac
@@ -147,6 +212,7 @@ class AircraftConfig(object):
         self.ail   = init_control_vector[1]
         self.el    = init_control_vector[2]
         self.power = init_control_vector[3]
+
 
         self.C_L0 = C_L0
         self.C_La = C_La
@@ -178,6 +244,12 @@ class AircraftConfig(object):
         self.temperature = 0.0
         self.mach = 0.0
 
+        self.C_XYlutX = C_XYlutX
+        self.C_XlutY  = C_XlutY
+        self.C_YlutY  = C_YlutY
+
+        self.has_gridfins = has_gridfins
+
     def update_control(self, control_vector):
         """Give the simulation a new control vector"""
         self.rdr   = control_vector[0]
@@ -195,8 +267,10 @@ class AircraftConfig(object):
         self.density = density
         self.temperature = temperature
 
-
-        self.airspeed, self.alpha, self.beta = velocity_to_alpha_beta(velocity)
+        aab = velocity_to_alpha_beta(velocity)
+        self.airspeed = aab[0]
+        self.alpha = aab[1]
+        self.beta = aab[2]
 
         dynamic_viscosity = get_dynamic_viscosity(temperature)
         self.reynolds = self.get_Re(density, dynamic_viscosity)
@@ -251,8 +325,77 @@ class AircraftConfig(object):
 
         moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
 
+        if self.has_gridfins == 1:
+            gridfin_forces, gridfin_moments = self.calculate_grid_fin_forces()
+            body_forces_body = body_forces_body + gridfin_forces
+            moments = moments + gridfin_moments
+
         return body_forces_body, moments
-    
+
+    def calculate_grid_fin_forces(self):
+        """Calculates the forces of each grid fin"""
+        qbar = self.get_qbar()
+        S = self.Sref
+
+        top_fin_gamma  = -math.pi/2.0
+        star_fin_gamma =  math.pi/6.0
+        port_fin_gamma =  5.0*math.pi/6.0
+
+        yaw_adjustment_factor = 0.5
+
+        top_fin_theta  = -self.ail + self.rdr
+        star_fin_theta = -self.ail + self.rdr*yaw_adjustment_factor - self.el
+        port_fin_theta = -self.ail + self.rdr*yaw_adjustment_factor - self.el
+
+        aab_top  = get_local_alpha_beta(self.velocity, top_fin_gamma,  top_fin_theta )
+        aab_star = get_local_alpha_beta(self.velocity, star_fin_gamma, star_fin_theta)
+        aab_port = get_local_alpha_beta(self.velocity, port_fin_gamma, port_fin_theta)
+
+
+        top_drag_angle  = np.sqrt(aab_top[1]**2  + aab_top[2]**2 )
+        star_drag_angle = np.sqrt(aab_star[1]**2 + aab_star[2]**2)
+        port_drag_angle = np.sqrt(aab_port[1]**2 + aab_port[2]**2)
+
+        top_drag  = np.interp(top_drag_angle,  self.C_XYlutX, self.C_XlutY)
+        star_drag = np.interp(star_drag_angle, self.C_XYlutX, self.C_XlutY)
+        port_drag = np.interp(port_drag_angle, self.C_XYlutX, self.C_XlutY)
+
+
+        top_normal  = np.interp(aab_top[1],  self.C_XYlutX, self.C_YlutY)
+        top_radial  = np.interp(aab_top[2],  self.C_XYlutX, self.C_YlutY) * 0.5
+        star_normal = np.interp(aab_star[1], self.C_XYlutX, self.C_YlutY)
+        star_radial = np.interp(aab_star[2], self.C_XYlutX, self.C_YlutY) * 0.5
+        port_normal = np.interp(aab_port[1], self.C_XYlutX, self.C_YlutY)
+        port_radial = np.interp(aab_port[2], self.C_XYlutX, self.C_YlutY) * 0.5
+
+        top_rot  = get_x_rotation_matrix(top_fin_gamma )
+        star_rot = get_x_rotation_matrix(star_fin_gamma)
+        port_rot = get_x_rotation_matrix(port_fin_gamma)
+
+        top_forces_ring  = np.array([-top_drag,  -top_radial*0.0, -top_normal*0.0],'d')
+        star_forces_ring = np.array([-star_drag, -star_radial*0.0,-star_normal*0.0],'d')
+        port_forces_ring = np.array([-port_drag, -port_radial*0.0,-port_normal*0.0],'d')
+
+        #from coeff to real force
+        top_force  = qbar * S * top_rot  @ top_forces_ring
+        star_force = qbar * S * star_rot @ star_forces_ring
+        port_force = qbar * S * port_rot @ port_forces_ring
+
+        grid_fin_arm = np.array([-0.5, 0.0889, 0.0], 'd')
+
+        top_arm  = top_rot  @ grid_fin_arm
+        star_arm = star_rot @ grid_fin_arm
+        port_arm = port_rot @ grid_fin_arm
+
+        top_moment  = np.cross(top_arm,  top_force)
+        star_moment = np.cross(star_arm, star_force)
+        port_moment = np.cross(port_arm, port_force)
+
+        total_force = top_force + star_force + port_force
+        total_moment= top_moment+ star_moment+ port_moment
+
+        return total_force, 0.0*total_moment
+
     def calculate_thrust(self):
         """dummy for now, returns 0.0"""
         return 0.0

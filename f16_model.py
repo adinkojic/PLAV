@@ -133,8 +133,10 @@ class F16_aircraft(object): #TODO: fix possible beta issue
         self.density = density
         self.temperature = temperature
 
-
-        self.airspeed, self.alpha, self.beta = velocity_to_alpha_beta(velocity)
+        aab = velocity_to_alpha_beta(velocity)
+        self.airspeed = aab[0]
+        self.alpha = aab[1]
+        self.beta = aab[2]
 
         dynamic_viscosity = get_dynamic_viscosity(temperature)
         self.reynolds = self.get_Re(density, dynamic_viscosity)
