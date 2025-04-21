@@ -5,7 +5,7 @@ This one uses WGS84 and keeps tract of long lat in NED
 Refactored 3 to OOO style
 
 """
-
+import sys
 import json
 import time
 import math
@@ -60,8 +60,6 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     mass = aircraft_config.get_mass()
     inertia_tensor = aircraft_config.get_inertia_matrix()
 
-
-
     a = 6378137.0 #earth semi-major axis
     e = 0.0818 #earth ecentricity
     omega_e = 7.292115e-5 #earth rotation rate
@@ -98,11 +96,11 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
         ], 'd')
     #torque from forces
 
-    moments_with_torque = np.array([
-        aero_moments[0] - x_cp[2]*body_forces_body[1] + x_cp[1]*body_forces_body[2],
-        aero_moments[1] + x_cp[2]*body_forces_body[0] - x_cp[0]*body_forces_body[2],
-        aero_moments[2] - x_cp[1]*body_forces_body[0] + x_cp[0]*body_forces_body[1],
-    ], 'd')
+    #moments_with_torque = np.array([
+    #    aero_moments[0] - x_cp[2]*body_forces_body[1] + x_cp[1]*body_forces_body[2],
+    #    aero_moments[1] + x_cp[2]*body_forces_body[0] - x_cp[0]*body_forces_body[2],
+    #    aero_moments[2] - x_cp[1]*body_forces_body[0] + x_cp[0]*body_forces_body[1],
+    #], 'd')
 
 
     forces_ned = quat.rotateFrameQ(q, body_forces_body)
@@ -122,7 +120,7 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     q4dot = 0.5*( omega[2]*q[0] +omega[1]*q[1] -omega[0]*q[2])
 
     #(11.27) in Engineeering Dyanmics (Kasdin and Paley)
-    omega_dot = np.linalg.solve(inertia_tensor, moments_with_torque - np.cross(np.eye(3), omega) @ inertia_tensor @ omega)
+    omega_dot = np.linalg.solve(inertia_tensor, aero_moments - np.cross(np.eye(3), omega) @ inertia_tensor @ omega)
 
     lat_dot = vn/(R_phi+altitude)
     long_dot = ve/((R_lamb+altitude)*np.cos(lat))
@@ -214,12 +212,6 @@ class Simulator(object):
 
         self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state, args= (self.aircraft,self.atmosphere))
  
-        #lat wrapparound probably doesnt work
-        #if self.state[7] < -math.pi:
-        #    self.state[7] = self.state[7] + math.pi
-        #elif self.state[7] > math.pi:
-        #    self.state[7] =self.state[7] - math.pi
-
         #lon wrapparound
         if self.state[8] < -math.pi:
             self.state[8] = self.state[8] + 2.0*math.pi
@@ -255,7 +247,7 @@ class Simulator(object):
         """pass in a control vector for the simulation"""
         joystick_command = np.array([0, roll, pitch, 0],'d')
         self.aircraft.update_control(joystick_command)
-    
+
     def pause_sim(self):
         """Pauses the sim, saving time at stop"""
         if not self.paused:
@@ -293,7 +285,7 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/openvspmodel.json', 'r') as file:
+with open('aircraftConfigs/brgrDroneDrop.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -347,7 +339,7 @@ basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere))
 
 real_time = False
 use_flight_gear = False
-t_span = np.array([0.0, 30.0])
+t_span = np.array([0.0, 35.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -548,9 +540,9 @@ def update():
 
     gravity.setData(sim_data[0], sim_data[23] *mtf)
 
-    fx.setData(sim_data[0], sim_data[14] / 4.448)
-    fy.setData(sim_data[0], sim_data[15] / 4.448)
-    fz.setData(sim_data[0], sim_data[16] / 4.448)
+    fx.setData(sim_data[0], sim_data[17] / 4.448)
+    fy.setData(sim_data[0], sim_data[18] / 4.448)
+    fz.setData(sim_data[0], sim_data[19] / 4.448)
 
     mx.setData(sim_data[0], sim_data[20] / 1.356)
     my.setData(sim_data[0], sim_data[21] / 1.356)
@@ -583,7 +575,7 @@ if not real_time:
     print('final alt', sim_data[10][-1]*mtf)
     print('final lon', sim_data[9][-1]* 180/math.pi)
 
-
+print("size of sim_data: ", sys.getsizeof(sim_data))
 
 fdm_event_pipe = None
 if __name__ == '__main__' and use_flight_gear:  # NOTE: This is REQUIRED on Windows!

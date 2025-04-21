@@ -338,14 +338,20 @@ class AircraftConfig(object):
         body_forces_wind = np.array([-body_drag, body_side, -body_lift])
         body_forces_body = quat.rotateVectorQ(wind_to_body, body_forces_wind)
 
-        moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
+        aero_moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
+
+        moments_with_torque = np.array([
+            aero_moments[0] - self.cp_wrt_cm[2]*body_forces_body[1] + self.cp_wrt_cm[1]*body_forces_body[2],
+            aero_moments[1] + self.cp_wrt_cm[2]*body_forces_body[0] - self.cp_wrt_cm[0]*body_forces_body[2],
+            aero_moments[2] - self.cp_wrt_cm[1]*body_forces_body[0] + self.cp_wrt_cm[0]*body_forces_body[1],
+        ], 'd')
 
         if self.has_gridfins == 1:
             gridfin_forces, gridfin_moments = self.calculate_grid_fin_forces()
             body_forces_body = body_forces_body + gridfin_forces
-            moments = moments + gridfin_moments
+            moments_with_torque = moments_with_torque + gridfin_moments
 
-        return body_forces_body, moments
+        return body_forces_body, moments_with_torque
 
     def calculate_grid_fin_forces(self):
         """Calculates the forces of each grid fin"""

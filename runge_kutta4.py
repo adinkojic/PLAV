@@ -4,6 +4,7 @@ No step estimation because it shits itself around date line"""
 from numba import jit, float64
 import numpy as np
 
+#@jit
 def basic_rk4(func, t0, step, y0, args):
     """Basic RK4 Integrator
     Returns the t, and state of the function"""

@@ -77,4 +77,4 @@ class Atmosphere(object):
         wind_north = np.cos(wind_direction *0.017453292519943295) * wind_speed
         wind_down = 0
 
-        return np.array([wind_north, wind_east, wind_down])
+        return np.array([wind_north, wind_east, wind_down], 'd')
