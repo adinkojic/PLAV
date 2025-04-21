@@ -86,10 +86,10 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
 
     aero_forces_body, aero_moments = aircraft_config.get_forces()
-    thrust = aircraft_config.calculate_thrust()
+    aircraft_thrust = aircraft_config.calculate_thrust()
 
     body_forces_body = np.array([
-        aero_forces_body[0] + thrust,
+        aero_forces_body[0] + aircraft_thrust,
         aero_forces_body[1],
         aero_forces_body[2],
         ], 'd')
@@ -155,7 +155,7 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
         log.load_line(t, y, aero_forces_body, \
                     aero_moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, static_pressure, air_temperature, \
-                    alpha, beta, reynolds)
+                    alpha, beta, reynolds, aircraft_thrust)
 
     return x_dot
 
@@ -275,7 +275,7 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/brgrDroneDrop.json', 'r') as file:
+with open('aircraftConfigs/case11steadyF16.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -393,9 +393,6 @@ lat = long_lat_plot.plot(sim_data[0], sim_data[8]*180/math.pi, pen=(40,40,240), 
 lon = long_lat_plot.plot(sim_data[0], sim_data[9]*180/math.pi, pen=(130,20,130), name="Longitude")
 long_lat_plot.addLegend(frame=True, colCount=2)
 
-altitude_plot = plot_widget.addPlot(title="Altitude [ft] vs Time")
-#altitude_plot.addLegend()
-alt = altitude_plot.plot(sim_data[0], sim_data[10]*mtf,pen=(240,20,20), name="Altitude")
 
 cm = pg.colormap.get('CET-L17')
 cm.reverse()
@@ -404,6 +401,31 @@ path_plot = plot_widget.addPlot(title="Flight Path [long,lat]")
 path_plot.addLegend()
 path = path_plot.plot(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi,pen =pen0, name="Path")
 
+
+altitude_plot = plot_widget.addPlot(title="Altitude [ft] vs Time")
+#altitude_plot.addLegend()
+alt = altitude_plot.plot(sim_data[0], sim_data[10]*mtf,pen=(240,20,20), name="Altitude")
+
+downrange_plot = plot_widget.addPlot(title="Downrange Distance [m] vs Time")
+downrange = downrange_plot.plot(sim_data[0], sim_data[35],pen=(240,240,255),name="Downrange")
+
+plot_widget.nextRow()
+
+airspeed = plot_widget.addPlot(title="Airspeed [TAS] vs Time")
+#airspeed.addLegend()
+speed = airspeed.plot(sim_data[0], sim_data[30]*1.943844,pen=(40, 40, 180), name="airspeed")
+
+flight_path_plot = plot_widget.addPlot(title="Flight Path angle vs Time")
+flight_path = flight_path_plot.plot(sim_data[0], sim_data[34] * 180/math.pi,pen=(240,240,255),name="Flight Path")
+
+alpha_beta = plot_widget.addPlot(title="Alpha Beta [deg] vs Time")
+alpha_beta.addLegend()
+alpha = alpha_beta.plot(sim_data[0], sim_data[31]*180/math.pi,pen=(200, 30, 40), name="Alpha")
+beta = alpha_beta.plot(sim_data[0], sim_data[32]*180/math.pi,pen=(40, 30, 200), name="Beta")
+
+range_cross_section = plot_widget.addPlot(title="Downrange [m] vs Altitude [m]")
+rcs = range_cross_section.plot(sim_data[35], sim_data[10],pen=(255,255,255),name="Flight Cross Section")
+
 plot_widget.nextRow()
 
 velocity_plot = plot_widget.addPlot(title="Velocity [ft/s] vs Time [s]")
@@ -411,24 +433,6 @@ velocity_plot.addLegend()
 vn = velocity_plot.plot(sim_data[0], sim_data[11]*mtf,pen=(240,20,20), name="Vn")
 ve = velocity_plot.plot(sim_data[0], sim_data[12]*mtf,pen=(20,240,20), name="Ve")
 vd = velocity_plot.plot(sim_data[0], sim_data[13]*mtf,pen=(240,20,240), name="Vd")
-
-body_rate_plot = plot_widget.addPlot(title="Body Rate [deg/s] vs Time [s]")
-body_rate_plot.addLegend()
-p = body_rate_plot.plot(sim_data[0], sim_data[5]*180/math.pi,pen=(240,240,20), name="p")
-q = body_rate_plot.plot(sim_data[0], sim_data[6]*180/math.pi,pen=(20,240,240), name="q")
-r = body_rate_plot.plot(sim_data[0], sim_data[7]*180/math.pi,pen=(240,20,240), name="r")
-
-euler_plot = plot_widget.addPlot(title="Euler Angles [deg] vs Time")
-euler_plot.addLegend()
-roll = euler_plot.plot(sim_data[0], sim_data[14] *180/math.pi,pen=(240,20,20), name="roll")
-pitch = euler_plot.plot(sim_data[0], sim_data[15] *180/math.pi,pen=(120,240,20), name="pitch")
-yaw = euler_plot.plot(sim_data[0], sim_data[16] *180/math.pi,pen=(120,20,240), name="yaw")
-
-plot_widget.nextRow()
-
-
-local_gravity = plot_widget.addPlot(title="Local Gravity [ft/s^2] vs Time")
-gravity = local_gravity.plot(sim_data[0], sim_data[23] *mtf,pen=(10,130,20), name="Gravity")
 
 body_forces = plot_widget.addPlot(title="Body force [lbf] vs Time")
 body_forces.addLegend()
@@ -442,25 +446,19 @@ mx = body_moment.plot(sim_data[0], sim_data[20] / 1.356, pen=(40, 40, 180), name
 my = body_moment.plot(sim_data[0], sim_data[21] / 1.356, pen=(40, 180, 40), name="Y")
 mz = body_moment.plot(sim_data[0], sim_data[22] / 1.356, pen=(180, 40, 40), name="Z")
 
-plot_widget.nextRow()
 
-airspeed = plot_widget.addPlot(title="Airspeed [TAS] vs Time")
-#airspeed.addLegend()
-speed = airspeed.plot(sim_data[0], sim_data[30]*1.943844,pen=(40, 40, 180), name="airspeed")
-
-alpha_beta = plot_widget.addPlot(title="Alpha Beta [deg] vs Time")
-alpha_beta.addLegend()
-alpha = alpha_beta.plot(sim_data[0], sim_data[31]*180/math.pi,pen=(200, 30, 40), name="Alpha")
-beta = alpha_beta.plot(sim_data[0], sim_data[32]*180/math.pi,pen=(40, 30, 200), name="Beta")
-
-quat_plot = plot_widget.addPlot(title="Rotation Quaternion vs Time")
-quat_plot.addLegend()
-q1 = quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="1")
-q2 = quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
-q3 = quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
-q4 = quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
+body_rate_plot = plot_widget.addPlot(title="Body Rate [deg/s] vs Time [s]")
+body_rate_plot.addLegend()
+p = body_rate_plot.plot(sim_data[0], sim_data[5]*180/math.pi,pen=(240,240,20), name="p")
+q = body_rate_plot.plot(sim_data[0], sim_data[6]*180/math.pi,pen=(20,240,240), name="q")
+r = body_rate_plot.plot(sim_data[0], sim_data[7]*180/math.pi,pen=(240,20,240), name="r")
 
 plot_widget.nextRow()
+
+
+
+local_gravity = plot_widget.addPlot(title="Local Gravity [ft/s^2] vs Time")
+gravity = local_gravity.plot(sim_data[0], sim_data[23] *mtf,pen=(10,130,20), name="Gravity")
 
 air_density_plot = plot_widget.addPlot(title="Air density [kg/m^3] vs Time")
 rho = air_density_plot.plot(sim_data[0], sim_data[27],pen=(20,5,130),name="Air Density")
@@ -473,11 +471,23 @@ re = reynolds_plot.plot(sim_data[0], sim_data[33],pen=(240,240,255),name="Reynol
 
 plot_widget.nextRow()
 
-flight_path_plot = plot_widget.addPlot(title="Flight Path angle vs Time")
-flight_path = flight_path_plot.plot(sim_data[0], sim_data[34] * 180/math.pi,pen=(240,240,255),name="Flight Path")
 
-downrange_plot = plot_widget.addPlot(title="Downrange Distance [m]")
-downrange = downrange_plot.plot(sim_data[0], sim_data[35],pen=(240,240,255),name="Downrange")
+quat_plot = plot_widget.addPlot(title="Rotation Quaternion vs Time")
+quat_plot.addLegend()
+q1 = quat_plot.plot(sim_data[0], sim_data[1],pen=(255,255,255),name="1")
+q2 = quat_plot.plot(sim_data[0], sim_data[2],pen=(255,10,10),name="i")
+q3 = quat_plot.plot(sim_data[0], sim_data[3],pen=(10,255,10),name="j")
+q4 = quat_plot.plot(sim_data[0], sim_data[4],pen=(10,10,255),name="k")
+
+euler_plot = plot_widget.addPlot(title="Euler Angles [deg] vs Time")
+euler_plot.addLegend()
+roll = euler_plot.plot(sim_data[0], sim_data[14] *180/math.pi,pen=(240,20,20), name="roll")
+pitch = euler_plot.plot(sim_data[0], sim_data[15] *180/math.pi,pen=(120,240,20), name="pitch")
+yaw = euler_plot.plot(sim_data[0], sim_data[16] *180/math.pi,pen=(120,20,240), name="yaw")
+
+thrust_plot = plot_widget.addPlot(title="Thrust vs Time")
+thrust = thrust_plot.plot(sim_data[0], sim_data[36],pen=(255,255,255),name="Thrust")
+
 
 print("compilation took ", time.perf_counter()-code_start_time)
 
@@ -560,6 +570,9 @@ def update():
 
     flight_path.setData(sim_data[0], sim_data[34] * 180/math.pi)
     downrange.setData(sim_data[0], sim_data[35])
+
+    rcs.setData(sim_data[35], sim_data[10])
+    thrust.setData(sim_data[0], sim_data[36],pen=(255,255,255))
 
 
 timer = QtCore.QTimer()

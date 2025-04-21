@@ -168,10 +168,15 @@ class F16_aircraft(object): #TODO: fix possible beta issue
 
         body_forces_body = np.array([body_x, body_y, body_z])
 
-        moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
+        aero_moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
 
+        moments_with_torque = np.array([
+            aero_moments[0] - self.cp_wrt_cm[2]*body_forces_body[1] + self.cp_wrt_cm[1]*body_forces_body[2],
+            aero_moments[1] + self.cp_wrt_cm[2]*body_forces_body[0] - self.cp_wrt_cm[0]*body_forces_body[2],
+            aero_moments[2] - self.cp_wrt_cm[1]*body_forces_body[0] + self.cp_wrt_cm[0]*body_forces_body[1],
+        ], 'd')
 
-        return body_forces_body, moments
+        return body_forces_body, moments_with_torque
 
     def get_coeff(self):
         """Gets the aerodynamic coefficients of the F16
@@ -233,16 +238,18 @@ class F16_aircraft(object): #TODO: fix possible beta issue
 
         thrust = 0.0
 
-        if 0.0 <= self.power < mil_power:
+        power = self.trim_power + self.power
+
+        if 0.0 <= power < mil_power:
             t_idle = thrust_idle_lookup(self.altitude * (39.37 /12), self.mach)
             t_mil  = thrust_mil_lookup(self.altitude * (39.37 /12), self.mach)
 
-            thrust = t_idle + self.power*(t_mil - t_idle)/mil_power
-        elif mil_power <= self.power <= 1.0:
+            thrust = t_idle + power*(t_mil - t_idle)/mil_power
+        elif mil_power <= power <= 1.0:
             t_mil  = thrust_mil_lookup(self.altitude * (39.37 /12), self.mach)
             t_max  = thrust_max_lookup(self.altitude * (39.37 /12), self.mach)
 
-            thrust = t_mil + (self.power-mil_power)*(t_max - t_mil)/mil_power
+            thrust = t_mil + (power-mil_power)*(t_max - t_mil)/mil_power
 
         return thrust * 4.448 #return it in newtons
 

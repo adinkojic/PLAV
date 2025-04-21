@@ -23,6 +23,7 @@ spec = [
     #forces and moments
     ('aero_body_force', float64[:]),
     ('aero_body_moment', float64[:]),
+    ('thrust', float64),
 
     #enviroment
     ('local_gravity', float64),
@@ -76,6 +77,7 @@ class SimDataLogger(object):
         self.alpha = 0.0
         self.beta = 0.0
         self.reynolds = 0.0
+        self.thrust = 0.0
 
         line = self.make_line()
 
@@ -88,7 +90,7 @@ class SimDataLogger(object):
     def load_line(self, time, state, aero_body_force, \
                     aero_body_moment, local_gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, ambient_pressure, ambient_temperature, \
-                    alpha, beta, reynolds):
+                    alpha, beta, reynolds, thrust):
         """Loads a line of data for the object so it can be used for the logger"""
 
         self.time = np.array([time])
@@ -114,6 +116,7 @@ class SimDataLogger(object):
         self.alpha = np.array([alpha])
         self.beta = np.array([beta])
         self.reynolds = np.array([reynolds])
+        self.thrust = np.array([thrust], 'd')
 
     def make_line(self):
         """Makes a line of data"""
@@ -124,7 +127,7 @@ class SimDataLogger(object):
         if self.valid_data_size != 0:
             inital_lat = self.data[9][0]
             inital_lon = self.data[8][0]
-            downrange = dist_haversine(self.lon_lat_alt[1], self.lon_lat_alt[0],inital_lat,inital_lon)
+            downrange = dist_vincenty(self.lon_lat_alt[1], self.lon_lat_alt[0],inital_lat,inital_lon)
         else:
             downrange = 0.0
 
@@ -139,7 +142,7 @@ class SimDataLogger(object):
             self.local_gravity, self.speed_of_sound, self.mach, self.dynamic_pressure, \
             self.air_density, self.ambient_pressure, self.ambient_temperature, \
             self.true_airspeed, self.alpha, self.beta, self.reynolds, \
-            flight_path, downrange
+            flight_path, downrange, self.thrust
          ], 'd')
         return line
 
@@ -202,6 +205,72 @@ def calculate_flight_path_angle(velocity_ned):
     return np.float64(flight_path_angle)
 
 @jit(float64(float64, float64, float64, float64))
+def dist_vincenty(lat1, lon1, lat2, lon2):
+    
+    """TODO: edit
+    Vincenty's inverse formula for ellipsoidal distance on WGS‑84.
+    Parameters:
+      lat1, lon1 — latitude and longitude of point A in rad
+      lat2, lon2 — latitude and longitude of point B in rad
+
+    Returns:
+      Distance in meters.  May fail to converge near antipodal points.
+    """
+
+    max_iter=20
+    tol=1e-12
+
+    # WGS‑84 ellipsoid parameters
+    a = 6378137.0               # semi-major axis (meters)
+    f = 1 / 298.257223563       # flattening
+    b = a * (1 - f)             # semi-minor axis
+
+    phi1, phi2 = lat1, lat2
+    L = lon2 - lon1
+
+    U1 = math.atan((1 - f) * math.tan(phi1))
+    U2 = math.atan((1 - f) * math.tan(phi2))
+    sinU1, cosU1 = math.sin(U1), math.cos(U1)
+    sinU2, cosU2 = math.sin(U2), math.cos(U2)
+
+    lamb = L
+    for _ in range(max_iter):
+        sinLambda, cosLambda = math.sin(lamb), math.cos(lamb)
+        sinSigma = math.hypot(cosU2 * sinLambda,
+                          cosU1 * sinU2 - sinU1 * cosU2 * cosLambda)
+        if sinSigma == 0:
+            return 0.0  # coincident points
+
+        cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda
+        sigma = math.atan2(sinSigma, cosSigma)
+
+        sinAlpha = cosU1 * cosU2 * sinLambda / sinSigma
+        cos2Alpha = 1 - sinAlpha * sinAlpha
+
+        cos2Sigmam = (cosSigma - 2 * sinU1 * sinU2 / cos2Alpha) if cos2Alpha != 0 else 0.0
+
+        C = f / 16 * cos2Alpha * (4 + f * (4 - 3 * cos2Alpha))
+
+        lamb_prev = lamb
+        lamb = (L + (1 - C) * f * sinAlpha *
+                (sigma + C * sinSigma * (cos2Sigmam + C * cosSigma *
+                 (-1 + 2 * cos2Sigmam * cos2Sigmam))))
+        if abs(lamb - lamb_prev) < tol:
+            break
+
+    # handle non-convergence: proceed with best estimate anyway
+    u2 = cos2Alpha * (a*a - b*b) / (b*b)
+    A = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175*u2)))
+    B = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47*u2)))
+    deltaSigma = (B * sinSigma * (cos2Sigmam + B / 4 * (
+              cosSigma * (-1 + 2 * cos2Sigmam*cos2Sigmam) -
+              B / 6 * cos2Sigmam * (-3 + 4*sinSigma*sinSigma) *
+              (-3 + 4*cos2Sigmam*cos2Sigmam))))
+    s = b * A * (sigma - deltaSigma)
+
+    return np.float64(s)
+
+@jit(float64(float64, float64, float64, float64))
 def dist_haversine(lat1, lon1, lat2, lon2):
     """
     Standard haversine formula.
@@ -210,10 +279,10 @@ def dist_haversine(lat1, lon1, lat2, lon2):
 
     R_WGS84 = 6371008.8
 
-    phi1 = lat1
-    phi2 = lat2
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
     delta_phi = phi2 - phi1
-    delta_lamb = lon2 - lon1
+    delta_lamb = math.radians(lon2 - lon1)
 
     sin_delta_phi = math.sin(delta_phi * 0.5)
     sin_delta_lamb = math.sin(delta_lamb * 0.5)
