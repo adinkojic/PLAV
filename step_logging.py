@@ -1,8 +1,11 @@
 """One-line log for extracting certain aircraft properties"""
 
+import math
 import numpy as np
-from numba import float64, int64
+from numba import jit, float64, int64
 from numba.experimental import jitclass
+
+import quaternion_math as quat
 
 spec = [
 
@@ -82,7 +85,7 @@ class SimDataLogger(object):
         self.data = np.zeros((data_columns, int64(preallocated)))
         self.valid_data_size = 0
 
-    def load_line(self, time, state, rollpitchyaw, aero_body_force, \
+    def load_line(self, time, state, aero_body_force, \
                     aero_body_moment, local_gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, ambient_pressure, ambient_temperature, \
                     alpha, beta, reynolds):
@@ -93,8 +96,6 @@ class SimDataLogger(object):
         self.body_rate    = state[4:7]
         self.lon_lat_alt  = state[7:10]
         self.ned_velocity = state[10:13]
-
-        self.euler = rollpitchyaw
 
         self.aero_body_force  = aero_body_force
         self.aero_body_moment = aero_body_moment
@@ -117,18 +118,29 @@ class SimDataLogger(object):
     def make_line(self):
         """Makes a line of data"""
 
+        rollpitchyaw = quat.to_euler(self.quat)
+        flight_path = calculate_flight_path_angle(self.ned_velocity)
+
+        if self.valid_data_size != 0:
+            inital_lat = self.data[9][0]
+            inital_lon = self.data[8][0]
+            downrange = dist_haversine(self.lon_lat_alt[1], self.lon_lat_alt[0],inital_lat,inital_lon)
+        else:
+            downrange = 0.0
+
         line = np.array([ \
             self.time, self.quat[0], self.quat[1], self.quat[2], self.quat[3], \
             self.body_rate[0], self.body_rate[1], self.body_rate[2], \
             self.lon_lat_alt[0], self.lon_lat_alt[1], self.lon_lat_alt[2], \
             self.ned_velocity[0], self.ned_velocity[1], self.ned_velocity[2], \
-            self.euler[0], self.euler[1], self.euler[2], \
+            rollpitchyaw[0], rollpitchyaw[1], rollpitchyaw[2], \
             self.aero_body_force[0], self.aero_body_force[1], self.aero_body_force[2], \
             self.aero_body_moment[0], self.aero_body_moment[1], self.aero_body_moment[2], \
             self.local_gravity, self.speed_of_sound, self.mach, self.dynamic_pressure, \
             self.air_density, self.ambient_pressure, self.ambient_temperature, \
-            self.true_airspeed, self.alpha, self.beta, self.reynolds
-         ])
+            self.true_airspeed, self.alpha, self.beta, self.reynolds, \
+            flight_path, downrange
+         ], 'd')
         return line
 
     def save_line(self):
@@ -164,3 +176,48 @@ class SimDataLogger(object):
         """Returns the size of data"""
         self.trim_excess()
         return self.valid_data_size
+
+#a bunch of helper functions to record other data
+@jit#(float64(float64[:]))
+def calculate_flight_path_angle(velocity_ned):
+    """
+    Calculates the flight path angle [rad] of the aircraft given the velocity in NED
+
+    Parameters
+    ----------
+    velocity_NED : array_like
+        The velocity in north-east-down coordinates
+        Units irrrelevant
+
+    Returns
+    -------
+    
+    flight_path_angle : float
+        The flight path angles in radians
+    """
+    ground_speed = math.sqrt(velocity_ned[0]**2 + velocity_ned[1] **2)
+
+    flight_path_angle = math.atan2(velocity_ned[2], ground_speed)
+
+    return np.float64(flight_path_angle)
+
+@jit(float64(float64, float64, float64, float64))
+def dist_haversine(lat1, lon1, lat2, lon2):
+    """
+    Standard haversine formula.
+    Good to ~0.1% error everywhere.
+    """
+
+    R_WGS84 = 6371008.8
+
+    phi1 = lat1
+    phi2 = lat2
+    delta_phi = phi2 - phi1
+    delta_lamb = lon2 - lon1
+
+    sin_delta_phi = math.sin(delta_phi * 0.5)
+    sin_delta_lamb = math.sin(delta_lamb * 0.5)
+    a = sin_delta_phi * sin_delta_phi + math.cos(phi1) * math.cos(phi2) * sin_delta_lamb * sin_delta_lamb
+    # guard against rounding errors:
+    #a = min(1.0, max(0.0, a))
+    return 2 * R_WGS84 * math.asin(math.sqrt(a))

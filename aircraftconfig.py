@@ -192,12 +192,12 @@ def get_local_alpha_beta(velocity, gamma, theta):
 
     return np.array([aab[1], aab[2]], 'd')
 
-@jit(float64[:,:](float64))
+@jit#(float64[:,:](float64))
 def get_x_rotation_matrix(angle):
-    """gets a rotation matrix about X, useful for grid fins [rad]"""
+    """Gets a rotation matrix about X, useful for fins [rad]"""
     rotation_around_body = np.array([ [1., 0, 0], \
-                         [0, np.cos(angle), -np.sin(angle)], \
-                         [0, np.sin(angle), np.cos(angle)] ], 'd')
+                         [0, math.cos(angle), -math.sin(angle)], \
+                         [0, math.sin(angle), math.cos(angle)] ], 'd')
     return np.ascontiguousarray(rotation_around_body)
 
 @jitclass(spec)
@@ -364,13 +364,13 @@ class AircraftConfig(object):
 
         yaw_adjustment_factor = 0.5
 
-        ail_command = self.ail + self.trim_ail
-        el_command = self.el + self.trim_el
-        rdr_command = self.rdr + self.trim_rdr
+        ail_command = self.ail * 0.5 + self.trim_ail
+        el_command  = self.el  * 0.5 + self.trim_el
+        rdr_command = self.rdr * 0.5 + self.trim_rdr
 
-        top_fin_theta  = -ail_command * 0.2 + rdr_command * 0.2
-        star_fin_theta = -ail_command * 0.2 + rdr_command*yaw_adjustment_factor * 0.2 + el_command * 0.2
-        port_fin_theta = -ail_command * 0.2 + rdr_command*yaw_adjustment_factor * 0.2 - el_command * 0.2
+        top_fin_theta  = -ail_command + rdr_command
+        star_fin_theta = -ail_command + rdr_command*yaw_adjustment_factor + el_command
+        port_fin_theta = -ail_command + rdr_command*yaw_adjustment_factor - el_command
 
         aab_top  = get_local_alpha_beta(self.velocity, top_fin_gamma,  top_fin_theta )
         aab_star = get_local_alpha_beta(self.velocity, star_fin_gamma, star_fin_theta)

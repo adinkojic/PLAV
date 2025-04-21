@@ -87,20 +87,12 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
     aero_forces_body, aero_moments = aircraft_config.get_forces()
     thrust = aircraft_config.calculate_thrust()
-    x_cp = aircraft_config.get_xcp()
 
     body_forces_body = np.array([
         aero_forces_body[0] + thrust,
         aero_forces_body[1],
         aero_forces_body[2],
         ], 'd')
-    #torque from forces
-
-    #moments_with_torque = np.array([
-    #    aero_moments[0] - x_cp[2]*body_forces_body[1] + x_cp[1]*body_forces_body[2],
-    #    aero_moments[1] + x_cp[2]*body_forces_body[0] - x_cp[0]*body_forces_body[2],
-    #    aero_moments[2] - x_cp[1]*body_forces_body[0] + x_cp[0]*body_forces_body[1],
-    #], 'd')
 
 
     forces_ned = quat.rotateFrameQ(q, body_forces_body)
@@ -158,11 +150,9 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     beta  = aircraft_config.get_beta()
     reynolds = aircraft_config.get_reynolds()
 
-    rollpitchyaw=quat.to_euler(q)
-
 
     if log is not None:
-        log.load_line(t, y, rollpitchyaw, aero_forces_body, \
+        log.load_line(t, y, aero_forces_body, \
                     aero_moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, static_pressure, air_temperature, \
                     alpha, beta, reynolds)
@@ -328,14 +318,14 @@ else:
     #init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
     init_velocity = [0.0, 0.0, 0.0]
     init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
-    init_ori = np.array([0.0, 0.0, 0.0])
+    init_ori = np.array([0.0, 0.0, 0.0], 'd')
 
 
 
 y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], elevation=init_ori[1], roll=init_ori[0], init_omega=init_rte)
 
 #pump sim once
-basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere))
+basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
 
 real_time = False
 use_flight_gear = False
@@ -481,6 +471,14 @@ pressure = air_pressure.plot(sim_data[0], sim_data[28],pen=(120,5,20),name="Air 
 reynolds_plot = plot_widget.addPlot(title="Reynolds Number vs Time")
 re = reynolds_plot.plot(sim_data[0], sim_data[33],pen=(240,240,255),name="Reynolds Number")
 
+plot_widget.nextRow()
+
+flight_path_plot = plot_widget.addPlot(title="Flight Path angle vs Time")
+flight_path = flight_path_plot.plot(sim_data[0], sim_data[34] * 180/math.pi,pen=(240,240,255),name="Flight Path")
+
+downrange_plot = plot_widget.addPlot(title="Downrange Distance [m]")
+downrange = downrange_plot.plot(sim_data[0], sim_data[35],pen=(240,240,255),name="Downrange")
+
 print("compilation took ", time.perf_counter()-code_start_time)
 
 def fdm_callback(fdm_data, event_pipe):
@@ -533,7 +531,6 @@ def update():
     q.setData(sim_data[0], sim_data[6]*180/math.pi)
     r.setData(sim_data[0], sim_data[7]*180/math.pi)
 
-    #unoptimized af gotta fix
     roll.setData(sim_data[0], sim_data[14] *180/math.pi)
     pitch.setData(sim_data[0], sim_data[15] *180/math.pi)
     yaw.setData(sim_data[0], sim_data[16] *180/math.pi)
@@ -561,6 +558,8 @@ def update():
     pressure.setData(sim_data[0], sim_data[28])
     re.setData(sim_data[0], sim_data[33])
 
+    flight_path.setData(sim_data[0], sim_data[34] * 180/math.pi)
+    downrange.setData(sim_data[0], sim_data[35])
 
 
 timer = QtCore.QTimer()
