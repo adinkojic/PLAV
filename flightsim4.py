@@ -102,9 +102,9 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
     ## figure out forces here
     #in NED frame
-    accel_north = accel_body[0]
-    accel_east  = accel_body[1]
-    accel_down  = accel_body[2]
+    accel_north = accel_NED[0]
+    accel_east  = accel_NED[1]
+    accel_down  = accel_NED[2]
 
     omega = omega - quat.rotateFrameQ(q, omega_NI)
 
