@@ -34,7 +34,7 @@ def from_angle_axis(angle, axis):
     return np.array([math.cos(angle/2), math.sin(angle/2)*axis[0], math.sin(angle/2)*axis[1], math.sin(angle/2)*axis[2]])
 
 
-@jit(float64[:](float64[:], float64[:]), parallel = True)
+@jit(float64[:](float64[:], float64[:]))
 def mulitply(q1, q2):
     """Multiplies quaternions"""
     q3 = np.zeros(4)

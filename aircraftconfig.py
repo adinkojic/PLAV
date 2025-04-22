@@ -144,10 +144,11 @@ def get_dynamic_viscosity(temperature):
 
 @jit(float64[:](float64[:]))
 def velocity_to_alpha_beta(velocity_body):
-    """Gets velocity to alpha beta, assumes x direction is datum"""
+    """Gets velocity to alpha beta, assumes x direction is datum
+    Reference: Fundamentals of Helicopter Dyanmics 10.42, 10.43"""
     airspeed = math.sqrt(velocity_body[0]**2 + velocity_body[1]**2 + velocity_body[2]**2)
 
-    if abs(airspeed) > 0.1:
+    if abs(airspeed) > 0.01:
         beta = math.asin(velocity_body[1]/airspeed)
     else:
         beta = 0.0

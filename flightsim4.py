@@ -6,6 +6,7 @@ Refactored 3 to OOO style
 
 """
 import sys
+import csv
 import json
 import time
 import math
@@ -16,6 +17,7 @@ from PyQt6 import QtWidgets, QtCore
 from pyqtgraph.Qt import QtCore
 from matplotlib import colormaps
 import pyqtgraph as pg
+import pandas as pd
 from flightgear_python.fg_if import FDMConnection
 
 import quaternion_math as quat
@@ -94,14 +96,15 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
         aero_forces_body[2],
         ], 'd')
 
+    accel_body = body_forces_body/mass
 
-    forces_ned = quat.rotateFrameQ(q, body_forces_body)
+    accel_NED = quat.rotateFrameQ(q, accel_body)
 
     ## figure out forces here
     #in NED frame
-    accel_north = forces_ned[0]/mass
-    accel_east  = forces_ned[1]/mass
-    accel_down  = forces_ned[2]/mass
+    accel_north = accel_body[0]
+    accel_east  = accel_body[1]
+    accel_down  = accel_body[2]
 
     omega = omega - quat.rotateFrameQ(q, omega_NI)
 
@@ -329,7 +332,8 @@ basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
 
 real_time = False
 use_flight_gear = False
-t_span = np.array([0.0, 35.0])
+export_to_csv = True
+t_span = np.array([0.0, 180.0])
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
 
@@ -436,15 +440,15 @@ vd = velocity_plot.plot(sim_data[0], sim_data[13]*mtf,pen=(240,20,240), name="Vd
 
 body_forces = plot_widget.addPlot(title="Body force [lbf] vs Time")
 body_forces.addLegend()
-fx = body_forces.plot(sim_data[0], sim_data[17] / 4.448, pen=(40, 40, 255), name="X")
-fy = body_forces.plot(sim_data[0], sim_data[18] / 4.448, pen=(40, 255, 40), name="Y")
-fz = body_forces.plot(sim_data[0], sim_data[19] / 4.448, pen=(255, 40, 40), name="Z")
+fx = body_forces.plot(sim_data[0], sim_data[17] *0.2248089431, pen=(40, 40, 255), name="X")
+fy = body_forces.plot(sim_data[0], sim_data[18] *0.2248089431, pen=(40, 255, 40), name="Y")
+fz = body_forces.plot(sim_data[0], sim_data[19] *0.2248089431, pen=(255, 40, 40), name="Z")
 
 body_moment = plot_widget.addPlot(title="Body Moment [ft lbf] vs Time")
 body_moment.addLegend()
-mx = body_moment.plot(sim_data[0], sim_data[20] / 1.356, pen=(40, 40, 180), name="X")
-my = body_moment.plot(sim_data[0], sim_data[21] / 1.356, pen=(40, 180, 40), name="Y")
-mz = body_moment.plot(sim_data[0], sim_data[22] / 1.356, pen=(180, 40, 40), name="Z")
+mx = body_moment.plot(sim_data[0], sim_data[20] *0.7375621493, pen=(40, 40, 180), name="X")
+my = body_moment.plot(sim_data[0], sim_data[21] *0.7375621493, pen=(40, 180, 40), name="Y")
+mz = body_moment.plot(sim_data[0], sim_data[22] *0.7375621493, pen=(180, 40, 40), name="Z")
 
 
 body_rate_plot = plot_widget.addPlot(title="Body Rate [deg/s] vs Time [s]")
@@ -547,13 +551,13 @@ def update():
 
     gravity.setData(sim_data[0], sim_data[23] *mtf)
 
-    fx.setData(sim_data[0], sim_data[17] / 4.448)
-    fy.setData(sim_data[0], sim_data[18] / 4.448)
-    fz.setData(sim_data[0], sim_data[19] / 4.448)
+    fx.setData(sim_data[0], sim_data[17] *0.2248089431)
+    fy.setData(sim_data[0], sim_data[18] *0.2248089431)
+    fz.setData(sim_data[0], sim_data[19] *0.2248089431)
 
-    mx.setData(sim_data[0], sim_data[20] / 1.356)
-    my.setData(sim_data[0], sim_data[21] / 1.356)
-    mz.setData(sim_data[0], sim_data[22] / 1.356)
+    mx.setData(sim_data[0], sim_data[20] *0.7375621493)
+    my.setData(sim_data[0], sim_data[21] *0.7375621493)
+    mz.setData(sim_data[0], sim_data[22] *0.7375621493)
 
     speed.setData(sim_data[0], sim_data[30]*1.943844)
     alpha.setData(sim_data[0], sim_data[31]*180/math.pi)
@@ -601,6 +605,29 @@ if __name__ == '__main__' and use_flight_gear:  # NOTE: This is REQUIRED on Wind
     fdm_conn.start()  # Start the FDM RX/TX loop
     print("Started FlightGear Connection")
 timer.start(10)
+
+if export_to_csv:
+    csv_data = {'time': sim_data[0],
+        'altitudeMsl_ft': sim_data[10]*mtf,
+        'longitude_deg': sim_data[9]*180/math.pi,
+        'latitude_deg': sim_data[8]*180/math.pi,
+        'localGravity_ft_s2': sim_data[23] *mtf,
+        'eulerAngle_deg_Yaw':  sim_data[16] *180/math.pi,
+        'eulerAngle_deg_Pitch': sim_data[15] *180/math.pi,
+        'eulerAngle_deg_Roll' : sim_data[14] *180/math.pi,
+        'aero_bodyForce_lbf_X': sim_data[17] *0.2248089431,
+        'aero_bodyForce_lbf_Y': sim_data[18] *0.2248089431,
+        'aero_bodyForce_lbf_Z': sim_data[19] *0.2248089431,
+        'aero_bodyMoment_ftlbf_L': sim_data[20] *0.7375621493,
+        'aero_bodyMoment_ftlbf_M': sim_data[21] *0.7375621493,
+        'aero_bodyMoment_ftlbf_N': sim_data[22] *0.7375621493,
+        }
+    
+    df = pd.DataFrame(csv_data)
+    filename = "output.csv"
+    df.to_csv(filename, index=False)
+
+    print(f"Data exported to {filename}")
 
 main_window.show()
 realtime_window.show()
