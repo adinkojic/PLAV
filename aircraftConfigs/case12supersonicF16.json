@@ -10,14 +10,14 @@
 
     "has_control":true,
     "control_vector_size": 4,
-    "init_control": [0.0,0.0,-1.53,0.8756],
+    "init_control": [0.0,0.0,-1.53,0.875],
 
     "init_alt": 9147.9624,
     "init_vel": [431.05229, 431.05229, 0],
     "init_rot": [0, 0.0, 0.0],
     "init_lat": 0.6286530522,
     "init_lon": -1.3207682151,
-    "init_ori": [0.0, -0.75, 45.0],
+    "init_ori": [0.0, -0.74157, 45.0],
 
     "wind_alt_profile": [0, 0],
     "wind_speed_profile": [0, 0],

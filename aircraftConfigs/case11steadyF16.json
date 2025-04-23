@@ -10,7 +10,7 @@
 
     "has_control":true,
     "control_vector_size": 4,
-    "init_control": [0.0,0.0,-3.27,0.13],
+    "init_control": [0.0,0.0,-3.241,0.1355],
 
     "init_alt": 3051.9624,
     "init_vel": [121.92, 121.92, 0],
