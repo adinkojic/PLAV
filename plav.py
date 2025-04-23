@@ -6,7 +6,6 @@ Refactored 3 to OOO style
 
 """
 import sys
-import csv
 import json
 import time
 import math
