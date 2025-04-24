@@ -7,6 +7,7 @@
     "massunits": "kilograms",
 
     "useF16":true,
+    "useSAS":false,
 
     "has_control":true,
     "control_vector_size": 4,

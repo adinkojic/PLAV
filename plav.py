@@ -26,6 +26,7 @@ from f16_model import F16_aircraft
 from atmosphere import Atmosphere
 from step_logging import SimDataLogger
 from runge_kutta4 import basic_rk4
+from f16Control import F16Control, tas_to_eas
 
 #from pyqtgraph.Qt import QtWidgets
 
@@ -151,12 +152,13 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     beta  = aircraft_config.get_beta()
     reynolds = aircraft_config.get_reynolds()
 
+    control_deflection = aircraft_config.get_control_deflection()
 
     if log is not None:
         log.load_line(t, y, aero_forces_body, \
                     aero_moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, static_pressure, air_temperature, \
-                    alpha, beta, reynolds, aircraft_thrust)
+                    alpha, beta, reynolds, aircraft_thrust, control_deflection)
 
     return x_dot
 
@@ -178,7 +180,7 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 
 class Simulator(object):
     """A sim object is required to store all the required data nicely."""
-    def __init__(self, init_state, time_span, aircraft, atmosphere, t_step = 0.1):
+    def __init__(self, init_state, time_span, aircraft, atmosphere, control_sys = None, t_step = 0.1):
         self.state = init_state
         self.t_span = time_span
         self.time = time_span[0]
@@ -192,7 +194,8 @@ class Simulator(object):
         self.elapsed_time = 0.0
         self.time_at_last_pause = 0.0
 
-        self.control_vec = None
+        self.pilot_vec = np.zeros(4, 'd')
+        self.control_sys = control_sys
 
         #log the inital state
         x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
@@ -201,6 +204,16 @@ class Simulator(object):
     def advance_timestep(self):
         """advance timestep function, updates timestep and saves values"""
 
+        if self.control_sys is not None:
+            #two phases, on to give data and one to get the new control vector
+            #for HIL this means it gets to get the data, compute, then return control
+
+            self.control_sys_update()
+            #for HIL it might block a bit as the aurdino computes
+            total_control_vector = self.control_sys_request_response()
+            aircraft.update_control(total_control_vector)
+            #print("control vector: ", total_control_vector)
+                
         self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state, args= (self.aircraft,self.atmosphere))
  
         #lon wrapparound
@@ -212,6 +225,57 @@ class Simulator(object):
         #get stuff
         x_dot(self.time, self.state, self.aircraft, self.atmosphere, self.sim_log)
         self.sim_log.save_line()
+
+    def control_sys_update(self):
+        """updates the control system with the latest data"""
+        last_line = self.sim_log.get_lastest()
+
+        if last_line is not None:
+            sim_time = last_line[0]
+            tas = last_line[30]*1.943844
+            density = last_line[27]
+            equivalent_airspeed = tas_to_eas(tas, density)
+
+
+            altitude_msl = last_line[10] * 3.28084
+            angle_of_attack = last_line[31] * 180/math.pi
+            angle_of_sideslip = last_line[32] * 180/math.pi
+            euler_angle_roll = last_line[14] * 180/math.pi
+            euler_angle_pitch = last_line[15] * 180/math.pi
+            euler_angle_yaw = last_line[16] * 180/math.pi
+            body_angular_rate_roll = last_line[5]
+            body_angular_rate_pitch = last_line[6]
+            body_angular_rate_yaw = last_line[7]
+
+            #print("altitude msl: ", altitude_msl)
+            #print("equivalent airspeed: ", equivalent_airspeed)
+            #print("angle of attack: ", angle_of_attack)
+            #print("angle of sideslip: ", angle_of_sideslip)
+            #print("euler angle roll: ", euler_angle_roll)
+            #print("euler angle pitch: ", euler_angle_pitch)
+            #print("euler angle yaw: ", euler_angle_yaw)
+            #print("body angular rate roll: ", body_angular_rate_roll)
+            #print("body angular rate pitch: ", body_angular_rate_pitch)
+            #print("body angular rate yaw: ", body_angular_rate_yaw)
+            #print("tas: ", tas)
+            #print("density: ", density)
+
+            self.control_sys.update_enviroment(altitude_msl, equivalent_airspeed, angle_of_attack, \
+                    angle_of_sideslip, euler_angle_roll, euler_angle_pitch, \
+                    euler_angle_yaw, body_angular_rate_roll ,\
+                    body_angular_rate_pitch, body_angular_rate_yaw, sim_time)
+ 
+            pilot_control_lat = 0.0 #self.pilot_vec[0]
+            pilot_control_yaw = 0.0 #self.pilot_vec[1]
+            pilot_control_long = 0.0 #self.pilot_vec[2]
+            pilot_control_throttle = 0.0 #self.pilot_vec[3]
+            self.control_sys.update_pilot_control(pilot_control_long, pilot_control_lat, \
+                        pilot_control_yaw, pilot_control_throttle)
+
+    def control_sys_request_response(self):
+        """request a reponse from the control system, which should have a response ready"""
+        control_vec = self.control_sys.get_control_output()
+        return control_vec
 
     def latest_state(self):
         """returns the most recent state
@@ -234,16 +298,16 @@ class Simulator(object):
                 self.advance_timestep()
         return self.return_results()
 
-    def update_control_manual(self, pitch, roll):
+    def update_manual_control(self, stick_x, stick_y):
         """pass in a control vector for the simulation"""
-        joystick_command = np.array([0, roll, pitch, 0],'d')
-        self.aircraft.update_control(joystick_command)
+        command = np.array([0.0, stick_x, stick_y, 0.0],'d')
+        self.pilot_vec = command
 
     def pause_sim(self):
         """Pauses the sim, saving time at stop"""
         if not self.paused:
             self.paused = True
-            self.time_at_last_pause = self.elapsed_time  
+            self.time_at_last_pause = self.elapsed_time
 
     def unpause_sim(self):
         """Unpauses sim, starts counting time again"""
@@ -276,13 +340,20 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case10ballisticSphere2.json', 'r') as file:
+with open('aircraftConfigs/case13altitudeF16.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
+control_unit = None
 if modelparam['useF16']:
     control_vector = np.array(modelparam['init_control'],'d')
     aircraft = F16_aircraft(control_vector)
+
+    if modelparam["useSAS"]:
+        print('using SAS')
+        control_unit = F16Control(np.array(modelparam['commands'],'d'))
+        stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
+        control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
 else:
     aircraft = init_aircraft(modelparam)
 
@@ -331,9 +402,9 @@ basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
 real_time = False
 use_flight_gear = False
 export_to_csv = True
-t_span = np.array([0.0, 30.0])
+t_span = np.array([0.0, 20.0])
 
-sim_object = Simulator(y0, t_span, aircraft, atmosphere, t_step=0.01)
+sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.01)
 
 print("Sim started...")
 
@@ -490,6 +561,13 @@ yaw = euler_plot.plot(sim_data[0], sim_data[16] *180/math.pi,pen=(120,20,240), n
 thrust_plot = plot_widget.addPlot(title="Thrust vs Time")
 thrust = thrust_plot.plot(sim_data[0], sim_data[36],pen=(255,255,255),name="Thrust")
 
+control_plot = plot_widget.addPlot(title="Control Surface Deflection [-1, 1] vs Time")
+control_plot.addLegend()
+rudder = control_plot.plot(sim_data[0], sim_data[37],pen=(10,10,255),name="Rudder")
+aileron = control_plot.plot(sim_data[0], sim_data[38],pen=(255,10,10),name="Aileron")
+elevator = control_plot.plot(sim_data[0], sim_data[39],pen=(10,255,10),name="Elevator")
+throttle = control_plot.plot(sim_data[0], sim_data[40],pen=(255,255,255),name="Throttle")
+
 
 print("compilation took ", time.perf_counter()-code_start_time)
 
@@ -526,7 +604,7 @@ def update():
         re, fdm_event_pipe
     
     x, y = joystick.getState()
-    sim_object.update_control_manual(roll=x, pitch=y)
+    sim_object.update_manual_control(stick_x=x, stick_y=y)
 
     sim_data = sim_object.update_real_time()
 
@@ -575,6 +653,10 @@ def update():
 
     rcs.setData(sim_data[35], sim_data[10])
     thrust.setData(sim_data[0], sim_data[36],pen=(255,255,255))
+    rudder.setData(sim_data[0], sim_data[37])
+    aileron.setData(sim_data[0], sim_data[38])
+    elevator.setData(sim_data[0], sim_data[39])
+    throttle.setData(sim_data[0], sim_data[40])
 
 
 timer = QtCore.QTimer()

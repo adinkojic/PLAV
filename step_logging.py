@@ -35,6 +35,8 @@ spec = [
     ('ambient_pressure', float64),
     ('ambient_temperature', float64),
 
+    ('control_deflection', float64[:]),
+
     #derived
     ('alpha', float64),
     ('beta', float64),
@@ -79,6 +81,8 @@ class SimDataLogger(object):
         self.reynolds = 0.0
         self.thrust = 0.0
 
+        self.control_deflection = np.zeros(4,'d')
+
         line = self.make_line()
 
         data_columns = np.size(line)
@@ -87,10 +91,17 @@ class SimDataLogger(object):
         self.data = np.zeros((data_columns, int64(preallocated)))
         self.valid_data_size = 0
 
+    def get_lastest(self):
+        """Returns the last line of data"""
+        if self.valid_data_size == 0:
+            return None
+        else:
+            return self.data[:, self.valid_data_size - 1]
+
     def load_line(self, time, state, aero_body_force, \
                     aero_body_moment, local_gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, ambient_pressure, ambient_temperature, \
-                    alpha, beta, reynolds, thrust):
+                    alpha, beta, reynolds, thrust, control_deflection):
         """Loads a line of data for the object so it can be used for the logger"""
 
         self.time = np.array([time])
@@ -117,6 +128,7 @@ class SimDataLogger(object):
         self.beta = np.array([beta])
         self.reynolds = np.array([reynolds])
         self.thrust = np.array([thrust], 'd')
+        self.control_deflection = control_deflection
 
     def make_line(self):
         """Makes a line of data"""
@@ -142,7 +154,8 @@ class SimDataLogger(object):
             self.local_gravity, self.speed_of_sound, self.mach, self.dynamic_pressure, \
             self.air_density, self.ambient_pressure, self.ambient_temperature, \
             self.true_airspeed, self.alpha, self.beta, self.reynolds, \
-            flight_path, downrange, self.thrust
+            flight_path, downrange, self.thrust, self.control_deflection[0], \
+            self.control_deflection[1], self.control_deflection[2], self.control_deflection[3] \
          ], 'd')
         return line
 
@@ -154,7 +167,6 @@ class SimDataLogger(object):
     def increase_size(self):
         """Double the data size if necessary"""
         self.data = np.append(self.data, self.data, axis=1) #np.pad() isn't implemented in numba lol
-
 
     def append_data(self, new_line):
         """Append a new line of data"""          

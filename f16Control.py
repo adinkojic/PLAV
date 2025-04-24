@@ -37,17 +37,21 @@ spec = [
     ('euler_angle_yaw', float64),
     ('body_angular_rate_roll', float64),
     ('body_angular_rate_pitch', float64),
-    ('body_angular_rate_yaw', float64)
+    ('body_angular_rate_yaw', float64),
+
+    ('time', float64),
+
+    ('commands_list', float64[:,:]),
 ]
 
-@jitclass(spec)
+#@jitclass(spec)
 class F16Control(object):
     """F-16 Control Sysem"""
-    def __init__(self):
+    def __init__(self, commands):
         self.trim_rdr   = 0.0
         self.trim_ail   = 0.0
         self.trim_el    = -3.2410
-        self.trim_power = 0.139019
+        self.trim_power = 13.9019
 
         self.rdr   = 0.0
         self.ail   = 0.0
@@ -78,20 +82,39 @@ class F16Control(object):
         self.body_angular_rate_pitch = 0.0
         self.body_angular_rate_yaw = 0.0
 
+        self.time = 0.0
+
+        self.commands_list = commands
+
     def get_control_output(self):
         """computes and gets the control output in -1 to 1 range"""
-        control = self.compute_control()
-        self.ail = control[0] / 20.0
-        self.rdr = control[1] / 30.0
-        self.el = control[2] / 25.0
-        self.power = control[3] / 100.0
 
-        return np.array([self.ail, self.rdr, self.el, self.power], 'd')
+        #this is relevant to the nasa cases
+        self.check_commands()
+
+        control = self.compute_control()
+        self.ail = control[0] / 20.0 - self.trim_ail / 20.0
+        self.rdr = control[1] / 30.0 - self.trim_rdr / 30.0
+        self.el = control[2] / 25.0 -  self.trim_el / 25.0
+        self.power = control[3] / 100.0 - self.trim_power / 100.0
+
+        return np.array([self.rdr, self.ail, self.el, self.power], 'd')
+
+    def check_commands(self):
+        """for the NASA check cases, execute the latest command when it's its time"""
+        for i in range(self.commands_list.shape[0]):
+            if self.time >= self.commands_list[i, 0]:
+                eas_command = self.commands_list[i, 1]
+                alt_command = self.commands_list[i, 2]
+                lat_command = self.commands_list[i, 3]
+                yaw_command = self.commands_list[i, 4]
+
+                self.update_commands(eas_command, alt_command, lat_command, yaw_command)
 
     def update_enviroment(self, altitude_msl, equivalent_airspeed, angle_of_attack, \
                         angle_of_sideslip, euler_angle_roll, euler_angle_pitch, \
                         euler_angle_yaw, body_angular_rate_roll ,\
-                        body_angular_rate_pitch, body_angular_rate_yaw):
+                        body_angular_rate_pitch, body_angular_rate_yaw, time):
         """Update the enviroment variables"""
         self.altitude_msl = altitude_msl
         self.equivalent_airspeed = equivalent_airspeed
@@ -103,6 +126,7 @@ class F16Control(object):
         self.body_angular_rate_roll = body_angular_rate_roll
         self.body_angular_rate_pitch = body_angular_rate_pitch
         self.body_angular_rate_yaw = body_angular_rate_yaw
+        self.time = time
 
     def update_pilot_control(self, pilot_control_long, pilot_control_lat, pilot_control_yaw, \
                         pilot_control_throttle):
@@ -135,15 +159,6 @@ class F16Control(object):
         autopilot_lat_offset_error_feedback_gain = -0.01
         autopilot_track_error_feedback_gain = -10.0
 
-        long_lqr_gain_matrix = np.array([
-            [-0.063009074230494, 0.113230403179271, 10.113432224566077, 3.154983341632913],
-            [0.997260602961658, -0.025467711176391, 1.213308488207827, 0.208744369535208]
-        ],'d')
-
-        latd_lqr_gain_matrix = np.array([
-            [3.078043941515770, 0.032365863044163, 4.557858908828332, 0.589443156647647],
-            [-0.705817452754520, -0.256362860634868, -1.073666149713151, 0.822114635953878]
-        ],'d')
 
         # Derived variables
         ap_on = self.autopilot_on_disc
@@ -170,7 +185,7 @@ class F16Control(object):
         else:
             switched_theta_cmd = design_euler_angle_pitch
 
-        disturbed_equivalent_airspeed = design_equivalent_airspeed - switched_keas_cmd
+        disturbed_equivalent_airspeed = self.equivalent_airspeed - switched_keas_cmd
         disturbed_angle_of_attack = self.angle_of_attack - design_angle_of_attack
         disturbed_euler_angle_pitch = self.euler_angle_pitch - switched_theta_cmd
 
@@ -195,7 +210,17 @@ class F16Control(object):
         else:
             switched_phi_cmd = 0.0
 
-        delta_phi = self.euler_angle_roll - switched_phi_cmd
+        disturbed_euler_angle_roll = self.euler_angle_roll - switched_phi_cmd
+
+        long_lqr_gain_matrix = np.array([
+            [-0.063009074230494, 0.113230403179271, 10.113432224566077, 3.154983341632913],
+            [0.997260602961658, -0.025467711176391, 1.213308488207827, 0.208744369535208]
+        ],'d')
+
+        latd_lqr_gain_matrix = np.array([
+            [3.078043941515770, 0.032365863044163, 4.557858908828332, 0.589443156647647],
+            [-0.705817452754520, -0.256362860634868, -1.073666149713151, 0.822114635953878]
+        ],'d')
 
         long_vector = np.array([
             disturbed_equivalent_airspeed,
@@ -205,7 +230,7 @@ class F16Control(object):
         ],'d')
 
         lat_vector = np.array([
-            delta_phi,
+            disturbed_euler_angle_roll,
             self.angle_of_sideslip,
             self.body_angular_rate_roll,
             self.body_angular_rate_yaw,
@@ -222,11 +247,11 @@ class F16Control(object):
         if ap_on > 0.5:
             switched_pilot_control_long = np.array([0.0, 0.0], 'd')
 
-        trimed_long_throttle = np.array([self.trim_el/25.0, self.trim_power],'d')
+        trimed_long_throttle = np.array([self.trim_el/25.0, self.trim_power/100.0],'d')
 
         if fsas_on > 0.5:
             lon_command = -long_lqr_command_vec + switched_pilot_control_long + trimed_long_throttle
-            lat_command = switched_pilot_control_lat - latd_lqr_command_vec
+            lat_command = -latd_lqr_command_vec + switched_pilot_control_lat
         else:
             lon_command = switched_pilot_control_long + trimed_long_throttle
             lat_command = switched_pilot_control_lat
@@ -240,9 +265,10 @@ class F16Control(object):
         aileron_deflection = lat_command[0] * -21.5
         rudder_deflection = lat_command[1]*-30.0 + aileron_deflection*0.008
         elevator_deflection = lon_command[0] * -25.0
-        power_dever_angle = lon_command[1] * 100.0
+        power_lever_angle = lon_command[1] * 100.0
 
-        return np.array([aileron_deflection, rudder_deflection, elevator_deflection, power_dever_angle],'d')
+
+        return np.array([aileron_deflection, rudder_deflection, elevator_deflection, power_lever_angle],'d')
 
 @jit(float64(float64, float64, float64))
 def wrap(value, minus_lim, plus_lim):
@@ -257,3 +283,8 @@ def wrap(value, minus_lim, plus_lim):
         return result
     else:
         return wrap(result, minus_lim, plus_lim)
+
+@jit(float64(float64, float64))
+def tas_to_eas(tas, density):
+    """Convert True Airspeed to Equivalent Airspeed"""
+    return tas * np.sqrt(density / 1.225)

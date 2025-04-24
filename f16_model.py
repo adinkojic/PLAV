@@ -249,6 +249,9 @@ class F16_aircraft(object): #TODO: fix possible beta issue
             t_max  = thrust_max_lookup(self.altitude * (39.37 /12), self.mach)
 
             thrust = t_mil + (power-mil_power)*(t_max - t_mil)/mil_power
+        #elif power > 1.0:
+        #    t_max  = thrust_max_lookup(self.altitude * (39.37 /12), self.mach)
+        #    thrust = t_max
 
         return thrust * 4.448 #return it in newtons
 
@@ -308,6 +311,13 @@ class F16_aircraft(object): #TODO: fix possible beta issue
         self.el = elevator
         self.ail = aileron
         self.rdr = rudder
+
+    def get_control_deflection(self):
+        """Returns the current control state"""
+        return np.array([(self.rdr + self.trim_rdr) /30.0, \
+                        (self.ail + self.trim_ail) / 20.0, \
+                        (self.el + self.trim_el)/25.0, \
+                        (self.power + self.trim_power)], 'd')
 
 
 @jit(float64[:]())
