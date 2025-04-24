@@ -4,9 +4,8 @@ implements aero, inertia, and prop"""
 import math
 
 import numpy as np
-from numba import float64
+from numba import jit, float64
 from numba.experimental import jitclass
-from numba import jit
 import quaternion_math as quat
 
 from aircraftconfig import get_dynamic_viscosity, velocity_to_alpha_beta, get_wind_to_body_axis
