@@ -34,6 +34,8 @@ float altitude_msl_command =10013.0;
 float lateral_deviation_error = 0.0;
 float true_base_course_command = 45.0;
 
+float float_scaling = 21474.83648;
+
 float controlDeflections[4] = {};
 
 // Wraps an angle value to lie within [min, max]
@@ -56,34 +58,34 @@ double clamp(double value, double min, double max){
 }
 
 
-int combineBytes(uint8_t rawData[4]){
-  int result = (rawData[0] << 24) | (rawData[1] << 16) | (rawData[2] << 8) | (rawData[3]);
+int combineBytes(uint8_t rawData[44], int offset){
+  int result = (rawData[3+offset] << 24) | (rawData[2+offset] << 16) | (rawData[1+offset] << 8) | (rawData[0+offset]);
   return result;
 }
 
 
 
 void rawDataToEnviroment(uint8_t rawData[44]){
-  altitude_msl = combineBytes(rawData[0]) / 214748.3648 ;
-  equivalent_airspeed = combineBytes(rawData[4]) / 214748.3648 ;
-  angle_of_attack = combineBytes(rawData[8]) / 214748.3648 ;
-  angle_of_sideslip = combineBytes(rawData[12]) / 214748.3648 ;
-  euler_angle_roll = combineBytes(rawData[16]) / 214748.3648 ;
-  euler_angle_pitch = combineBytes(rawData[20]) / 214748.3648 ;
-  euler_angle_yaw = combineBytes(rawData[24]) / 214748.3648 ;
-  body_angular_rate_roll = combineBytes(rawData[28]) / 214748.3648 ;
-  body_angular_rate_pitch = combineBytes(rawData[32]) / 214748.3648 ;
-  body_angular_rate_yaw = combineBytes(rawData[36]) / 214748.3648 ;
-  sim_time = combineBytes(rawData[40]) / 214748.3648 ;
+  altitude_msl = combineBytes(rawData, 0) / float_scaling ;
+  equivalent_airspeed = combineBytes(rawData, 4) / float_scaling ;
+  angle_of_attack = combineBytes(rawData, 8) / float_scaling ;
+  angle_of_sideslip = combineBytes(rawData, 12) / float_scaling ;
+  euler_angle_roll = combineBytes(rawData, 16) / float_scaling ;
+  euler_angle_pitch = combineBytes(rawData, 20) / float_scaling ;
+  euler_angle_yaw = combineBytes(rawData, 24) / float_scaling ;
+  body_angular_rate_roll = combineBytes(rawData, 28) / float_scaling ;
+  body_angular_rate_pitch = combineBytes(rawData, 32) / float_scaling ;
+  body_angular_rate_yaw = combineBytes(rawData, 36) / float_scaling ;
+  sim_time = combineBytes(rawData, 40) / float_scaling ;
 
   staleData = false;
 }
 
 void rawDataToCommands(uint8_t rawData[17]){
-  equivalent_airspeed_command = combineBytes(rawData[0]) / 214748.3648 ;
-  altitude_msl_command = combineBytes(rawData[4]) / 214748.3648 ;
-  lateral_deviation_error = combineBytes(rawData[8]) / 214748.3648 ;
-  true_base_course_command = combineBytes(rawData[12]) / 214748.3648 ;
+  equivalent_airspeed_command = combineBytes(rawData, 0) / float_scaling ;
+  altitude_msl_command = combineBytes(rawData, 4) / float_scaling ;
+  lateral_deviation_error = combineBytes(rawData, 8) / float_scaling ;
+  true_base_course_command = combineBytes(rawData, 12) / float_scaling ;
   stability_augmentation_on_disc = (rawData[16] & 1) ? 1.0 : 0.0;
   autopilot_on_disc = (rawData[16] & 2) ? 1.0 : 0.0;
 }
@@ -194,31 +196,31 @@ int computeControl(float result[4]) {
 void controlResponseBytes(uint8_t reponse[16]){
 
 
-  int aileron = controlDeflections[0];
-  int rudder = controlDeflections[1];
-  int elevator = controlDeflections[2];
-  int throttle = controlDeflections[3];
+  int aileron = (int) (controlDeflections[0] * float_scaling);
+  int rudder = (int) (controlDeflections[1] * float_scaling);
+  int elevator = controlDeflections[2] * float_scaling;
+  int throttle = controlDeflections[3] * float_scaling;
 
   //swap from {ail, rud, el, pwr} to {rud, eil, el, pwr}
-  reponse[0] = (uint8_t) ((rudder & 0xFF000000) >> 24);
-  reponse[1] = (uint8_t) ((rudder & 0x00FF0000) >> 16);
-  reponse[2] = (uint8_t) ((rudder & 0x0000FF00) >> 8);
-  reponse[3] = (uint8_t) (rudder & 0x000000FF);
+  reponse[3] = (uint8_t) ((rudder & 0xFF000000) >> 24);
+  reponse[2] = (uint8_t) ((rudder & 0x00FF0000) >> 16);
+  reponse[1]  = (uint8_t) ((rudder & 0x0000FF00) >> 8);
+  reponse[0]  = (uint8_t) (rudder  & 0x000000FF);
 
-  reponse[4] = (uint8_t) ((aileron & 0xFF000000) >> 24);
-  reponse[5] = (uint8_t) ((aileron & 0x00FF0000) >> 16);
-  reponse[6] = (uint8_t) ((aileron & 0x0000FF00) >> 8);
-  reponse[7] = (uint8_t) (aileron & 0x000000FF);
+  reponse[7] = (uint8_t) ((aileron & 0xFF000000) >> 24);
+  reponse[6] = (uint8_t) ((aileron & 0x00FF0000) >> 16);
+  reponse[5] = (uint8_t) ((aileron & 0x0000FF00) >> 8);
+  reponse[4] = (uint8_t) (aileron  & 0x000000FF);
 
-  reponse[8] = (uint8_t) ((elevator & 0xFF000000) >> 24);
-  reponse[9] = (uint8_t) ((elevator & 0x00FF0000) >> 16);
-  reponse[10] = (uint8_t) ((elevator & 0x0000FF00) >> 8);
-  reponse[11] = (uint8_t) (elevator & 0x000000FF);
+  reponse[11] = (uint8_t) ((elevator & 0xFF000000) >> 24);
+  reponse[10] = (uint8_t) ((elevator & 0x00FF0000) >> 16);
+  reponse[9]  = (uint8_t) ((elevator & 0x0000FF00) >> 8);
+  reponse[8]  = (uint8_t) (elevator  & 0x000000FF);
 
-  reponse[12] = (uint8_t) ((throttle & 0xFF000000) >> 24);
-  reponse[13] = (uint8_t) ((throttle & 0x00FF0000) >> 16);
-  reponse[14] = (uint8_t) ((throttle & 0x0000FF00) >> 8);
-  reponse[15] = (uint8_t) (throttle & 0x000000FF);
+  reponse[15] = (uint8_t) ((throttle & 0xFF000000) >> 24);
+  reponse[14] = (uint8_t) ((throttle & 0x00FF0000) >> 16);
+  reponse[13] = (uint8_t) ((throttle & 0x0000FF00) >> 8);
+  reponse[12] = (uint8_t) (throttle  & 0x000000FF);
 
   return;
 }
@@ -230,7 +232,7 @@ void setup() {
 
   Serial.begin(115200);
   
-  Serial.println("Coming Online");
+  //Serial.println("Coming Online");
 
 }
 
@@ -250,7 +252,7 @@ void loop() {
   if(Serial.find(magicNumber, 3)){
     //delay(1);
 
-    Serial.println("got magic number");
+    //Serial.println("got magic number");
 
     if(Serial.peek() == 'e'){ //for enviroment input
       Serial.read(); //drop that header byte
@@ -279,6 +281,34 @@ void loop() {
       Serial.readBytes(rawDataBuffer, commandVectorSize);
       rawDataToCommands(rawDataBuffer);
 
+      //does the compute on update
+      computeControl(controlDeflections);
+    }
+    if(Serial.peek() == 't'){ //test
+      //control data response
+      Serial.read(); //drop that header byte
+
+      //Serial.println("Control");
+      uint8_t controlResponse[16] = {0, 1, 2, 3, 4, 5};
+      Serial.write(controlResponse, 6);
+    }
+    if(Serial.peek() == 's'){ //simple
+      //control data response
+      Serial.read(); //drop that header byte
+
+      //Serial.println("Control");
+      Serial.print(" EAS ");
+      Serial.print(equivalent_airspeed_command);
+      Serial.print(" ALT ");
+      Serial.print(altitude_msl_command);
+      Serial.print(" LATD ");
+      Serial.print(lateral_deviation_error);
+      Serial.print(" CRS ");
+      Serial.print(true_base_course_command);
+      Serial.print(" STB ");
+      Serial.print(stability_augmentation_on_disc);
+      Serial.print(" APO ");
+      Serial.println(autopilot_on_disc);
     }
 
     Serial.flush();
