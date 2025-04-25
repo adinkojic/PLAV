@@ -27,12 +27,12 @@ float pilot_control_long = 0.0;
 float pilot_control_lat = 0.0;
 float pilot_control_yaw = 0.0;
 
-float stability_augmentation_on_disc = 0.0;
-float autopilot_on_disc = 0.0;
-float equivalent_airspeed_command = 0.0;
-float altitude_msl_command =0.0;
+float stability_augmentation_on_disc = 1.0;
+float autopilot_on_disc = 1.0;
+float equivalent_airspeed_command = 287.8;
+float altitude_msl_command =10013.0;
 float lateral_deviation_error = 0.0;
-float true_base_course_command = 0.0;
+float true_base_course_command = 45.0;
 
 // Wraps an angle value to lie within [min, max]
 double wrapAngle(double value, double min, double max) {
@@ -85,7 +85,7 @@ void rawDataToCommands(uint8_t rawData[17]){
 }
 
 // Core LQR‑based control computation
-float* computeControl() {
+int computeControl(float result[4]) {
   // Nominal values & gains
   const double design_keas   = 287.8088596053291;
   const double design_aoa    = 2.653813535191715;
@@ -99,6 +99,7 @@ float* computeControl() {
   bool sas_on = stability_augmentation_on_disc > 0.5;
   bool fsas   = ap_on || sas_on;
 
+  
   // Switched setpoints
   double keas_sp = ap_on ? equivalent_airspeed_command : design_keas;
   double pitch_delta = clamp(gain_alt*(altitude_msl - altitude_msl_command), -5.0, 5.0);
@@ -131,12 +132,12 @@ float* computeControl() {
   double x_long[4] = {dv, da, body_angular_rate_pitch, dt};
   double x_lat[4]  = {dr, angle_of_sideslip, body_angular_rate_roll, body_angular_rate_yaw};
 
-  double u_long[2] = {0.0, 0.0};
-  double u_lat[2]  = {0.0, 0.0};
+  double u_longit[2] = {0.0, 0.0};
+  double u_latit[2]  = {0.0, 0.0};
   for (int i = 0; i < 2; ++i) {
       for (int j = 0; j < 4; ++j) {
-          u_long[i] -= longK[i][j] * x_long[j];
-          u_lat[i] -= latK[i][j] * x_lat[j];
+          u_longit[i] -= longK[i][j] * x_long[j];
+          u_latit[i] -= latK[i][j] * x_lat[j];
       }
   }
 
@@ -156,14 +157,15 @@ float* computeControl() {
   double out_long[2];
   double out_lat[2];
   if (fsas) {
-      out_long[0] = u_long[0] + pilot_long[0] + trim_long[0];
-      out_long[1] = u_long[1] + pilot_long[1] + trim_long[1];
-      out_lat[0] = u_lat[0] + pilot_lat[0];
-      out_lat[1] = u_lat[1] + pilot_lat[1];
+      out_long[0] = u_longit[0] + pilot_long[0] + trim_long[0];
+      out_long[1] = u_longit[1] + pilot_long[1] + trim_long[1];
+      out_lat[0] = u_latit[0] + pilot_lat[0];
+      out_lat[1] = u_latit[1] + pilot_lat[1];
   } else {
       out_long[0] = pilot_long[0] + trim_long[0];
       out_long[1] = pilot_long[1] + trim_long[1];
-      out_lat  = pilot_lat;
+      out_lat[0] = pilot_lat[0];
+      out_lat[1] = pilot_lat[1];
   }
 
   // Saturation & final deflections
@@ -177,14 +179,12 @@ float* computeControl() {
   double elevator = out_long[0] * -25.0;
   double throttle = out_long[1] * 100.0;
 
-  float result[4];
   result[0] =  aileron;
   result[1] =  rudder;
   result[2] =  elevator;
   result[3] =  throttle;
 
-  return result;
-  
+  return 0;
 }
 
 //uint8_t* controlResponseBytes(){
@@ -201,10 +201,9 @@ void setup() {
   
   Serial.println("Coming Online");
 
-  float* response;
+  float response[4] = {0.0, 0.0, 0.0, 0.0};
   Serial.println(equivalent_airspeed);
-  response = computeControl();
-
+  computeControl(response);
 
   for(int i = 0; i < 4; i++){
     Serial.println(response[i]);
@@ -212,8 +211,24 @@ void setup() {
 
   while(1){
     delay(1000);
-    Serial.println();
-    Serial.println();
+    equivalent_airspeed = 290;
+    Serial.println(equivalent_airspeed);
+    computeControl(response);
+
+    for(int i = 0; i < 4; i++){
+      Serial.println(response[i]);
+    }
+    Serial.println("----------");
+    delay(1000);
+    equivalent_airspeed = 287.8;
+    Serial.println(equivalent_airspeed);
+    computeControl(response);
+
+    for(int i = 0; i < 4; i++){
+      Serial.println(response[i]);
+    }
+
+    Serial.println("----------");
   }
 }
 
