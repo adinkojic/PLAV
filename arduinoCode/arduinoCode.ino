@@ -292,22 +292,55 @@ void loop() {
       uint8_t controlResponse[16] = {0, 1, 2, 3, 4, 5};
       Serial.write(controlResponse, 6);
     }
-    if(Serial.peek() == 's'){ //simple
+    if(Serial.peek() == 's'){ //state dump
       //control data response
       Serial.read(); //drop that header byte
 
-      //Serial.println("Control");
+      float altitude_msl = 10013;
+      float equivalent_airspeed = 287.8;
+      float angle_of_attack = 2.6538;
+      float angle_of_sideslip = 0.0;
+      float euler_angle_roll = 0.0;
+      float euler_angle_pitch = 2.6538;
+      float euler_angle_yaw = 45.0;
+      float body_angular_rate_roll = 0.0;
+      float body_angular_rate_pitch = 0.0;
+      float body_angular_rate_yaw = 0.0;
+      float sim_time = 0.0;
+
+      Serial.print(" Alt ");
+      Serial.print(altitude_msl);
       Serial.print(" EAS ");
+      Serial.print(equivalent_airspeed);
+      Serial.print(" AOA ");
+      Serial.print(angle_of_attack);
+      Serial.print(" AOS ");
+      Serial.print(angle_of_sideslip);
+      Serial.print(" ROL ");
+      Serial.print(euler_angle_roll);
+      Serial.print(" PCH ");
+      Serial.print(euler_angle_pitch);
+      Serial.print(" YAW ");
+      Serial.print(euler_angle_yaw);
+      Serial.print(" RRR ");
+      Serial.print(body_angular_rate_roll);
+      Serial.print(" RRP ");
+      Serial.print(body_angular_rate_pitch);
+      Serial.print(" RRY ");
+      Serial.print(body_angular_rate_yaw);
+
+      //Serial.println("Control");
+      Serial.print(" EASC ");
       Serial.print(equivalent_airspeed_command);
-      Serial.print(" ALT ");
+      Serial.print(" ALTC ");
       Serial.print(altitude_msl_command);
-      Serial.print(" LATD ");
+      Serial.print(" LATDC ");
       Serial.print(lateral_deviation_error);
-      Serial.print(" CRS ");
+      Serial.print(" CRSC ");
       Serial.print(true_base_course_command);
-      Serial.print(" STB ");
+      Serial.print(" STBC ");
       Serial.print(stability_augmentation_on_disc);
-      Serial.print(" APO ");
+      Serial.print(" APOC ");
       Serial.println(autopilot_on_disc);
     }
 

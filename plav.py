@@ -27,6 +27,7 @@ from atmosphere import Atmosphere
 from step_logging import SimDataLogger
 from runge_kutta4 import basic_rk4
 from f16Control import F16Control, tas_to_eas
+from f16ControlHITL import F16ControlHITL
 
 #from pyqtgraph.Qt import QtWidgets
 
@@ -344,14 +345,26 @@ with open('aircraftConfigs/case13AaltitudeF16.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
+real_time = True
+hitl_active = True
+use_flight_gear = False
+export_to_csv = True
+t_span = np.array([0.0, 50.0])
+
 control_unit = None
 if modelparam['useF16']:
     control_vector = np.array(modelparam['init_control'],'d')
     aircraft = F16_aircraft(control_vector)
 
-    if modelparam["useSAS"]:
+    if modelparam["useSAS"] and not hitl_active:
         print('using SAS')
         control_unit = F16Control(np.array(modelparam['commands'],'d'))
+        stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
+        control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
+
+    if modelparam["useSAS"] and hitl_active:
+        print('using HITL')
+        control_unit = F16ControlHITL(np.array(modelparam['commands'],'d'), 'COM3')
         stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
         control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
 else:
@@ -399,10 +412,7 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], 
 #pump sim once
 basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
 
-real_time = True
-use_flight_gear = False
-export_to_csv = True
-t_span = np.array([0.0, 50.0])
+
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.1)
 
