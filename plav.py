@@ -37,9 +37,9 @@ def get_gravity(phi, h):
     """gets gravity accel from lat and altitude
     phi: latitude
     h: altitude"""
-    graivty = 9.780327*(1 +5.3024e-3*np.sin(phi)**2 - 5.8e-6*np.sin(2*phi)**2) \
+    gravity = 9.780327*(1 +5.3024e-3*np.sin(phi)**2 - 5.8e-6*np.sin(2*phi)**2) \
             - (3.0877e-6 - 4.4e-9*np.sin(phi)**2)*h + 7.2e-14*h**2
-    return graivty
+    return gravity
 
 @jit
 def x_dot(t, y, aircraft_config, atmosphere, log = None):
@@ -83,7 +83,6 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     #adds wind
     v_airspeed = quat.rotateVectorQ(q, np.array([vn, ve, vd], 'd') + atmosphere.get_wind_ned())
     #solving for acceleration, which is velocity_dot
-    #aircraft_config.update_control(control_vect)
     aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, air_temperature, speed_of_sound)
 
 
@@ -121,9 +120,9 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     altitude_dot = -vd
 
     #from book Optimal Estimation of Dynamic Systems
-    vn_dot = -(long_dot + 2*omega_e)*ve*np.sin(lat) + vn*vd/(R_phi+altitude) + accel_north
-    ve_dot = -(long_dot + 2*omega_e)*vn*np.sin(lat) + ve*vd/(R_phi+altitude) + 2*omega_e*vd*np.cos(lat)+accel_east
-    vd_dot = -ve**2/(R_lamb+altitude)-vn**2/(R_phi+altitude) - 2*omega_e*ve*np.cos(lat) + gravity + accel_down
+    vn_dot = accel_north-(long_dot + 2*omega_e)*ve*np.sin(lat) + vn*vd/(R_phi+altitude)
+    ve_dot = accel_east -(long_dot + 2*omega_e)*vn*np.sin(lat) + ve*vd/(R_phi+altitude) + 2*omega_e*vd*np.cos(lat)
+    vd_dot = accel_down + gravity-ve**2/(R_lamb+altitude)-vn**2/(R_phi+altitude) - 2*omega_e*ve*np.cos(lat)
 
 
 
@@ -180,7 +179,7 @@ def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
 
 class Simulator(object):
     """A sim object is required to store all the required data nicely."""
-    def __init__(self, init_state, time_span, aircraft, atmosphere, control_sys = None, t_step = 0.1):
+    def __init__(self, init_state, time_span, aircraft, atmosphere, control_sys= None,t_step = 0.1):
         self.state = init_state
         self.t_span = time_span
         self.time = time_span[0]
@@ -205,16 +204,13 @@ class Simulator(object):
         """advance timestep function, updates timestep and saves values"""
 
         if self.control_sys is not None:
-            #two phases, on to give data and one to get the new control vector
-            #for HIL this means it gets to get the data, compute, then return control
-
-            self.control_sys_update()
+            #by now the HIL should have a response ready
             #for HIL it might block a bit as the aurdino computes
             total_control_vector = self.control_sys_request_response()
             aircraft.update_control(total_control_vector)
-            #print("control vector: ", total_control_vector)
                 
-        self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state, args= (self.aircraft,self.atmosphere))
+        self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state,\
+                                           args= (self.aircraft,self.atmosphere))
  
         #lon wrapparound
         if self.state[8] < -math.pi:
@@ -225,6 +221,10 @@ class Simulator(object):
         #get stuff
         x_dot(self.time, self.state, self.aircraft, self.atmosphere, self.sim_log)
         self.sim_log.save_line()
+
+        if self.control_sys is not None:
+            #tell the control system to update now in case its a HIL system so it has time
+            self.control_sys_update()
 
     def control_sys_update(self):
         """updates the control system with the latest data"""
@@ -340,7 +340,7 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case13altitudeF16.json', 'r') as file:
+with open('aircraftConfigs/case13AaltitudeF16.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -399,12 +399,12 @@ y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], 
 #pump sim once
 basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
 
-real_time = False
+real_time = True
 use_flight_gear = False
 export_to_csv = True
-t_span = np.array([0.0, 20.0])
+t_span = np.array([0.0, 50.0])
 
-sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.01)
+sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.1)
 
 print("Sim started...")
 
@@ -701,6 +701,9 @@ if export_to_csv and not real_time:
         'aero_bodyMoment_ftlbf_L': sim_data[20] *0.7375621493,
         'aero_bodyMoment_ftlbf_M': sim_data[21] *0.7375621493,
         'aero_bodyMoment_ftlbf_N': sim_data[22] *0.7375621493,
+        'trueAirspeed_nmi_h': sim_data[30]*1.943844,
+        'airDensity_slug_ft3': sim_data[27] *0.00194032,
+        'downrageDistance_m': sim_data[35],
         }
     
     df = pd.DataFrame(csv_data)

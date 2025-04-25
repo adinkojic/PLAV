@@ -354,6 +354,13 @@ class AircraftConfig(object):
 
         return body_forces_body, moments_with_torque
 
+    def get_control_deflection(self):
+        """Returns the current control state"""
+        return np.array([(self.rdr + self.trim_rdr), \
+                        (self.ail + self.trim_ail), \
+                        (self.el + self.trim_el), \
+                        (self.power + self.trim_power)], 'd')
+
     def calculate_grid_fin_forces(self):
         """Calculates the forces of each grid fin"""
         qbar = self.get_qbar()

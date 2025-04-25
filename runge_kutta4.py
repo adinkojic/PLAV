@@ -6,10 +6,8 @@ import numpy as np
 
 #@jit
 def basic_rk4(func, t0, step, y0, args):
-    """Basic RK4 Integrator
-    Returns the t, and state of the function"""
+    """Basic RK4 Integrator"""
 
-    #y0 = np.asarray(y0, 'd')
 
     k1 = func(t0, y0, *args)
     k2 = func(t0 + step*0.5, y0 + step*k1*0.5, *args)
