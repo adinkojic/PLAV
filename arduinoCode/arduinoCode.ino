@@ -34,6 +34,8 @@ float altitude_msl_command =10013.0;
 float lateral_deviation_error = 0.0;
 float true_base_course_command = 45.0;
 
+float controlDeflections[4] = {};
+
 // Wraps an angle value to lie within [min, max]
 double wrapAngle(double value, double min, double max) {
     double period = max - min;
@@ -55,9 +57,11 @@ double clamp(double value, double min, double max){
 
 
 int combineBytes(uint8_t rawData[4]){
-  int result = (rawData[0] << 24) | (rawData[1] << 16) | (rawData[2] << 8) | (rawData[3] << 8);
+  int result = (rawData[0] << 24) | (rawData[1] << 16) | (rawData[2] << 8) | (rawData[3]);
   return result;
 }
+
+
 
 void rawDataToEnviroment(uint8_t rawData[44]){
   altitude_msl = combineBytes(rawData[0]) / 214748.3648 ;
@@ -187,11 +191,38 @@ int computeControl(float result[4]) {
   return 0;
 }
 
-//uint8_t* controlResponseBytes(){
-//  calculateControl();
-//}
+void controlResponseBytes(uint8_t reponse[16]){
 
-//F16Control control_sys;
+
+  int aileron = controlDeflections[0];
+  int rudder = controlDeflections[1];
+  int elevator = controlDeflections[2];
+  int throttle = controlDeflections[3];
+
+  //swap from {ail, rud, el, pwr} to {rud, eil, el, pwr}
+  reponse[0] = (uint8_t) ((rudder & 0xFF000000) >> 24);
+  reponse[1] = (uint8_t) ((rudder & 0x00FF0000) >> 16);
+  reponse[2] = (uint8_t) ((rudder & 0x0000FF00) >> 8);
+  reponse[3] = (uint8_t) (rudder & 0x000000FF);
+
+  reponse[4] = (uint8_t) ((aileron & 0xFF000000) >> 24);
+  reponse[5] = (uint8_t) ((aileron & 0x00FF0000) >> 16);
+  reponse[6] = (uint8_t) ((aileron & 0x0000FF00) >> 8);
+  reponse[7] = (uint8_t) (aileron & 0x000000FF);
+
+  reponse[8] = (uint8_t) ((elevator & 0xFF000000) >> 24);
+  reponse[9] = (uint8_t) ((elevator & 0x00FF0000) >> 16);
+  reponse[10] = (uint8_t) ((elevator & 0x0000FF00) >> 8);
+  reponse[11] = (uint8_t) (elevator & 0x000000FF);
+
+  reponse[12] = (uint8_t) ((throttle & 0xFF000000) >> 24);
+  reponse[13] = (uint8_t) ((throttle & 0x00FF0000) >> 16);
+  reponse[14] = (uint8_t) ((throttle & 0x0000FF00) >> 8);
+  reponse[15] = (uint8_t) (throttle & 0x000000FF);
+
+  return;
+}
+
 
 
 
@@ -201,41 +232,12 @@ void setup() {
   
   Serial.println("Coming Online");
 
-  float response[4] = {0.0, 0.0, 0.0, 0.0};
-  Serial.println(equivalent_airspeed);
-  computeControl(response);
-
-  for(int i = 0; i < 4; i++){
-    Serial.println(response[i]);
-  }
-
-  while(1){
-    delay(1000);
-    equivalent_airspeed = 290;
-    Serial.println(equivalent_airspeed);
-    computeControl(response);
-
-    for(int i = 0; i < 4; i++){
-      Serial.println(response[i]);
-    }
-    Serial.println("----------");
-    delay(1000);
-    equivalent_airspeed = 287.8;
-    Serial.println(equivalent_airspeed);
-    computeControl(response);
-
-    for(int i = 0; i < 4; i++){
-      Serial.println(response[i]);
-    }
-
-    Serial.println("----------");
-  }
 }
 
 
 void loop() {
   
-  /*
+  
   //incoming data processing loop
   char magicNumber[3] = {'+', '+', '+'};
 
@@ -248,27 +250,38 @@ void loop() {
   if(Serial.find(magicNumber, 3)){
     //delay(1);
 
-    if(Serial.peek() == 'a'){ //for enviroment input
+    Serial.println("got magic number");
+
+    if(Serial.peek() == 'e'){ //for enviroment input
       Serial.read(); //drop that header byte
+
+      //Serial.println("Enviroment");
       Serial.readBytes(rawDataBuffer, dataVectorSize);
       rawDataToEnviroment(rawDataBuffer);
+
+      //does the compute as soon as it recieves the data
+      computeControl(controlDeflections);
     }
 
-    if(Serial.peek() == 'b'){ //request control vector
+    if(Serial.peek() == 'c'){ //request control vector
       //control data response
       Serial.read(); //drop that header byte
 
-      uint8_t* controlResponse = controlResponseBytes();
+      //Serial.println("Control");
+      uint8_t controlResponse[16] = {};
+      controlResponseBytes(controlResponse);
       Serial.write(controlResponse, 16);
     }
-    if(Serial.peek() == 'c'){ //command input vector
+    if(Serial.peek() == 'i'){ //command input vector
       //control data response
       Serial.read(); //drop that header byte
+      //Serial.println("Input");
       Serial.readBytes(rawDataBuffer, commandVectorSize);
-      rawDataToCommand(rawDataBuffer, commandVectorSize);
+      rawDataToCommands(rawDataBuffer);
 
     }
 
+    Serial.flush();
   }
-  */
+  
 }
