@@ -272,24 +272,3 @@ def dist_vincenty(lat1, lon1, lat2, lon2):
     s = b * A * (sigma - deltaSigma)
 
     return np.float64(s)
-
-@jit(float64(float64, float64, float64, float64))
-def dist_haversine(lat1, lon1, lat2, lon2):
-    """
-    Standard haversine formula.
-    Good to ~0.1% error everywhere.
-    """
-
-    R_WGS84 = 6371008.8
-
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    delta_phi = phi2 - phi1
-    delta_lamb = math.radians(lon2 - lon1)
-
-    sin_delta_phi = math.sin(delta_phi * 0.5)
-    sin_delta_lamb = math.sin(delta_lamb * 0.5)
-    a = sin_delta_phi * sin_delta_phi + math.cos(phi1) * math.cos(phi2) * sin_delta_lamb * sin_delta_lamb
-    # guard against rounding errors:
-    #a = min(1.0, max(0.0, a))
-    return 2 * R_WGS84 * math.asin(math.sqrt(a))

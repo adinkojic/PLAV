@@ -83,6 +83,7 @@ class F16Control(object):
         self.body_angular_rate_yaw = 0.0
 
         self.time = 0.0
+        self.data_valid = False
 
         self.commands_list = commands
 
@@ -127,6 +128,7 @@ class F16Control(object):
         self.body_angular_rate_pitch = body_angular_rate_pitch
         self.body_angular_rate_yaw = body_angular_rate_yaw
         self.time = time
+        self.data_valid = True
 
     def update_pilot_control(self, pilot_control_long, pilot_control_lat, pilot_control_yaw, \
                         pilot_control_throttle):
@@ -164,6 +166,11 @@ class F16Control(object):
         ap_on = self.autopilot_on_disc
         sas_on = self.stability_augmentation_on_disc
         fsas_on = sas_on + ap_on
+
+        if not self.data_valid: #do nothig if data is not valid
+            ap_on = 0.0
+            sas_on = 0.0
+            fsas_on = 0.0
 
         if ap_on > 0.5:
             switched_keas_cmd = self.equivalent_airspeed_command

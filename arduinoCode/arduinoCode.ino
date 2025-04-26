@@ -296,18 +296,6 @@ void loop() {
       //control data response
       Serial.read(); //drop that header byte
 
-      float altitude_msl = 10013;
-      float equivalent_airspeed = 287.8;
-      float angle_of_attack = 2.6538;
-      float angle_of_sideslip = 0.0;
-      float euler_angle_roll = 0.0;
-      float euler_angle_pitch = 2.6538;
-      float euler_angle_yaw = 45.0;
-      float body_angular_rate_roll = 0.0;
-      float body_angular_rate_pitch = 0.0;
-      float body_angular_rate_yaw = 0.0;
-      float sim_time = 0.0;
-
       Serial.print(" Alt ");
       Serial.print(altitude_msl);
       Serial.print(" EAS ");

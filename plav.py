@@ -18,6 +18,7 @@ from matplotlib import colormaps
 import pyqtgraph as pg
 import pandas as pd
 from flightgear_python.fg_if import FDMConnection
+from serial.serialutil import SerialException
 
 import quaternion_math as quat
 from aircraftconfig import AircraftConfig, init_aircraft
@@ -341,12 +342,12 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case13.json', 'r') as file:
+with open('aircraftConfigs/case13AaltitudeF16.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
-real_time = False
-hitl_active = False
+real_time = True
+hitl_active = True
 use_flight_gear = False
 export_to_csv = True
 t_span = np.array([0.0, 30.0])
@@ -364,7 +365,11 @@ if modelparam['useF16']:
 
     if modelparam["useSAS"] and hitl_active:
         print('using HITL')
-        control_unit = F16ControlHITL(np.array(modelparam['commands'],'d'), 'COM3')
+        try:
+            control_unit = F16ControlHITL(np.array(modelparam['commands'],'d'), 'COM3')
+        except SerialException:
+            print("Serial port error, check if the arduino is connected and available")
+            sys.exit(1)
         stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
         control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
 else:
@@ -414,7 +419,7 @@ basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
 
 
 
-sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.1)
+sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.01)
 
 print("Sim started...")
 
@@ -725,3 +730,10 @@ if export_to_csv and not real_time:
 main_window.show()
 realtime_window.show()
 pg.exec()
+
+
+if hitl_active: #shut down the HIL system
+    try:
+        control_unit.shut_down_hil()
+    except:
+        pass

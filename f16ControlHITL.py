@@ -185,6 +185,10 @@ class F16ControlHITL(object):
         #time.sleep(0.01) # Wait for the device to process the command
         reponse = self.ser.read(16)
         return process_control_response(reponse)
+    
+    def shut_down_hil(self):
+        """Shut down the HITL device"""
+        self.ser.close()
 
 
 
