@@ -341,15 +341,15 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case13AaltitudeF16.json', 'r') as file:
+with open('aircraftConfigs/case13.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
-real_time = True
-hitl_active = True
+real_time = False
+hitl_active = False
 use_flight_gear = False
 export_to_csv = True
-t_span = np.array([0.0, 50.0])
+t_span = np.array([0.0, 30.0])
 
 control_unit = None
 if modelparam['useF16']:
