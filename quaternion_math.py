@@ -51,7 +51,7 @@ def to_euler(q):
     theta = 2*math.atan2(math.sqrt(1+2*(q[0]*q[2] - q[1]*q[3])), math.sqrt(1-2*(q[0]*q[2] -q[1]*q[3]))) - math.pi/2
     psi   = math.atan2(2*(q[0]*q[3] + q[1]*q[2]), (1-2*(q[2]**2 + q[3]**2)))
 
-    return np.array([phi, theta, psi]) #idk why you gotta sub pi
+    return np.array([phi, theta, psi])  
 
 @jit(float64[:](float64, float64, float64))
 def from_euler(roll, pitch, yaw):
