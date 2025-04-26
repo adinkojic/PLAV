@@ -218,16 +218,7 @@ def calculate_flight_path_angle(velocity_ned):
 
 @jit(float64(float64, float64, float64, float64))
 def dist_vincenty(lat1, lon1, lat2, lon2):
-    
-    """TODO: edit
-    Vincenty's inverse formula for ellipsoidal distance on WGS‑84.
-    Parameters:
-      lat1, lon1 — latitude and longitude of point A in rad
-      lat2, lon2 — latitude and longitude of point B in rad
-
-    Returns:
-      Distance in meters.  May fail to converge near antipodal points.
-    """
+    """distance with Vincenty formula."""
 
     max_iter=20
     tol=1e-12
