@@ -12,7 +12,7 @@ To run the check cases youself, download the software and install the dependenci
 
 `pip install -r requirements.txt`
 
-There's no UI yet, so find the json file load input and enter the approriate case. They are avaible in the `\aircraftConfigs` folder. There are options to use to real time and hardware-in-the-loop simulation and the sim duration.
+There's no UI yet, so find the json file load input in `plav.py` and enter the approriate case. They are avaible in the `\aircraftConfigs` folder. There are options to use to real time and hardware-in-the-loop simulation and the sim duration. Run `plav.py` it will run the sim. The sim can be unpaused with the Pause/Play button.
 
 To test the HITL mode, install the sim proof-of-concept Arduino code in `\arduinoCode` with the Arduino IDE. Make sure you enter the correct COM port and close the Arduino IDE. The systems supports both offline and real-time simulation modes.
 
