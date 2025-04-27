@@ -5,8 +5,9 @@ import math
 import numpy as np
 from numba import float64, int64
 from numba.experimental import jitclass
-from numba import jit, types
+from numba import jit
 import quaternion_math as quat
+from genericAircraftConfig import get_dynamic_viscosity,get_wind_to_body_axis,velocity_to_alpha_beta
 
 
 spec = [
@@ -99,71 +100,19 @@ def init_aircraft(config_file):
 
     C_mbb = config_file['C_mbb']
 
-
     cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
 
-    #init_control_vector = np.zeros(4,'d')
+    init_control_vector =  np.array(config_file['init_control'],'d')
 
-    #C_XYlutX = np.array([0],'d')
-    #C_XlutY  = np.array([0],'d')
-    #C_YlutY  = np.array([0],'d')
-    #inital trim controls
-    if config_file['has_control']:
-        init_control_vector =  np.array(config_file['init_control'],'d')
+    C_XYlutX = np.array(config_file['C_XYlutX'],'d')
+    C_XlutY  = np.array(config_file['C_XlutY'], 'd')
+    C_YlutY  = np.array(config_file['C_YlutY'], 'd')
 
-        #for glider with grid fins
-        if config_file['hasgridfins']:
-            C_XYlutX = np.array(config_file['C_XYlutX'],'d')
-            C_XlutY  = np.array(config_file['C_XlutY'], 'd')
-            C_YlutY  = np.array(config_file['C_YlutY'], 'd')
-
-            print('wit gf')
-            aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
-        else:
-            print('no gf')
-            aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                    C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector)
-    else:
-        print('no control')
-        aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                     C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb)
-        
+    aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+            C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
 
     return aircraft_model
 
-@jit(float64(float64))
-def get_dynamic_viscosity(temperature):
-    """Equation 51 of USSA1976"""
-    beta = 1.458e-6
-    sutherlands = 110.4
-
-    mu = (beta * temperature**1.5)/(temperature+sutherlands)
-
-    return mu
-
-@jit(float64[:](float64[:]))
-def velocity_to_alpha_beta(velocity_body):
-    """Gets velocity to alpha beta, assumes x direction is datum
-    Reference: Fundamentals of Helicopter Dyanmics 10.42, 10.43"""
-    airspeed = math.sqrt(velocity_body[0]**2 + velocity_body[1]**2 + velocity_body[2]**2)
-
-    if abs(airspeed) > 0.01:
-        beta = math.asin(velocity_body[1]/airspeed)
-    else:
-        beta = 0.0
-    alpha = math.atan2(velocity_body[2], velocity_body[0])
-
-    return np.array([airspeed, alpha, beta], 'd')
-
-@jit(float64[:](float64, float64))
-def get_wind_to_body_axis(alpha, beta):
-    """Gets velocity to body axis, assumes x direction is datum"""
-    beta_rot  = quat.from_angle_axis(-beta, np.array([0.0, 0.0, 1.0]))
-    alpha_rot = quat.from_angle_axis(alpha, np.array([0.0, 1.0, 0.0]))
-    result = quat.mulitply(beta_rot, alpha_rot)
-
-    return result
 
 @jit#(float64[:](float64[:], float64, float64))
 def get_local_alpha_beta(velocity, gamma, theta):
@@ -202,7 +151,7 @@ def get_x_rotation_matrix(angle):
     return np.ascontiguousarray(rotation_around_body)
 
 @jitclass(spec)
-class AircraftConfig(object):
+class BRGRConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
     information and even giving forces"""
 

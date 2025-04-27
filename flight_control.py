@@ -2,8 +2,8 @@
 
 import numpy as np
 from numba import float64    # import the types
-from numba.experimental import jitclass
-from numba import jit
+#from numba.experimental import jitclass
+#from numba import jit
 
 spec=[
     #servo control

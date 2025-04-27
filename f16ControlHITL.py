@@ -1,51 +1,9 @@
-"""F-16 Control Scheme, implementing F16_control.dml"""
+"""F-16 Control Scheme, implementing F16_control.dml on the HITL device."""
 
 import numpy as np
 from numba import jit, float64
-from numba.experimental import jitclass
 import serial
 
-spec = [
-    ('trim_rdr', float64),
-    ('trim_ail', float64),
-    ('trim_el', float64),
-    ('trim_power', float64),
-
-    ('rdr', float64),
-    ('ail', float64),
-    ('el', float64),
-    ('power', float64),
-
-    ('pilot_control_throttle', float64),
-    ('pilot_control_long', float64),
-    ('pilot_control_lat', float64),
-    ('pilot_control_yaw', float64),
-
-    ('stability_augmentation_on_disc', float64),
-    ('autopilot_on_disc', float64),
-
-    ('equivalent_airspeed_command', float64),
-    ('altitude_msl_command', float64),
-    ('lateral_deviation_error', float64),
-    ('true_base_course_command', float64),
-
-    ('altitude_msl', float64),
-    ('equivalent_airspeed', float64),
-    ('angle_of_attack', float64),
-    ('angle_of_sideslip', float64),
-    ('euler_angle_roll', float64),
-    ('euler_angle_pitch', float64),
-    ('euler_angle_yaw', float64),
-    ('body_angular_rate_roll', float64),
-    ('body_angular_rate_pitch', float64),
-    ('body_angular_rate_yaw', float64),
-
-    ('time', float64),
-
-    ('commands_list', float64[:,:]),
-]
-
-#@jitclass(spec)
 class F16ControlHITL(object):
     """F-16 Control Sysem"""
     def __init__(self, commands, serial_port= 'COM3'): 

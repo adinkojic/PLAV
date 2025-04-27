@@ -6,9 +6,8 @@ import math
 import numpy as np
 from numba import jit, float64
 from numba.experimental import jitclass
-import quaternion_math as quat
 
-from aircraftconfig import get_dynamic_viscosity, velocity_to_alpha_beta, get_wind_to_body_axis
+from genericAircraftConfig import get_dynamic_viscosity, velocity_to_alpha_beta
 
 
 spec = [
@@ -76,7 +75,7 @@ def bilinear_interp(x, y, x_grid, y_grid, z_grid):
     return numer/denom
 
 @jitclass(spec)
-class F16_aircraft(object): #TODO: fix possible beta issue
+class F16_aircraft(object):
     """Object used to lookup coefficients for F16 jet"""
     def __init__(self, init_control_vector):
         self.trim_rdr   = init_control_vector[0]
@@ -144,9 +143,6 @@ class F16_aircraft(object): #TODO: fix possible beta issue
 
     def get_forces(self):
         """Gets forces on aircraft from state and known derivatives"""
-
-        rtd = 180/math.pi
-
 
         C_X,C_Y,C_Z, C_l, C_m, C_n = self.get_coeff()
 

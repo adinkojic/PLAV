@@ -21,7 +21,8 @@ from flightgear_python.fg_if import FDMConnection
 from serial.serialutil import SerialException
 
 import quaternion_math as quat
-from aircraftconfig import AircraftConfig, init_aircraft
+from genericAircraftConfig import AircraftConfig, init_aircraft
+import brgrModel
 from f16_model import F16_aircraft
 #import ussa1976
 from atmosphere import Atmosphere
@@ -118,7 +119,7 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     omega_dot = np.linalg.solve(inertia_tensor, aero_moments - np.cross(np.eye(3), omega) @ inertia_tensor @ omega)
 
     lat_dot = vn/(R_phi+altitude)
-    long_dot = ve/((R_lamb+altitude)*np.cos(lat))
+    long_dot = ve/((R_lamb+altitude)*math.cos(lat))
     altitude_dot = -vd
 
     #from book Optimal Estimation of Dynamic Systems
@@ -137,8 +138,8 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     x_dot[5] = omega_dot[1]
     x_dot[6] = omega_dot[2]
 
-    x_dot[7] = lat_dot
-    x_dot[8] = long_dot
+    x_dot[7] = long_dot
+    x_dot[8] = lat_dot
     x_dot[9] = altitude_dot
 
     x_dot[10] = vn_dot
@@ -163,11 +164,11 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
     return x_dot
 
-def init_state(lat, lon, alt, velocity, bearing, elevation, roll, init_omega):
+def init_state(long, lat, alt, velocity, bearing, elevation, roll, init_omega):
     """initalize the state"""
 
 
-    init_pos = np.array([lat,lon,alt])
+    init_pos = np.array([long,lat,alt])
 
     init_vel = velocity
 
@@ -215,10 +216,10 @@ class Simulator(object):
                                            args= (self.aircraft,self.atmosphere))
  
         #lon wrapparound
-        if self.state[8] < -math.pi:
-            self.state[8] = self.state[8] + 2.0*math.pi
-        elif self.state[8] > math.pi:
-            self.state[8] = self.state[8] - 2.0*math.pi
+        if self.state[7] < -math.pi:
+            self.state[7] = self.state[7] + 2.0*math.pi
+        elif self.state[7] > math.pi:
+            self.state[7] = self.state[7] - 2.0*math.pi
 
         #get stuff
         x_dot(self.time, self.state, self.aircraft, self.atmosphere, self.sim_log)
@@ -249,28 +250,16 @@ class Simulator(object):
             body_angular_rate_pitch = last_line[6]
             body_angular_rate_yaw = last_line[7]
 
-            #print("altitude msl: ", altitude_msl)
-            #print("equivalent airspeed: ", equivalent_airspeed)
-            #print("angle of attack: ", angle_of_attack)
-            #print("angle of sideslip: ", angle_of_sideslip)
-            #print("euler angle roll: ", euler_angle_roll)
-            #print("euler angle pitch: ", euler_angle_pitch)
-            #print("euler angle yaw: ", euler_angle_yaw)
-            #print("body angular rate roll: ", body_angular_rate_roll)
-            #print("body angular rate pitch: ", body_angular_rate_pitch)
-            #print("body angular rate yaw: ", body_angular_rate_yaw)
-            #print("tas: ", tas)
-            #print("density: ", density)
 
             self.control_sys.update_enviroment(altitude_msl, equivalent_airspeed, angle_of_attack, \
                     angle_of_sideslip, euler_angle_roll, euler_angle_pitch, \
                     euler_angle_yaw, body_angular_rate_roll ,\
                     body_angular_rate_pitch, body_angular_rate_yaw, sim_time)
  
-            pilot_control_lat = 0.0 #self.pilot_vec[0]
-            pilot_control_yaw = 0.0 #self.pilot_vec[1]
-            pilot_control_long = 0.0 #self.pilot_vec[2]
-            pilot_control_throttle = 0.0 #self.pilot_vec[3]
+            pilot_control_lat = self.pilot_vec[0]
+            pilot_control_yaw = self.pilot_vec[1]
+            pilot_control_long = self.pilot_vec[2]
+            pilot_control_throttle = self.pilot_vec[3]
             self.control_sys.update_pilot_control(pilot_control_long, pilot_control_lat, \
                         pilot_control_yaw, pilot_control_throttle)
 
@@ -342,29 +331,30 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case13AaltitudeF16.json', 'r') as file:
+with open('aircraftConfigs/case15northPole.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
-real_time = True
-hitl_active = True
+real_time = False
+hitl_active = False
 use_flight_gear = False
 export_to_csv = True
-t_span = np.array([0.0, 30.0])
+t_span = np.array([0.0, 180.0])
 
 control_unit = None
 if modelparam['useF16']:
+    print('Using F16')
     control_vector = np.array(modelparam['init_control'],'d')
     aircraft = F16_aircraft(control_vector)
 
     if modelparam["useSAS"] and not hitl_active:
-        print('using SAS')
+        print('Using Software Autopilot')
         control_unit = F16Control(np.array(modelparam['commands'],'d'))
         stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
         control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
 
     if modelparam["useSAS"] and hitl_active:
-        print('using HITL')
+        print('Using HITL Autopilot')
         try:
             control_unit = F16ControlHITL(np.array(modelparam['commands'],'d'), 'COM3')
         except SerialException:
@@ -372,7 +362,11 @@ if modelparam['useF16']:
             sys.exit(1)
         stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
         control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
+elif modelparam['hasgridfins']:
+    print('Using Grid Fin Model')
+    aircraft = brgrModel.init_aircraft(modelparam)
 else:
+    print('Using Generic Model')
     aircraft = init_aircraft(modelparam)
 
 use_file_atmosphere = True
@@ -394,8 +388,9 @@ if use_file_init_conditions:
     init_rte      = modelparam['init_rot']
     init_ori   = np.array(modelparam['init_ori'], 'd')
 
-    init_x = modelparam['init_lat']
-    init_y = modelparam['init_lon']
+    init_long = modelparam['init_lon']
+    init_lat = modelparam['init_lat']
+
 
 else:
     inital_alt = 9144
@@ -412,7 +407,9 @@ else:
 
 
 
-y0 = init_state(init_x, init_y, inital_alt, init_velocity, bearing=init_ori[2], elevation=init_ori[1], roll=init_ori[0], init_omega=init_rte)
+y0 = init_state(init_long, init_lat, inital_alt, init_velocity, bearing=init_ori[2], elevation=init_ori[1], roll=init_ori[0], init_omega=init_rte)
+
+
 
 #pump sim once
 basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
@@ -421,7 +418,7 @@ basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
 
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.01)
 
-print("Sim started...")
+print("Compiled, Sim started...")
 
 # Create main Qt application
 app = QtWidgets.QApplication([])
@@ -466,19 +463,20 @@ pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
 #meters to feet
 mtf = 39.37/12
 
+
+print("Compilation and file load took ", time.perf_counter()-code_start_time)
+
 if real_time is False:
     sim_start_time = time.perf_counter()
     sim_object.run_sim()
     sim_end_time = time.perf_counter()
 
 sim_data = sim_object.return_results()
-print(sim_object.return_time_steps())
-print(np.size(sim_data))
 
-long_lat_plot = plot_widget.addPlot(title="Long Lat [deg] vs Time")
+long_lat_plot = plot_widget.addPlot(title="Long, Lat [deg] vs Time")
 long_lat_plot.addLegend()
-lat = long_lat_plot.plot(sim_data[0], sim_data[8]*180/math.pi, pen=(40,40,240), name="Latitiude")
-lon = long_lat_plot.plot(sim_data[0], sim_data[9]*180/math.pi, pen=(130,20,130), name="Longitude")
+lon = long_lat_plot.plot(sim_data[0], sim_data[8]*180/math.pi, pen=(130,20,130), name="Longitude")
+lat = long_lat_plot.plot(sim_data[0], sim_data[9]*180/math.pi, pen=(40,40,240), name="Latitiude")
 long_lat_plot.addLegend(frame=True, colCount=2)
 
 
@@ -584,15 +582,13 @@ elevator = control_plot.plot(sim_data[0], sim_data[39],pen=(10,255,10),name="Ele
 throttle = control_plot.plot(sim_data[0], sim_data[40],pen=(255,255,255),name="Throttle")
 
 
-print("compilation took ", time.perf_counter()-code_start_time)
-
 def fdm_callback(fdm_data, event_pipe):
     """updates flight data for Flightgear"""
 
     current_pos = sim_object.latest_state()
 
-    fdm_data.lat_rad = current_pos[0]
-    fdm_data.lon_rad = current_pos[1]
+    fdm_data.lon_rad = current_pos[0]
+    fdm_data.lat_rad = current_pos[1]
     fdm_data.alt_m = current_pos[2]
     fdm_data.phi_rad = current_pos[3]
     fdm_data.theta_rad = current_pos[4]
@@ -623,8 +619,9 @@ def update():
 
     sim_data = sim_object.update_real_time()
 
-    lat.setData(sim_data[0], sim_data[8]*180/math.pi)
-    lon.setData(sim_data[0], sim_data[9]*180/math.pi)
+
+    lon.setData(sim_data[0], sim_data[8]*180/math.pi)
+    lat.setData(sim_data[0], sim_data[9]*180/math.pi)
     alt.setData(sim_data[0], sim_data[10]*mtf)
     path.setData(sim_data[8]*180/math.pi, sim_data[9]*180/math.pi)
 
@@ -680,16 +677,11 @@ timer.timeout.connect(update)
 
 
 if not real_time:    
-    print("sim took ", sim_end_time-sim_start_time)
-
-    print('data size: ', sim_data[0].size)
-    print('final alt', sim_data[10][-1]*mtf)
-    print('final lon', sim_data[9][-1]* 180/math.pi)
-
-print("size of sim_data: ", sys.getsizeof(sim_data))
+    print("Sim took ", sim_end_time-sim_start_time)
+    print('Data Rows: ', sim_data[0].size)
 
 fdm_event_pipe = None
-if __name__ == '__main__' and use_flight_gear:  # NOTE: This is REQUIRED on Windows!
+if __name__ == '__main__' and use_flight_gear:
     print("Starting FlightGear Connection")
     fdm_conn = FDMConnection()
     print('broke after fdm')
@@ -704,8 +696,8 @@ timer.start(10)
 if export_to_csv and not real_time:
     csv_data = {'time': sim_data[0],
         'altitudeMsl_ft': sim_data[10]*mtf,
-        'longitude_deg': sim_data[9]*180/math.pi,
-        'latitude_deg': sim_data[8]*180/math.pi,
+        'longitude_deg': sim_data[8]*180/math.pi,
+        'latitude_deg': sim_data[9]*180/math.pi,
         'localGravity_ft_s2': sim_data[23] *mtf,
         'eulerAngle_deg_Yaw':  sim_data[16] *180/math.pi,
         'eulerAngle_deg_Pitch': sim_data[15] *180/math.pi,
@@ -735,5 +727,6 @@ pg.exec()
 if hitl_active: #shut down the HIL system
     try:
         control_unit.shut_down_hil()
-    except:
-        pass
+        print("HITL system shut down nicely")
+    except SerialException:
+        print("HITL shut down undisgracefully")
