@@ -1,7 +1,3 @@
-#include <array>
-#include <vector>
-#include <algorithm>
-#include <cmath>
 #include <Arduino.h>
 
 float altitude_msl = 10013;

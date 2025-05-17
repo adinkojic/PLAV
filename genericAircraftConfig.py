@@ -127,6 +127,15 @@ def velocity_to_alpha_beta(velocity_body):
 
     return np.array([airspeed, alpha, beta], 'd')
 
+@jit(float64[:](float64,float64,float64))
+def alpha_beta_to_velocity(airspeed, alpha, beta):
+    """Turns airspeed, alpha, and beta to UVW values"""
+    u = airspeed * math.cos(beta) * math.cos(alpha)
+    v = airspeed * math.sin(beta)
+    w = airspeed * math.cos(beta) * math.sin(alpha)
+
+    return np.array([u, v, w], 'd')
+
 @jit(float64[:](float64, float64))
 def get_wind_to_body_axis(alpha, beta):
     """Gets velocity to body axis, assumes x direction is datum"""

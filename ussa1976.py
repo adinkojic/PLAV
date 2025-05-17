@@ -48,6 +48,14 @@ def get_pressure_density_temp(altitude):
     return np.array([pressure, density, temperature])
 
 @jit(float64(float64))
+def get_speed_of_sound(temperature_K):
+    """Speed of sounds [m/s]"""
+    gamma_air = 1.4
+    r_air = 287.052874
+
+    return np.sqrt(gamma_air*r_air*temperature_K)
+
+@jit(float64(float64))
 def get_dynamic_viscosity(temperature):
     """Equation 51 of USSA1976"""
     beta = 1.458e-6

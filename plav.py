@@ -30,6 +30,7 @@ from step_logging import SimDataLogger
 from runge_kutta4 import basic_rk4
 from f16Control import F16Control, tas_to_eas
 from f16ControlHITL import F16ControlHITL
+from joystick_reader import JoystickReader
 
 #from pyqtgraph.Qt import QtWidgets
 
@@ -315,9 +316,17 @@ class Simulator(object):
 
     def run_sim(self):
         """runs the sim until t_span"""
-        while self.time < self.t_span[1]:
-            self.advance_timestep()
-        self.time_at_last_pause = self.t_span[1]
+        try:
+            while self.time < self.t_span[1]:
+                self.advance_timestep()
+            self.time_at_last_pause = self.t_span[1]
+        except KeyboardInterrupt:
+            print("Simulation interuppted at t =", self.time)
+            exit(0)
+
+    def pump_sim(self):
+        """pumps the sim once, used for JIT compilation"""
+        self.advance_timestep()
 
     def return_results(self):
         """logger"""
@@ -335,11 +344,11 @@ with open('aircraftConfigs/case15northPole.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
-real_time = False
+real_time = True
 hitl_active = False
 use_flight_gear = False
 export_to_csv = True
-t_span = np.array([0.0, 180.0])
+t_span = np.array([0.0, 720.0])
 
 control_unit = None
 if modelparam['useF16']:
@@ -356,7 +365,7 @@ if modelparam['useF16']:
     if modelparam["useSAS"] and hitl_active:
         print('Using HITL Autopilot')
         try:
-            control_unit = F16ControlHITL(np.array(modelparam['commands'],'d'), 'COM3')
+            control_unit = F16ControlHITL(np.array(modelparam['commands'],'d'), 'COM5')
         except SerialException:
             print("Serial port error, check if the arduino is connected and available")
             sys.exit(1)
@@ -368,6 +377,8 @@ elif modelparam['hasgridfins']:
 else:
     print('Using Generic Model')
     aircraft = init_aircraft(modelparam)
+
+control_unit = JoystickReader('COM6')
 
 use_file_atmosphere = True
 if use_file_atmosphere:
@@ -381,44 +392,17 @@ else:
 #init atmosphere config
 atmosphere = Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile)
 
-use_file_init_conditions = True
-if use_file_init_conditions:
-    inital_alt    = modelparam['init_alt']
-    init_velocity = modelparam['init_vel']
-    init_rte      = modelparam['init_rot']
-    init_ori   = np.array(modelparam['init_ori'], 'd')
+inital_alt    = modelparam['init_alt']
+init_velocity = modelparam['init_vel']
+init_rte      = modelparam['init_rot']
+init_ori   = np.array(modelparam['init_ori'], 'd')
 
-    init_long = modelparam['init_lon']
-    init_lat = modelparam['init_lat']
-
-
-else:
-    inital_alt = 9144
-    init_x = 0
-    init_y = 0
-
-    init_airspeed = 20 #meters per second
-    init_alpha = 0 #degrees
-    init_beta  = 0
-    #init_velocity = aero.from_alpha_beta(init_airspeed, init_alpha, init_beta)
-    init_velocity = [0.0, 0.0, 0.0]
-    init_rte = np.array([0.0, 0.0, 0.0], dtype='d')
-    init_ori = np.array([0.0, 0.0, 0.0], 'd')
-
-
+init_long = modelparam['init_lon']
+init_lat = modelparam['init_lat']
 
 y0 = init_state(init_long, init_lat, inital_alt, init_velocity, bearing=init_ori[2], elevation=init_ori[1], roll=init_ori[0], init_omega=init_rte)
 
-
-
-#pump sim once
-basic_rk4(x_dot, 0.0, 0.01, y0, args= (aircraft,atmosphere, None))
-
-
-
 sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.01)
-
-print("Compiled, Sim started...")
 
 # Create main Qt application
 app = QtWidgets.QApplication([])
@@ -463,6 +447,14 @@ pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
 #meters to feet
 mtf = 39.37/12
 
+
+print("Pumping Sim...")
+#this ensures it's all compiled
+try:
+    sim_object.pump_sim()
+except KeyboardInterrupt:
+    print("Simulation compilation aborted")
+    exit(0)
 
 print("Compilation and file load took ", time.perf_counter()-code_start_time)
 
@@ -727,6 +719,6 @@ pg.exec()
 if hitl_active: #shut down the HIL system
     try:
         control_unit.shut_down_hil()
-        print("HITL system shut down nicely")
+        print("HITL system shut down")
     except SerialException:
         print("HITL shut down undisgracefully")

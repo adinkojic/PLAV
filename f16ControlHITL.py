@@ -45,7 +45,7 @@ class F16ControlHITL(object):
 
         self.commands_list = commands
 
-        self.ser = serial.Serial(serial_port)
+        self.ser = serial.Serial(serial_port,baudrate=115200)
 
 
 
