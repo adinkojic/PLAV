@@ -4,7 +4,7 @@
 
 This software is designed for users to implement their own aircraft models and simulate it in a somewhat realistic model of the Earth. They can enter basic aerodynamic coefficients or make their own flight dynamics model from the ground up.
 
-The simulation models the World Geodetic System 1984 (WGS84) ellispoid model of the Earth with the US Standard Atmosphere 1976.
+The simulation models the World Geodetic System 1984 (WGS84) ellispoid model of the Earth with the US Standard Atmosphere 1976. A review of the theory behind this simulation is in my Senior Thesis, which is in this repo.
 
 This software has been validated using the [NASA Engineering and Safety Center Atmospheric check cases](https://nescacademy.nasa.gov/flightsim/2015) 1 to 3 and 6 to 13.3. These cases are avaible for the user to run. 
 
