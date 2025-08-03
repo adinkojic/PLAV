@@ -6,6 +6,8 @@ Gravity lives here as well (J2)
 """
 
 import math
+import time
+
 import numpy as np
 #from scipy.integrate import solve_ivp
 from numba import jit, float64
@@ -13,6 +15,7 @@ from numba import jit, float64
 import quaternion_math as quat
 from step_logging import SimDataLogger
 from runge_kutta4 import basic_rk4
+from f16Control import F16Control, tas_to_eas
 
 @jit(float64(float64,float64), cache=True)
 def get_gravity(phi, h):
@@ -143,3 +146,158 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
                     alpha, beta, reynolds, aircraft_thrust, control_deflection)
 
     return x_dot
+
+class Simulator(object):
+    """A sim object is required to store all the required data nicely."""
+    def __init__(self, init_state, time_span, aircraft, atmosphere, control_sys= None,t_step = 0.1):
+        self.state = init_state
+        self.t_span = time_span
+        self.time = time_span[0]
+        self.sim_log = SimDataLogger(preallocated=1.1*(time_span[1]-time_span[0]) / t_step)
+        self.t_step = t_step
+        self.aircraft = aircraft
+        self.atmosphere = atmosphere
+        self.start_time = None
+
+        self.paused = True
+        self.elapsed_time = 0.0
+        self.time_at_last_pause = 0.0
+
+        self.pilot_vec = np.zeros(4, 'd')
+        self.control_sys = control_sys
+
+        #log the inital state
+        x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
+        self.sim_log.save_line()
+
+    def advance_timestep(self):
+        """advance timestep function, updates timestep and saves values"""
+
+        if self.control_sys is not None:
+            #by now the HIL should have a response ready
+            #for HIL it might block a bit as the aurdino computes
+            total_control_vector = self.control_sys_request_response()
+            self.aircraft.update_control(total_control_vector)
+                
+        self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state,\
+                                           args= (self.aircraft,self.atmosphere))
+ 
+        #lon wrapparound
+        if self.state[7] < -math.pi:
+            self.state[7] = self.state[7] + 2.0*math.pi
+        elif self.state[7] > math.pi:
+            self.state[7] = self.state[7] - 2.0*math.pi
+
+        #get stuff
+        x_dot(self.time, self.state, self.aircraft, self.atmosphere, self.sim_log)
+        self.sim_log.save_line()
+
+        if self.control_sys is not None:
+            #tell the control system to update now in case its a HIL system so it has time
+            self.control_sys_update()
+
+    def control_sys_update(self):
+        """updates the control system with the latest data"""
+        last_line = self.sim_log.get_lastest()
+
+        if last_line is not None:
+            sim_time = last_line[0]
+            tas = last_line[30]*1.943844
+            density = last_line[27]
+            equivalent_airspeed = tas_to_eas(tas, density)
+
+
+            altitude_msl = last_line[10] * 3.28084
+            angle_of_attack = last_line[31] * 180/math.pi
+            angle_of_sideslip = last_line[32] * 180/math.pi
+            euler_angle_roll = last_line[14] * 180/math.pi
+            euler_angle_pitch = last_line[15] * 180/math.pi
+            euler_angle_yaw = last_line[16] * 180/math.pi
+            body_angular_rate_roll = last_line[5]
+            body_angular_rate_pitch = last_line[6]
+            body_angular_rate_yaw = last_line[7]
+
+
+            self.control_sys.update_enviroment(altitude_msl, equivalent_airspeed, angle_of_attack, \
+                    angle_of_sideslip, euler_angle_roll, euler_angle_pitch, \
+                    euler_angle_yaw, body_angular_rate_roll ,\
+                    body_angular_rate_pitch, body_angular_rate_yaw, sim_time)
+ 
+            pilot_control_lat = self.pilot_vec[0]
+            pilot_control_yaw = self.pilot_vec[1]
+            pilot_control_long = self.pilot_vec[2]
+            pilot_control_throttle = self.pilot_vec[3]
+            self.control_sys.update_pilot_control(pilot_control_long, pilot_control_lat, \
+                        pilot_control_yaw, pilot_control_throttle)
+
+    def control_sys_request_response(self):
+        """request a reponse from the control system, which should have a response ready"""
+        control_vec = self.control_sys.get_control_output()
+        return control_vec
+
+    def latest_state(self):
+        """returns the most recent state
+        in lat [rad], lon [rad], alt [m], psi [rad], theta [rad], phi[rad]"""
+        lat_lon_alt = self.state[7:10]
+        psi_theta_phi = quat.to_euler(self.state[0:4])
+
+        return np.concatenate((lat_lon_alt,psi_theta_phi))
+
+    def update_real_time(self, time_warp = 1.0):
+        """Updates the real time sim, try to call with a delay in between"""
+        if self.start_time is None:
+            self.start_time = time.time()
+
+        if self.paused:
+            pass
+        else:
+            self.elapsed_time = (time.time() - self.start_time) * time_warp +self.time_at_last_pause
+            while self.time < self.elapsed_time:
+                self.advance_timestep()
+        return self.return_results()
+
+    def update_manual_control(self, stick_x, stick_y):
+        """pass in a control vector for the simulation"""
+        command = np.array([0.0, stick_x, stick_y, 0.0],'d')
+        self.pilot_vec = command
+
+    def pause_sim(self):
+        """Pauses the sim, saving time at stop"""
+        if not self.paused:
+            self.paused = True
+            self.time_at_last_pause = self.elapsed_time
+
+    def unpause_sim(self):
+        """Unpauses sim, starts counting time again"""
+        if self.paused:
+            self.paused = False
+            self.start_time = time.time()
+
+    def pause_or_unpause_sim(self):
+        """Flips state of sim"""
+        if self.paused:
+            self.unpause_sim()
+        else:
+            self.pause_sim()
+
+    def run_sim(self):
+        """runs the sim until t_span"""
+        try:
+            while self.time < self.t_span[1]:
+                self.advance_timestep()
+            self.time_at_last_pause = self.t_span[1]
+        except KeyboardInterrupt:
+            print("Simulation interuppted at t =", self.time)
+            exit(0)
+
+    def pump_sim(self):
+        """pumps the sim once, used for JIT compilation"""
+        self.advance_timestep()
+
+    def return_results(self):
+        """logger"""
+        return self.sim_log.return_data()
+
+    def return_time_steps(self):
+        """returns number of timesteps saved"""
+        return self.sim_log.return_data_size()
