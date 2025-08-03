@@ -340,7 +340,7 @@ class Simulator(object):
 code_start_time = time.perf_counter()
 
 #load aircraft config
-with open('aircraftConfigs/case15northPole.json', 'r') as file:
+with open('aircraftConfigs/brgrDroneDrop.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
 
@@ -378,7 +378,7 @@ else:
     print('Using Generic Model')
     aircraft = init_aircraft(modelparam)
 
-control_unit = JoystickReader('COM6')
+#control_unit = JoystickReader('COM6')
 
 use_file_atmosphere = True
 if use_file_atmosphere:

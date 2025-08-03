@@ -5,7 +5,7 @@ https://www.ngdc.noaa.gov/stp/space-weather/online-publications/miscellaneous/us
 import numpy as np
 from numba import jit, float64
 
-@jit(float64[:](float64))
+@jit(float64[:](float64), cache=True)
 def get_pressure_density_temp(altitude):
     """Gets pressure from altitude, page 11 of document
 
@@ -47,7 +47,7 @@ def get_pressure_density_temp(altitude):
 
     return np.array([pressure, density, temperature])
 
-@jit(float64(float64))
+@jit(float64(float64), cache=True)
 def get_speed_of_sound(temperature_K):
     """Speed of sounds [m/s]"""
     gamma_air = 1.4
@@ -55,7 +55,7 @@ def get_speed_of_sound(temperature_K):
 
     return np.sqrt(gamma_air*r_air*temperature_K)
 
-@jit(float64(float64))
+@jit(float64(float64), cache=True)
 def get_dynamic_viscosity(temperature):
     """Equation 51 of USSA1976"""
     beta = 1.458e-6

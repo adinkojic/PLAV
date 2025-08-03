@@ -114,7 +114,7 @@ def init_aircraft(config_file):
     return aircraft_model
 
 
-@jit#(float64[:](float64[:], float64, float64))
+@jit(cache=True)
 def get_local_alpha_beta(velocity, gamma, theta):
     """Gets the local Alpha and Beta of a fin
     velocity is the local velocity [m/s]
@@ -142,7 +142,7 @@ def get_local_alpha_beta(velocity, gamma, theta):
 
     return np.array([aab[1], aab[2]], 'd')
 
-@jit#(float64[:,:](float64))
+@jit(cache=True)
 def get_x_rotation_matrix(angle):
     """Gets a rotation matrix about X, useful for fins [rad]"""
     rotation_around_body = np.array([ [1., 0, 0], \
@@ -315,67 +315,95 @@ class BRGRConfig(object):
         qbar = self.get_qbar()
         S = self.Sref
 
-        top_fin_gamma  = -math.pi/2.0
-        star_fin_gamma =  math.pi/6.0
-        port_fin_gamma =  5.0*math.pi/6.0
+        #there's an issue with the reference frame
+        #let's calculate the forces in the wind frame
+        #and then rotate them to the body frame
 
+        #gamma describes the position on tube around +X (fwd), 0 is starboard
+        gamma_top  = -math.pi/2.0
+        gamma_star =  math.pi/6.0
+        gamma_port =  5.0*math.pi/6.0
+
+        #control mixing
         yaw_adjustment_factor = 0.5
-
         ail_command = self.ail * 0.5 + self.trim_ail
         el_command  = self.el  * 0.5 + self.trim_el
         rdr_command = self.rdr * 0.5 + self.trim_rdr
 
-        top_fin_theta  = -ail_command + rdr_command
-        star_fin_theta = -ail_command + rdr_command*yaw_adjustment_factor + el_command
-        port_fin_theta = -ail_command + rdr_command*yaw_adjustment_factor - el_command
+        #theta is the angle of deflection of the surface
+        deflection_top  = -ail_command + rdr_command
+        deflection_star = -ail_command + rdr_command*yaw_adjustment_factor + el_command
+        deflection_port = -ail_command + rdr_command*yaw_adjustment_factor - el_command
 
-        aab_top  = get_local_alpha_beta(self.velocity, top_fin_gamma,  top_fin_theta )
-        aab_star = get_local_alpha_beta(self.velocity, star_fin_gamma, star_fin_theta)
-        aab_port = get_local_alpha_beta(self.velocity, port_fin_gamma, port_fin_theta)
+        #get local alpha and beta in to each fin
+        ab_top  = get_local_alpha_beta(self.velocity, gamma_top,  deflection_top )
+        ab_star = get_local_alpha_beta(self.velocity, gamma_star, deflection_star)
+        ab_port = get_local_alpha_beta(self.velocity, gamma_port, deflection_port)
 
+        #get the drag of the fin (force along fin chord)
+        drag_angle_top  = np.sqrt(ab_top[0]**2  + ab_top[1]**2 )
+        drag_angle_star = np.sqrt(ab_star[0]**2 + ab_star[1]**2)
+        drag_angle_port = np.sqrt(ab_port[0]**2 + ab_port[1]**2)
 
-        top_drag_angle  = np.sqrt(aab_top[0]**2  + aab_top[1]**2 )
-        star_drag_angle = np.sqrt(aab_star[0]**2 + aab_star[1]**2)
-        port_drag_angle = np.sqrt(aab_port[0]**2 + aab_port[1]**2)
+        drag_top  = np.interp(drag_angle_top,  self.C_XYlutX, self.C_XlutY)
+        drag_star = np.interp(drag_angle_star, self.C_XYlutX, self.C_XlutY)
+        drag_port = np.interp(drag_angle_port, self.C_XYlutX, self.C_XlutY)
 
-        top_drag  = np.interp(top_drag_angle,  self.C_XYlutX, self.C_XlutY)
-        star_drag = np.interp(star_drag_angle, self.C_XYlutX, self.C_XlutY)
-        port_drag = np.interp(port_drag_angle, self.C_XYlutX, self.C_XlutY)
+        #get the normal and radial forces
+        #normal is perpendicular to chord and radial, radial inline with hinge
+        normal_top  = np.interp(ab_top[0],  self.C_XYlutX, self.C_YlutY)
+        radial_top  = np.interp(ab_top[1],  self.C_XYlutX, self.C_YlutY) * 0.5
+        normal_star = np.interp(ab_star[0], self.C_XYlutX, self.C_YlutY)
+        radial_star = np.interp(ab_star[1], self.C_XYlutX, self.C_YlutY) * 0.5
+        normal_port = np.interp(ab_port[0], self.C_XYlutX, self.C_YlutY)
+        radial_port = np.interp(ab_port[1], self.C_XYlutX, self.C_YlutY) * 0.5
 
+        #get the rotation matrix for each to rotate around +X
+        position_rot_top  = get_x_rotation_matrix(gamma_top )
+        position_rot_star = get_x_rotation_matrix(gamma_star)
+        position_rot_port = get_x_rotation_matrix(gamma_port)
 
-        top_normal  = np.interp(aab_top[0],  self.C_XYlutX, self.C_YlutY)
-        top_radial  = np.interp(aab_top[1],  self.C_XYlutX, self.C_YlutY) * 0.5
-        star_normal = np.interp(aab_star[0], self.C_XYlutX, self.C_YlutY)
-        star_radial = np.interp(aab_star[1], self.C_XYlutX, self.C_YlutY) * 0.5
-        port_normal = np.interp(aab_port[0], self.C_XYlutX, self.C_YlutY)
-        port_radial = np.interp(aab_port[1], self.C_XYlutX, self.C_YlutY) * 0.5
+        #coeff forces in local wind frame of grid fin
+        coeff_forces_wind_top  = np.array([-drag_top,  -radial_top, -normal_top],'d')
+        coeff_forces_wind_star = np.array([-drag_star, -radial_star,-normal_star],'d')
+        coeff_forces_wind_port = np.array([-drag_port, -radial_port,-normal_port],'d')
 
-        top_rot  = get_x_rotation_matrix(top_fin_gamma )
-        star_rot = get_x_rotation_matrix(star_fin_gamma)
-        port_rot = get_x_rotation_matrix(port_fin_gamma)
+        #from coeff to real force in local wind
+        forces_wind_top  = qbar * S * coeff_forces_wind_top
+        forces_wind_star = qbar * S * coeff_forces_wind_star
+        forces_wind_port = qbar * S * coeff_forces_wind_port
 
-        top_forces_ring  = np.array([-top_drag,  -top_radial, -top_normal],'d')
-        star_forces_ring = np.array([-star_drag, -star_radial,-star_normal],'d')
-        port_forces_ring = np.array([-port_drag, -port_radial,-port_normal],'d')
+        #rotate forces to body frame
 
-        #from coeff to real force
-        top_force  = qbar * S * top_rot  @ top_forces_ring
-        star_force = qbar * S * star_rot @ star_forces_ring
-        port_force = qbar * S * port_rot @ port_forces_ring
+        #quaternion from local wind frame to hinge frame (the ptfe bearing)
+        wind_to_body_top  = get_wind_to_body_axis(ab_top[0],  ab_top[1])
+        wind_to_body_star = get_wind_to_body_axis(ab_star[0], ab_star[1])
+        wind_to_body_port = get_wind_to_body_axis(ab_port[0], ab_port[1])
 
+        #rotate forces to hinge frame
+        hinge_forces_top = quat.rotateVectorQ(wind_to_body_top, forces_wind_top)
+        hinge_forces_star = quat.rotateVectorQ(wind_to_body_star, forces_wind_star)
+        hinge_forces_port = quat.rotateVectorQ(wind_to_body_port, forces_wind_port)
+
+        #quaternion from hinge frame to body frame (wow what we want)
+        body_force_top  = position_rot_top  @ hinge_forces_top
+        body_force_star = position_rot_star @ hinge_forces_star
+        body_force_port = position_rot_port @ hinge_forces_port
+
+        #how far the arm is from the hinge to the center of pressure [m]
         grid_fin_arm = np.array([-0.5, 0.0889, 0.0], 'd')
 
-        top_arm  = top_rot  @ grid_fin_arm
-        star_arm = star_rot @ grid_fin_arm
-        port_arm = port_rot @ grid_fin_arm
+        arm_top  = position_rot_top  @ grid_fin_arm #rotates the arm for each fin
+        arm_star = position_rot_star @ grid_fin_arm
+        arm_port = position_rot_port @ grid_fin_arm
 
-        top_moment  = np.cross(top_arm,  top_force)
-        star_moment = np.cross(star_arm, star_force)
-        port_moment = np.cross(port_arm, port_force)
+        #grid fins have tiny moments, torques come from the lever arm
+        moment_top  = np.cross(arm_top,  body_force_top )
+        moment_star = np.cross(arm_star, body_force_star)
+        moment_port = np.cross(arm_port, body_force_port)
 
-        total_force = top_force + star_force + port_force
-
-        total_moment= top_moment+ star_moment+ port_moment
+        total_force  = body_force_top + body_force_star + body_force_port
+        total_moment = moment_top + moment_star + moment_port
 
         return total_force, total_moment
 

@@ -103,7 +103,7 @@ def init_aircraft(config_file):
 
     return aircraft_model
 
-@jit(float64(float64))
+@jit(float64(float64),cache=True)
 def get_dynamic_viscosity(temperature):
     """Equation 51 of USSA1976"""
     beta = 1.458e-6
@@ -113,7 +113,7 @@ def get_dynamic_viscosity(temperature):
 
     return mu
 
-@jit(float64[:](float64[:]))
+@jit(float64[:](float64[:]),cache=True)
 def velocity_to_alpha_beta(velocity_body):
     """Gets velocity to alpha beta, assumes x direction is datum
     Reference: Fundamentals of Helicopter Dyanmics 10.42, 10.43"""
@@ -127,7 +127,7 @@ def velocity_to_alpha_beta(velocity_body):
 
     return np.array([airspeed, alpha, beta], 'd')
 
-@jit(float64[:](float64,float64,float64))
+@jit(float64[:](float64,float64,float64),cache=True)
 def alpha_beta_to_velocity(airspeed, alpha, beta):
     """Turns airspeed, alpha, and beta to UVW values"""
     u = airspeed * math.cos(beta) * math.cos(alpha)
@@ -136,7 +136,7 @@ def alpha_beta_to_velocity(airspeed, alpha, beta):
 
     return np.array([u, v, w], 'd')
 
-@jit(float64[:](float64, float64))
+@jit(float64[:](float64, float64),cache=True)
 def get_wind_to_body_axis(alpha, beta):
     """Gets velocity to body axis, assumes x direction is datum"""
     beta_rot  = quat.from_angle_axis(-beta, np.array([0.0, 0.0, 1.0]))
