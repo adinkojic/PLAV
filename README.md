@@ -2,7 +2,7 @@
 
 ### A 6 Degree-of-Freedom Flight Simulator written in Python with Real-Time Arduino Hardware in Loop Simulation
 
-This software is designed for users to implement their own aircraft models and simulate it in a somewhat realistic model of the Earth. They can enter basic aerodynamic coefficients or make their own flight dynamics model from the ground up.
+This software is designed for users to implement their own aircraft models and simulate it in a somewhat realistic model of the Earth. They can enter basic aerodynamic coefficients or make their own flight dynamics model from the ground up. It's really meant for engineers trying to validate their own air vehicle (airplane, rocket) before flying without dealing with C++ or learning more developed programs like JSBSim.
 
 The simulation models the World Geodetic System 1984 (WGS84) ellispoid model of the Earth with the US Standard Atmosphere 1976. A review of the theory behind this simulation is in my Senior Thesis, which is in this repo.
 
