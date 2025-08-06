@@ -31,7 +31,8 @@ def rotateVectorQ(quat, vec):
 @jit(float64[:](float64, float64[:]), cache=True)
 def from_angle_axis(angle, axis):
     """returns a quaternion given an angle [rad] and axis"""
-    return np.array([math.cos(angle/2), math.sin(angle/2)*axis[0], math.sin(angle/2)*axis[1], math.sin(angle/2)*axis[2]])
+    return np.array([math.cos(angle/2), \
+                math.sin(angle/2)*axis[0], math.sin(angle/2)*axis[1], math.sin(angle/2)*axis[2]])
 
 
 @jit(float64[:](float64[:], float64[:]), cache=True)
@@ -48,7 +49,8 @@ def mulitply(q1, q2):
 def to_euler(q):
     """roll, pitch, yaw"""
     phi   = math.atan2(2*(q[0]*q[1] + q[2]*q[3]), (1-2*(q[1]**2 + q[2]**2)))
-    theta = 2*math.atan2(math.sqrt(1+2*(q[0]*q[2] - q[1]*q[3])), math.sqrt(1-2*(q[0]*q[2] -q[1]*q[3]))) - math.pi/2
+    theta = 2*math.atan2(math.sqrt(1+2*(q[0]*q[2] - q[1]*q[3])),\
+                          math.sqrt(1-2*(q[0]*q[2] -q[1]*q[3]))) - math.pi/2
     psi   = math.atan2(2*(q[0]*q[3] + q[1]*q[2]), (1-2*(q[2]**2 + q[3]**2)))
 
     return np.array([phi, theta, psi])  

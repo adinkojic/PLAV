@@ -7,7 +7,7 @@ import numpy as np
 from numba import jit, float64
 from numba.experimental import jitclass
 
-from genericAircraftConfig import get_dynamic_viscosity, velocity_to_alpha_beta
+from plav.generic_aircraft_config import get_dynamic_viscosity, velocity_to_alpha_beta
 
 
 spec = [

@@ -1,8 +1,8 @@
 .venv
-numbaTest.py
-test.py
 output.csv
 
 F16_package
 __pycache__
 assets
+src\plav\__pycache__
+build

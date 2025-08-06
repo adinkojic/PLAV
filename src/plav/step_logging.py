@@ -5,7 +5,7 @@ import numpy as np
 from numba import jit, float64, int64
 from numba.experimental import jitclass
 
-import quaternion_math as quat
+from plav.quaternion_math import to_euler
 
 spec = [
 
@@ -133,7 +133,7 @@ class SimDataLogger(object):
     def make_line(self):
         """Makes a line of data"""
 
-        rollpitchyaw = quat.to_euler(self.quat)
+        rollpitchyaw = to_euler(self.quat)
         flight_path = calculate_flight_path_angle(self.ned_velocity)
 
         if self.valid_data_size != 0:

@@ -7,7 +7,7 @@ from numba import float64    # import the types
 from numba.experimental import jitclass
 from numba import jit
 
-import ussa1976
+from plav.ussa1976 import get_pressure_density_temp, get_speed_of_sound
 
 spec = [
     #wind profile input
@@ -44,7 +44,7 @@ class Atmosphere(object):
         self.current_alt = altitude
         self.current_time = time
 
-        pdt = ussa1976.get_pressure_density_temp(altitude)
+        pdt = get_pressure_density_temp(altitude)
         self.current_pressure    = pdt[0]
         self.current_density     = pdt[1]
         self.current_temperature = pdt[2]
@@ -63,7 +63,7 @@ class Atmosphere(object):
 
     def get_speed_of_sound(self):
         """Returns speed of sound [m/s]"""
-        return ussa1976.get_speed_of_sound(self.current_temperature)
+        return get_speed_of_sound(self.current_temperature)
 
     def get_wind_ned(self):
         """Returns wind speed NED [m/s]"""

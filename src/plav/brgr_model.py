@@ -6,8 +6,10 @@ import numpy as np
 from numba import float64, int64
 from numba.experimental import jitclass
 from numba import jit
-import quaternion_math as quat
-from genericAircraftConfig import get_dynamic_viscosity,get_wind_to_body_axis,velocity_to_alpha_beta
+import plav.quaternion_math as quat
+
+from plav.generic_aircraft_config import \
+    get_dynamic_viscosity,get_wind_to_body_axis,velocity_to_alpha_beta
 
 
 spec = [
@@ -73,45 +75,6 @@ spec = [
     ('port_force', float64[:])
 
 ]
-
-def init_aircraft(config_file):
-    """Init aircraft from json file"""
-    mass = config_file['mass']
-    inertia = np.array(config_file['inertiatensor'])
-    cmac = config_file['cref']
-    Sref = config_file['Sref']
-    bref = config_file['bref']
-    C_L0 = config_file['C_L0']
-    C_La = config_file['C_La']
-    C_D0 = config_file['C_D0']
-    epsilon = config_file['k2']
-    C_m0 = config_file['C_m0']
-    C_ma = config_file['C_ma']
-    C_mq = config_file['C_mq']
-    C_Db = config_file['C_Db']
-
-    C_Yb  = config_file['C_Yb']
-    C_l  = config_file['C_l']
-    C_lp = config_file['C_lp']
-    C_lr = config_file['C_lr']
-    C_np = config_file['C_np']
-    C_nr = config_file['C_nr']
-    C_nb = config_file['C_nb']
-
-    C_mbb = config_file['C_mbb']
-
-    cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
-
-    init_control_vector =  np.array(config_file['init_control'],'d')
-
-    C_XYlutX = np.array(config_file['C_XYlutX'],'d')
-    C_XlutY  = np.array(config_file['C_XlutY'], 'd')
-    C_YlutY  = np.array(config_file['C_YlutY'], 'd')
-
-    aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-            C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
-
-    return aircraft_model
 
 
 @jit(cache=True)
@@ -426,27 +389,66 @@ class BRGRConfig(object):
     def get_Re(self, density, viscosity):
         """Gets reynolds number from given conditions"""
         return self.airspeed * self.cmac * density/viscosity
-    
+
     def get_alpha(self):
         """Returns alpha in rad"""
         return self.alpha
-    
+
     def get_beta(self):
         """Returns beta in rad"""
         return self.beta
-    
+
     def get_mach(self):
         """Returns mach [nd]"""
         return self.mach
-    
+
     def get_qbar(self):
         """Returns dyanmic pressure [Pa]"""
         return 0.5 * self.density *self.airspeed**2
-    
+
     def get_airspeed(self):
         """Returns airspeed [m/s]"""
         return self.airspeed
-    
+
     def get_reynolds(self):
         """Returns Reynolds Number"""
         return self.reynolds
+
+def init_brgr(config_file) -> BRGRConfig:
+    """Init aircraft from json file"""
+    mass = config_file['mass']
+    inertia = np.array(config_file['inertiatensor'])
+    cmac = config_file['cref']
+    Sref = config_file['Sref']
+    bref = config_file['bref']
+    C_L0 = config_file['C_L0']
+    C_La = config_file['C_La']
+    C_D0 = config_file['C_D0']
+    epsilon = config_file['k2']
+    C_m0 = config_file['C_m0']
+    C_ma = config_file['C_ma']
+    C_mq = config_file['C_mq']
+    C_Db = config_file['C_Db']
+
+    C_Yb  = config_file['C_Yb']
+    C_l  = config_file['C_l']
+    C_lp = config_file['C_lp']
+    C_lr = config_file['C_lr']
+    C_np = config_file['C_np']
+    C_nr = config_file['C_nr']
+    C_nb = config_file['C_nb']
+
+    C_mbb = config_file['C_mbb']
+
+    cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
+
+    init_control_vector =  np.array(config_file['init_control'],'d')
+
+    C_XYlutX = np.array(config_file['C_XYlutX'],'d')
+    C_XlutY  = np.array(config_file['C_XlutY'], 'd')
+    C_YlutY  = np.array(config_file['C_YlutY'], 'd')
+
+    aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+            C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
+
+    return aircraft_model

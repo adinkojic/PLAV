@@ -20,20 +20,16 @@ import pandas as pd
 from flightgear_python.fg_if import FDMConnection
 from serial.serialutil import SerialException
 
-import quaternion_math as quat
-import simulator
-from simulator import Simulator
-
-from genericAircraftConfig import AircraftConfig, init_aircraft
-import brgrModel
-from f16_model import F16_aircraft
-#import ussa1976
-from atmosphere import Atmosphere
-from step_logging import SimDataLogger
-from runge_kutta4 import basic_rk4
-from f16Control import F16Control, tas_to_eas
-from f16ControlHITL import F16ControlHITL
-from joystick_reader import JoystickReader
+from plav.quaternion_math import from_euler
+from plav.simulator import Simulator
+from plav.generic_aircraft_config import AircraftConfig, init_aircraft
+from src.plav.brgr_model import init_brgr, BRGRConfig
+from plav.f16_model import F16_aircraft
+from plav.atmosphere import Atmosphere
+from plav.step_logging import SimDataLogger
+from src.plav.f16_control import F16Control, tas_to_eas
+from src.plav.f16_control_HITL import F16ControlHITL
+from plav.joystick_reader import JoystickReader
 
 #from pyqtgraph.Qt import QtWidgets
 
@@ -41,14 +37,13 @@ from joystick_reader import JoystickReader
 def init_state(long, lat, alt, velocity, bearing, elevation, roll, init_omega):
     """initalize the state"""
 
-
     init_pos = np.array([long,lat,alt])
 
     init_vel = velocity
 
     #first apply bearing stuff
     #roll pitch yaw
-    init_ori_ned = quat.from_euler(roll*math.pi/180,elevation*math.pi/180,bearing*math.pi/180)
+    init_ori_ned = from_euler(roll*math.pi/180,elevation*math.pi/180,bearing*math.pi/180)
 
 
     y0 = np.append(np.append(init_ori_ned, init_omega), np.append(init_pos, init_vel))
@@ -91,7 +86,7 @@ if modelparam['useF16']:
         control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
 elif modelparam['hasgridfins']:
     print('Using Grid Fin Model')
-    aircraft = brgrModel.init_aircraft(modelparam)
+    aircraft = init_brgr(modelparam)
 else:
     print('Using Generic Model')
     aircraft = init_aircraft(modelparam)
@@ -386,7 +381,7 @@ timer.timeout.connect(update)
 
 
 
-if not real_time:    
+if not real_time:
     print("Sim took ", sim_end_time-sim_start_time)
     print('Data Rows: ', sim_data[0].size)
 

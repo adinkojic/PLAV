@@ -6,7 +6,7 @@ import numpy as np
 from numba import float64
 from numba.experimental import jitclass
 from numba import jit
-import quaternion_math as quat
+from plav.quaternion_math import from_angle_axis, mulitply, rotateVectorQ
 
 spec = [
     #geometrics
@@ -63,46 +63,6 @@ spec = [
 
 ]
 
-def init_aircraft(config_file):
-    """Init aircraft from json file"""
-    mass = config_file['mass']
-    inertia = np.array(config_file['inertiatensor'])
-    cmac = config_file['cref']
-    Sref = config_file['Sref']
-    bref = config_file['bref']
-    C_L0 = config_file['C_L0']
-    C_La = config_file['C_La']
-    C_D0 = config_file['C_D0']
-    epsilon = config_file['k2']
-    C_m0 = config_file['C_m0']
-    C_ma = config_file['C_ma']
-    C_mq = config_file['C_mq']
-    C_Db = config_file['C_Db']
-
-    C_Yb  = config_file['C_Yb']
-    C_l  = config_file['C_l']
-    C_lp = config_file['C_lp']
-    C_lr = config_file['C_lr']
-    C_np = config_file['C_np']
-    C_nr = config_file['C_nr']
-    C_nb = config_file['C_nb']
-
-    C_mbb = config_file['C_mbb']
-
-
-    cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
-
-    if config_file['has_control']:
-        init_control_vector =  np.array(config_file['init_control'],'d')
-        aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector)
-    else:
-        aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                     C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb)
-        
-
-    return aircraft_model
-
 @jit(float64(float64),cache=True)
 def get_dynamic_viscosity(temperature):
     """Equation 51 of USSA1976"""
@@ -139,19 +99,19 @@ def alpha_beta_to_velocity(airspeed, alpha, beta):
 @jit(float64[:](float64, float64),cache=True)
 def get_wind_to_body_axis(alpha, beta):
     """Gets velocity to body axis, assumes x direction is datum"""
-    beta_rot  = quat.from_angle_axis(-beta, np.array([0.0, 0.0, 1.0]))
-    alpha_rot = quat.from_angle_axis(alpha, np.array([0.0, 1.0, 0.0]))
-    result = quat.mulitply(beta_rot, alpha_rot)
+    beta_rot  = from_angle_axis(-beta, np.array([0.0, 0.0, 1.0]))
+    alpha_rot = from_angle_axis(alpha, np.array([0.0, 1.0, 0.0]))
+    result = mulitply(beta_rot, alpha_rot)
 
     return result
 
 @jitclass(spec)
 class AircraftConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
-    information and even giving forces"""
+    information and even givings forces"""
 
-    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
+    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, \
+                C_m0, C_ma, C_mq, C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
                 init_control_vector = np.zeros(4)):
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
@@ -271,7 +231,7 @@ class AircraftConfig(object):
         wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
 
         body_forces_wind = np.array([-body_drag, body_side, -body_lift])
-        body_forces_body = quat.rotateVectorQ(wind_to_body, body_forces_wind)
+        body_forces_body = rotateVectorQ(wind_to_body, body_forces_wind)
 
         aero_moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
 
@@ -309,27 +269,77 @@ class AircraftConfig(object):
     def get_Re(self, density, viscosity):
         """Gets reynolds number from given conditions"""
         return self.airspeed * self.cmac * density/viscosity
-    
+
     def get_alpha(self):
         """Returns alpha in rad"""
         return self.alpha
-    
+
     def get_beta(self):
         """Returns beta in rad"""
         return self.beta
-    
+
     def get_mach(self):
         """Returns mach [nd]"""
         return self.mach
-    
+
     def get_qbar(self):
         """Returns dyanmic pressure [Pa]"""
         return 0.5 * self.density *self.airspeed**2
-    
+
     def get_airspeed(self):
         """Returns airspeed [m/s]"""
         return self.airspeed
-    
+
     def get_reynolds(self):
         """Returns Reynolds Number"""
         return self.reynolds
+
+def init_aircraft(config_file) -> AircraftConfig:
+    """Init aircraft from json file"""
+    mass = config_file['mass']
+    inertia = np.array(config_file['inertiatensor'])
+    cmac = config_file['cref']
+    Sref = config_file['Sref']
+    bref = config_file['bref']
+    C_L0 = config_file['C_L0']
+    C_La = config_file['C_La']
+    C_D0 = config_file['C_D0']
+    epsilon = config_file['k2']
+    C_m0 = config_file['C_m0']
+    C_ma = config_file['C_ma']
+    C_mq = config_file['C_mq']
+    C_Db = config_file['C_Db']
+
+    C_Yb  = config_file['C_Yb']
+    C_l  = config_file['C_l']
+    C_lp = config_file['C_lp']
+    C_lr = config_file['C_lr']
+    C_np = config_file['C_np']
+    C_nr = config_file['C_nr']
+    C_nb = config_file['C_nb']
+
+    C_mbb = config_file['C_mbb']
+
+
+    cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
+
+    if config_file['has_control']:
+        init_control_vector =  np.array(config_file['init_control'],'d')
+        aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, \
+                                        C_D0, epsilon, C_m0, C_ma, C_mq,C_Yb, C_l, C_lp, C_lr, \
+                                        C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector)
+    else:
+        aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, \
+                                        C_D0, epsilon, C_m0, C_ma, C_mq, C_Yb, C_l, C_lp, C_lr, \
+                                        C_np, C_nr, C_mbb, C_Db, C_nb)
+
+    return aircraft_model
+
+def dummy_aircraft() -> AircraftConfig:
+    """Returns a dummy aircraft config for initialization"""
+
+    return AircraftConfig(mass = 1.0, inertia = np.eye(3,'d'), cmac = 1.0, Sref = 1.0, bref = 1.0,\
+                        cp_wrt_cm = np.array([1.0, 0.0, 0.0], 'd'), C_L0 = 0.0, C_La = 0.0, \
+                        C_D0 = 0.0, epsilon = 0.0, C_m0 = 0.0, C_ma = 0.0, C_mq = 0.0, C_Yb = 0.0,\
+                        C_l = 0.0, C_lp = 0.0, C_lr = 0.0, C_np = 0.0, C_nr = 0.0, C_mbb = 0.0, \
+                        C_Db = 0.0, C_nb = 0.0)

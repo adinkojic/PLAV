@@ -12,12 +12,14 @@ import numpy as np
 #from scipy.integrate import solve_ivp
 from numba import jit, float64
 
-import quaternion_math as quat
-from step_logging import SimDataLogger
-from runge_kutta4 import basic_rk4
-from f16Control import F16Control, tas_to_eas
+from plav.quaternion_math import rotateFrameQ, rotateVectorQ, to_euler
+from plav.step_logging import SimDataLogger
+from plav.runge_kutta4 import basic_rk4
+from plav.f16_control import tas_to_eas
+from plav.atmosphere import Atmosphere
+from plav.generic_aircraft_config import AircraftConfig
 
-@jit(float64(float64,float64), cache=True)
+@jit(float64(float64,float64))
 def get_gravity(phi, h):
     """gets gravity accel from lat and altitude
     phi: latitude [rad]
@@ -28,7 +30,7 @@ def get_gravity(phi, h):
     return gravity
 
 @jit
-def x_dot(t, y, aircraft_config, atmosphere, log = None):
+def x_dot(t, y, aircraft_config: AircraftConfig, sim_atmosphere: Atmosphere, log = None):
     """Implements standard NED equations
     [q1 q2 q3 q4], [p q r], (lambda) long, (phi)lat, alt, vn, ve, vd,
     q4 is the angle q13 is the axis """
@@ -55,21 +57,22 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     R_lamb = a/math.sqrt((1-e**2*np.sin(lat)))
 
     omega_NI = omega_e * np.array([np.cos(lat), 0, -np.sin(lat)]) + np.array( \
-        [(ve)/(R_lamb + altitude), -(vn)/(R_phi + altitude), -(ve * np.tan(lat))/(R_lamb + altitude)])
+        [(ve)/(R_lamb + altitude),-(vn)/(R_phi + altitude),-(ve * np.tan(lat))/(R_lamb + altitude)])
 
     gravity = get_gravity(lat, altitude)
 
-    atmosphere.update_conditions(altitude)
+    sim_atmosphere.update_conditions(altitude)
 
-    air_density = atmosphere.get_density()
-    air_temperature = atmosphere.get_temperature()
-    static_pressure = atmosphere.get_pressure()
-    speed_of_sound = atmosphere.get_speed_of_sound()
+    air_density = sim_atmosphere.get_density()
+    air_temperature = sim_atmosphere.get_temperature()
+    static_pressure = sim_atmosphere.get_pressure()
+    speed_of_sound = sim_atmosphere.get_speed_of_sound()
 
     #adds wind
-    v_airspeed = quat.rotateVectorQ(q, np.array([vn, ve, vd], 'd') + atmosphere.get_wind_ned())
+    v_airspeed = rotateVectorQ(q, np.array([vn, ve, vd], 'd') + sim_atmosphere.get_wind_ned())
     #solving for acceleration, which is velocity_dot
-    aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, air_temperature, speed_of_sound)
+    aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density, 
+                                      air_temperature, speed_of_sound)
 
 
     aero_forces_body, aero_moments = aircraft_config.get_forces()
@@ -83,14 +86,14 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
     accel_body = body_forces_body/mass
 
-    accel_ned = quat.rotateFrameQ(q, accel_body)
+    accel_ned = rotateFrameQ(q, accel_body)
 
 
     accel_north = accel_ned[0]
     accel_east  = accel_ned[1]
     accel_down  = accel_ned[2]
 
-    omega = omega - quat.rotateFrameQ(q, omega_NI)
+    omega = omega - rotateFrameQ(q, omega_NI)
 
     #integrate state
     q1dot = 0.5*(-omega[0]*q[1] -omega[1]*q[2] -omega[2]*q[3])
@@ -99,7 +102,8 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
     q4dot = 0.5*( omega[2]*q[0] +omega[1]*q[1] -omega[0]*q[2])
 
     #(11.27) in Engineeering Dyanmics (Kasdin and Paley)
-    omega_dot = np.linalg.solve(inertia_tensor, aero_moments - np.cross(np.eye(3), omega) @ inertia_tensor @ omega)
+    omega_dot = np.linalg.solve(inertia_tensor, aero_moments - \
+                                np.cross(np.eye(3), omega) @ inertia_tensor @ omega)
 
     lat_dot = vn/(R_phi+altitude)
     long_dot = ve/((R_lamb+altitude)*math.cos(lat))
@@ -107,8 +111,10 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
     #from book Optimal Estimation of Dynamic Systems
     vn_dot = accel_north-(long_dot + 2*omega_e)*ve*np.sin(lat) + vn*vd/(R_phi+altitude)
-    ve_dot = accel_east -(long_dot + 2*omega_e)*vn*np.sin(lat) + ve*vd/(R_phi+altitude) + 2*omega_e*vd*np.cos(lat)
-    vd_dot = accel_down + gravity-ve**2/(R_lamb+altitude)-vn**2/(R_phi+altitude) - 2*omega_e*ve*np.cos(lat)
+    ve_dot = accel_east -(long_dot + 2*omega_e)*vn*np.sin(lat) + ve*vd/(R_phi+altitude)\
+             + 2*omega_e*vd*np.cos(lat)
+    vd_dot = accel_down + gravity-ve**2/(R_lamb+altitude)-vn**2/(R_phi+altitude)\
+          - 2*omega_e*ve*np.cos(lat)
 
 
 
@@ -149,14 +155,17 @@ def x_dot(t, y, aircraft_config, atmosphere, log = None):
 
 class Simulator(object):
     """A sim object is required to store all the required data nicely."""
-    def __init__(self, init_state, time_span, aircraft, atmosphere, control_sys= None,t_step = 0.1):
+    def __init__(self,
+            init_state, time_span, aircraft: AircraftConfig, sim_atmosphere: Atmosphere,
+            control_sys= None,t_step = 0.1
+                ):
         self.state = init_state
         self.t_span = time_span
         self.time = time_span[0]
         self.sim_log = SimDataLogger(preallocated=1.1*(time_span[1]-time_span[0]) / t_step)
         self.t_step = t_step
         self.aircraft = aircraft
-        self.atmosphere = atmosphere
+        self.sim_atmosphere = sim_atmosphere
         self.start_time = None
 
         self.paused = True
@@ -167,7 +176,7 @@ class Simulator(object):
         self.control_sys = control_sys
 
         #log the inital state
-        x_dot(self.time, self.state, aircraft, atmosphere, self.sim_log)
+        x_dot(self.time, self.state, aircraft, sim_atmosphere, self.sim_log)
         self.sim_log.save_line()
 
     def advance_timestep(self):
@@ -178,10 +187,10 @@ class Simulator(object):
             #for HIL it might block a bit as the aurdino computes
             total_control_vector = self.control_sys_request_response()
             self.aircraft.update_control(total_control_vector)
-                
+
         self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state,\
-                                           args= (self.aircraft,self.atmosphere))
- 
+                                           args= (self.aircraft,self.sim_atmosphere))
+
         #lon wrapparound
         if self.state[7] < -math.pi:
             self.state[7] = self.state[7] + 2.0*math.pi
@@ -189,7 +198,7 @@ class Simulator(object):
             self.state[7] = self.state[7] - 2.0*math.pi
 
         #get stuff
-        x_dot(self.time, self.state, self.aircraft, self.atmosphere, self.sim_log)
+        x_dot(self.time, self.state, self.aircraft, self.sim_atmosphere, self.sim_log)
         self.sim_log.save_line()
 
         if self.control_sys is not None:
@@ -239,7 +248,7 @@ class Simulator(object):
         """returns the most recent state
         in lat [rad], lon [rad], alt [m], psi [rad], theta [rad], phi[rad]"""
         lat_lon_alt = self.state[7:10]
-        psi_theta_phi = quat.to_euler(self.state[0:4])
+        psi_theta_phi = to_euler(self.state[0:4])
 
         return np.concatenate((lat_lon_alt,psi_theta_phi))
 
@@ -287,7 +296,7 @@ class Simulator(object):
                 self.advance_timestep()
             self.time_at_last_pause = self.t_span[1]
         except KeyboardInterrupt:
-            print("Simulation interuppted at t =", self.time)
+            print("Simulation interuppted at t = ", self.time)
             exit(0)
 
     def pump_sim(self):

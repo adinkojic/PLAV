@@ -7,13 +7,13 @@ import numpy as np
 
 #from plav import get_gravity
 
-import ussa1976
-import quaternion_math as quat
+import src.plav.ussa1976
+import src.plav.quaternion_math as quat
 
-import brgrModel
-import f16_model
-import genericAircraftConfig
-from genericAircraftConfig import velocity_to_alpha_beta, alpha_beta_to_velocity, get_wind_to_body_axis
+import src.plav.brgr_model
+import src.plav.f16_model
+import src.plav.generic_aircraft_config as generic_aircraft_config
+from src.plav.generic_aircraft_config import velocity_to_alpha_beta, alpha_beta_to_velocity, get_wind_to_body_axis
 
 
 
