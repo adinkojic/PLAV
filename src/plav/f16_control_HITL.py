@@ -47,7 +47,9 @@ class F16ControlHITL(object):
 
         self.ser = serial.Serial(serial_port,baudrate=115200)
 
-
+    def is_hitl(self):
+        """Check if the control system is HITL"""
+        return True
 
     def get_control_output(self):
         """computes and gets the control output in -1 to 1 range"""

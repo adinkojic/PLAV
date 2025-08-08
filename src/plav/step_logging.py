@@ -49,6 +49,51 @@ spec = [
 
 ]
 
+#index of data in sim_data
+SDI_TIME = 0
+SDI_Q1 = 1
+SDI_Q2 = 2
+SDI_Q3 = 3
+SDI_Q4 = 4
+SDI_P = 5
+SDI_Q = 6
+SDI_R = 7
+SDI_LONG = 8
+SDI_LAT = 9
+SDI_ALT = 10
+SDI_VN = 11
+SDI_VE = 12
+SDI_VD = 13
+SDI_ROLL = 14
+SDI_PITCH = 15
+SDI_YAW = 16
+SDI_FX = 17
+SDI_FY = 18
+SDI_FZ = 19
+SDI_MX = 20
+SDI_MY = 21
+SDI_MZ = 22
+SDI_GRAVITY = 23
+SDI_SOUND = 24
+SDI_MACH = 25
+SDI_QBAR = 26
+SDI_AIR_DENSITY = 27
+SDI_AIR_PRESSURE = 28
+SDI_AIR_TEMPERATURE = 29
+SDI_TAS = 30
+SDI_ALPHA = 31
+SDI_BETA = 32
+SDI_REYNOLDS = 33
+SDI_FLIGHT_PATH = 34
+SDI_DOWNRANGE = 35
+SDI_THRUST = 36
+SDI_AILERON_CMD = 37
+SDI_ELEVATOR_CMD = 38
+SDI_RUDDER_CMD = 39
+SDI_THRUST_CMD = 40
+
+SDI_LINE_SIZE = 41 #total size of a line
+
 @jitclass(spec)
 class SimDataLogger(object):
     """Jitted Logger Object to Run in the Function as an arg"""
@@ -157,6 +202,54 @@ class SimDataLogger(object):
             flight_path, downrange, self.thrust, self.control_deflection[0], \
             self.control_deflection[1], self.control_deflection[2], self.control_deflection[3] \
          ], 'd')
+        
+        temp = line.copy()
+        
+        line = np.zeros(SDI_LINE_SIZE, 'd')
+        line[SDI_TIME] = self.time
+        line[SDI_Q1] = self.quat[0]
+        line[SDI_Q2] = self.quat[1]
+        line[SDI_Q3] = self.quat[2]
+        line[SDI_Q4] = self.quat[3]
+        line[SDI_P] = self.body_rate[0]
+        line[SDI_Q] = self.body_rate[1]
+        line[SDI_R] = self.body_rate[2]
+        line[SDI_LONG] = self.lon_lat_alt[0]
+        line[SDI_LAT] = self.lon_lat_alt[1]
+        line[SDI_ALT] = self.lon_lat_alt[2]
+        line[SDI_VN] = self.ned_velocity[0]
+        line[SDI_VE] = self.ned_velocity[1]
+        line[SDI_VD] = self.ned_velocity[2]
+        line[SDI_ROLL] = rollpitchyaw[0]
+        line[SDI_PITCH] = rollpitchyaw[1]
+        line[SDI_YAW] = rollpitchyaw[2]
+        line[SDI_FX] = self.aero_body_force[0]
+        line[SDI_FY] = self.aero_body_force[1]
+        line[SDI_FZ] = self.aero_body_force[2]
+        line[SDI_MX] = self.aero_body_moment[0]
+        line[SDI_MY] = self.aero_body_moment[1]
+        line[SDI_MZ] = self.aero_body_moment[2]
+        line[SDI_GRAVITY] = self.local_gravity
+        line[SDI_SOUND] = self.speed_of_sound
+        line[SDI_MACH] = self.mach
+        line[SDI_QBAR] = self.dynamic_pressure
+        line[SDI_AIR_DENSITY] = self.air_density
+        line[SDI_AIR_PRESSURE] = self.ambient_pressure
+        line[SDI_AIR_TEMPERATURE] = self.ambient_temperature
+        line[SDI_TAS] = self.true_airspeed
+        line[SDI_ALPHA] = self.alpha
+        line[SDI_BETA] = self.beta
+        line[SDI_REYNOLDS] = self.reynolds
+        line[SDI_FLIGHT_PATH] = flight_path
+        line[SDI_DOWNRANGE] = downrange
+        line[SDI_THRUST] = self.thrust
+        line[SDI_AILERON_CMD] = self.control_deflection[0]
+        line[SDI_ELEVATOR_CMD] = self.control_deflection[1]
+        line[SDI_RUDDER_CMD] = self.control_deflection[2]
+        line[SDI_THRUST_CMD] = self.control_deflection[3]
+
+        assert np.array_equal(line, temp)
+
         return line
 
     def save_line(self):

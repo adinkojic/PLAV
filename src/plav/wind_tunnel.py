@@ -7,14 +7,12 @@ import numpy as np
 
 #from plav import get_gravity
 
-import src.plav.ussa1976
-import src.plav.quaternion_math as quat
-
-import src.plav.brgr_model
-import src.plav.f16_model
-import src.plav.generic_aircraft_config as generic_aircraft_config
-from src.plav.generic_aircraft_config import velocity_to_alpha_beta, alpha_beta_to_velocity, get_wind_to_body_axis
-
+from plav.atmosphere_models.ussa1976 import get_pressure_density_temp, get_speed_of_sound
+from plav.quaternion_math import rotateFrameQ
+from plav.vehicle_models.brgr_model import BRGRConfig, init_brgr
+from plav.vehicle_models.f16_model import F16_aircraft
+from plav.vehicle_models.generic_aircraft_config import AircraftConfig
+from src.plav.vehicle_models.generic_aircraft_config import velocity_to_alpha_beta, alpha_beta_to_velocity, get_wind_to_body_axis
 
 
 RAD_TO_DEG = 180/math.pi
@@ -27,13 +25,13 @@ altitude = 0.0
 body_rate = np.array([0.,0.,0.,],'d')
 
 
-pdt = ussa1976.get_pressure_density_temp(altitude)
+pdt = get_pressure_density_temp(altitude)
 
 
 with open('aircraftConfigs/brgrDroneDrop.json', 'r') as file:
     modelparam = json.load(file)
 file.close()
-model = brgrModel.init_aircraft(modelparam)
+model = init_brgr(modelparam)
 S = modelparam['Sref']
 cbar = modelparam['cref']
 b = modelparam['bref']
@@ -41,7 +39,7 @@ b = modelparam['bref']
 alpha = alpha_deg / RAD_TO_DEG
 beta  = beta_deg / RAD_TO_DEG
 density = pdt[1]
-speed_of_sound = ussa1976.get_speed_of_sound(pdt[2])
+speed_of_sound = get_speed_of_sound(pdt[2])
 
 qbar = 0.5 * density * airspeed**2
 
@@ -54,7 +52,7 @@ print(f"Wind Velocity: {wind_velocity}")
 forces, moments = model.get_forces()
 
 wind_to_body_axis = get_wind_to_body_axis(alpha, beta)
-forces = quat.rotateFrameQ(wind_to_body_axis, forces)
+forces = rotateFrameQ(wind_to_body_axis, forces)
 
 print("Forces:", forces)
 

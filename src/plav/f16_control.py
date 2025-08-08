@@ -87,6 +87,10 @@ class F16Control(object):
 
         self.commands_list = commands
 
+    def is_hitl(self):
+        """Check if the control system is HITL"""
+        return False
+
     def get_control_output(self):
         """computes and gets the control output in -1 to 1 range"""
 

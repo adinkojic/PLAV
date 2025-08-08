@@ -335,7 +335,7 @@ def init_aircraft(config_file) -> AircraftConfig:
 
     return aircraft_model
 
-def dummy_aircraft() -> AircraftConfig:
+def init_dummy_aircraft() -> AircraftConfig:
     """Returns a dummy aircraft config for initialization"""
 
     return AircraftConfig(mass = 1.0, inertia = np.eye(3,'d'), cmac = 1.0, Sref = 1.0, bref = 1.0,\

@@ -16,8 +16,8 @@ from plav.quaternion_math import rotateFrameQ, rotateVectorQ, to_euler
 from plav.step_logging import SimDataLogger
 from plav.runge_kutta4 import basic_rk4
 from plav.f16_control import tas_to_eas
-from plav.atmosphere import Atmosphere
-from plav.generic_aircraft_config import AircraftConfig
+from plav.atmosphere_models.ussa1976 import Atmosphere
+from plav.vehicle_models.generic_aircraft_config import AircraftConfig
 
 @jit(float64(float64,float64))
 def get_gravity(phi, h):
