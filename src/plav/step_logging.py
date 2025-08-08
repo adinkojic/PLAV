@@ -6,6 +6,7 @@ from numba import jit, float64, int64
 from numba.experimental import jitclass
 
 from plav.quaternion_math import to_euler
+import plav.conversions as conv
 
 spec = [
 
@@ -271,7 +272,8 @@ class SimDataLogger(object):
         self.valid_data_size = self.valid_data_size + 1
 
     def trim_excess(self):
-        """Trim excess data"""
+        """Trim excess data
+        excess points are the preallocated zeros"""
         new_data = self.data[:self.data_columns, :self.valid_data_size]
         self.data = new_data
 
@@ -322,46 +324,70 @@ def dist_vincenty(lat1, lon1, lat2, lon2):
     b = a * (1 - f)             # semi-minor axis
 
     phi1, phi2 = lat1, lat2
-    L = lon2 - lon1
+    l = lon2 - lon1
 
-    U1 = math.atan((1 - f) * math.tan(phi1))
-    U2 = math.atan((1 - f) * math.tan(phi2))
-    sinU1, cosU1 = math.sin(U1), math.cos(U1)
-    sinU2, cosU2 = math.sin(U2), math.cos(U2)
+    u1 = math.atan((1 - f) * math.tan(phi1))
+    u2 = math.atan((1 - f) * math.tan(phi2))
+    sin_u1, cos_u1 = math.sin(u1), math.cos(u1)
+    sin_u2, cos_u2 = math.sin(u2), math.cos(u2)
 
-    lamb = L
+    lamb = l
     for _ in range(max_iter):
-        sinLambda, cosLambda = math.sin(lamb), math.cos(lamb)
-        sinSigma = math.hypot(cosU2 * sinLambda,
-                          cosU1 * sinU2 - sinU1 * cosU2 * cosLambda)
-        if sinSigma == 0:
+        sin_lambda, cos_lambda = math.sin(lamb), math.cos(lamb)
+        sin_sigma = math.hypot(cos_u2 * sin_lambda,
+                          cos_u1 * sin_u2 - sin_u1 * cos_u2 * cos_lambda)
+        if sin_sigma == 0:
             return 0.0  # coincident points
 
-        cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda
-        sigma = math.atan2(sinSigma, cosSigma)
+        cos_sigma = sin_u1 * sin_u2 + cos_u1 * cos_u2 * cos_lambda
+        sigma = math.atan2(sin_sigma, cos_sigma)
 
-        sinAlpha = cosU1 * cosU2 * sinLambda / sinSigma
-        cos2Alpha = 1 - sinAlpha * sinAlpha
+        sin_alpha = cos_u1 * cos_u2 * sin_lambda / sin_sigma
+        cos2_alpha = 1 - sin_alpha * sin_alpha
 
-        cos2Sigmam = (cosSigma - 2 * sinU1 * sinU2 / cos2Alpha) if cos2Alpha != 0 else 0.0
+        cos2_sigmam = (cos_sigma - 2 * sin_u1 * sin_u2 / cos2_alpha) if cos2_alpha != 0 else 0.0
 
-        C = f / 16 * cos2Alpha * (4 + f * (4 - 3 * cos2Alpha))
+        C = f / 16 * cos2_alpha * (4 + f * (4 - 3 * cos2_alpha))
 
         lamb_prev = lamb
-        lamb = (L + (1 - C) * f * sinAlpha *
-                (sigma + C * sinSigma * (cos2Sigmam + C * cosSigma *
-                 (-1 + 2 * cos2Sigmam * cos2Sigmam))))
+        lamb = (l + (1 - C) * f * sin_alpha *
+                (sigma + C * sin_sigma * (cos2_sigmam + C * cos_sigma *
+                 (-1 + 2 * cos2_sigmam * cos2_sigmam))))
         if abs(lamb - lamb_prev) < tol:
             break
 
     # handle non-convergence: proceed with best estimate anyway
-    u2 = cos2Alpha * (a*a - b*b) / (b*b)
+    u2 = cos2_alpha * (a*a - b*b) / (b*b)
     A = 1 + u2 / 16384 * (4096 + u2 * (-768 + u2 * (320 - 175*u2)))
     B = u2 / 1024 * (256 + u2 * (-128 + u2 * (74 - 47*u2)))
-    deltaSigma = (B * sinSigma * (cos2Sigmam + B / 4 * (
-              cosSigma * (-1 + 2 * cos2Sigmam*cos2Sigmam) -
-              B / 6 * cos2Sigmam * (-3 + 4*sinSigma*sinSigma) *
-              (-3 + 4*cos2Sigmam*cos2Sigmam))))
-    s = b * A * (sigma - deltaSigma)
+    delta_sigma = (B * sin_sigma * (cos2_sigmam + B / 4 * (
+              cos_sigma * (-1 + 2 * cos2_sigmam*cos2_sigmam) -
+              B / 6 * cos2_sigmam * (-3 + 4*sin_sigma*sin_sigma) *
+              (-3 + 4*cos2_sigmam*cos2_sigmam))))
+    s = b * A * (sigma - delta_sigma)
 
     return np.float64(s)
+
+def return_data_for_csv(sim_data) -> dict:
+        """Returns the data in a format suitable for CSV export"""
+
+        csv_data = {'time': sim_data[SDI_TIME],
+        'altitudeMsl_ft': sim_data[SDI_ALT]*conv.M_TO_FT,
+        'longitude_deg': sim_data[SDI_LONG]*conv.RAD_TO_DEG,
+        'latitude_deg': sim_data[SDI_LAT]*conv.RAD_TO_DEG,
+        'localGravity_ft_s2': sim_data[SDI_GRAVITY] *conv.M_TO_FT,
+        'eulerAngle_deg_Yaw':  sim_data[SDI_YAW] *conv.RAD_TO_DEG,
+        'eulerAngle_deg_Pitch': sim_data[SDI_PITCH] *conv.RAD_TO_DEG,
+        'eulerAngle_deg_Roll' : sim_data[SDI_ROLL] *conv.RAD_TO_DEG,
+        'aero_bodyForce_lbf_X': sim_data[SDI_FX] *conv.N_TO_LBF,
+        'aero_bodyForce_lbf_Y': sim_data[SDI_FY] *conv.N_TO_LBF,
+        'aero_bodyForce_lbf_Z': sim_data[SDI_FZ] *conv.N_TO_LBF,
+        'aero_bodyMoment_ftlbf_L': sim_data[SDI_MX] *conv.NM_TO_LBF_FT,
+        'aero_bodyMoment_ftlbf_M': sim_data[SDI_MY] *conv.NM_TO_LBF_FT,
+        'aero_bodyMoment_ftlbf_N': sim_data[SDI_MZ] *conv.NM_TO_LBF_FT,
+        'trueAirspeed_nmi_h': sim_data[SDI_TAS]*conv.MPS_TO_KTS,
+        'airDensity_slug_ft3': sim_data[SDI_AIR_DENSITY] *conv.M_TO_FT,
+        'downrageDistance_m': sim_data[SDI_DOWNRANGE],
+        }
+
+        return csv_data

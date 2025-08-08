@@ -37,7 +37,7 @@ import plav.conversions as conv
 #from pyqtgraph.Qt import QtWidgets
 
 
-def init_state(long, lat, alt, velocity, bearing, elevation, roll, init_omega):
+def init_position(long, lat, alt, velocity, bearing, elevation, roll, init_omega):
     """initalize the state"""
 
     init_pos = np.array([long,lat,alt])
@@ -64,7 +64,7 @@ def init_sim():
     dummy_aircraft = init_dummy_aircraft()
     dummy_control = None
 
-    dummy_y0 = init_state(long = 0.0, lat = 0.0, alt = 0.0, velocity = 0.0,
+    dummy_y0 = init_position(long = 0.0, lat = 0.0, alt = 0.0, velocity = 0.0,
                     bearing = 0.0, elevation = 0.0, roll = 0.0,
                     init_omega = np.array([0.0, 0.0, 0.0, 0.0], 'd'))
 
@@ -143,7 +143,6 @@ def load_atmosphere(modelparam, use_file_atmosphere:bool = True):
     #init atmosphere config
     return Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile)
 
-
 def load_init_position(modelparam):
     """load the initial position from the modelparam and return y0"""
     init_long = modelparam['init_lon']
@@ -153,110 +152,41 @@ def load_init_position(modelparam):
     init_rte = modelparam['init_rot']
     init_ori = np.array(modelparam['init_ori'], 'd')
 
-    init_x = init_state(init_long, init_lat, inital_alt, init_velocity,
+    init_x = init_position(init_long, init_lat, inital_alt, init_velocity,
                     bearing=init_ori[2], elevation=init_ori[1],
                     roll=init_ori[0], init_omega=init_rte)
 
     return init_x
 
-def hitl_setup(modelparam):
-    """setup the HITL system if active"""
-    if modelparam['hitl_active']:
-        try:
-            control_unit = F16ControlHITL(np.array(modelparam['commands'], 'd'), 'COM5')
-            print("HITL system initialized")
-            return True, control_unit
-        except SerialException:
-            print("Serial port error, check if the arduino is connected and available")
-            sys.exit(1)
-    else:
-        return False, None
+def export_data(trimmed_sim_data):
+    """Export the simulation data to a CSV file"""
+    csv_data = {'time': trimmed_sim_data[0],
+        'altitudeMsl_ft': trimmed_sim_data[10]*conv.M_TO_FT,
+        'longitude_deg': trimmed_sim_data[8]*conv.RAD_TO_DEG,
+        'latitude_deg': trimmed_sim_data[9]*conv.RAD_TO_DEG,
+        'localGravity_ft_s2': trimmed_sim_data[23] *conv.M_TO_FT,
+        'eulerAngle_deg_Yaw':  trimmed_sim_data[16] *conv.RAD_TO_DEG,
+        'eulerAngle_deg_Pitch': trimmed_sim_data[15] *conv.RAD_TO_DEG,
+        'eulerAngle_deg_Roll' : trimmed_sim_data[14] *conv.RAD_TO_DEG,
+        'aero_bodyForce_lbf_X': trimmed_sim_data[17] *conv.N_TO_LBF,
+        'aero_bodyForce_lbf_Y': trimmed_sim_data[18] *conv.N_TO_LBF,
+        'aero_bodyForce_lbf_Z': trimmed_sim_data[19] *conv.N_TO_LBF,
+        'aero_bodyMoment_ftlbf_L': trimmed_sim_data[20] *conv.NM_TO_LBF_FT,
+        'aero_bodyMoment_ftlbf_M': trimmed_sim_data[21] *conv.NM_TO_LBF_FT,
+        'aero_bodyMoment_ftlbf_N': trimmed_sim_data[22] *conv.NM_TO_LBF_FT,
+        'trueAirspeed_nmi_h': trimmed_sim_data[30]*conv.MPS_TO_KTS,
+        'airDensity_slug_ft3': trimmed_sim_data[27] *conv.M_TO_FT,
+        'downrageDistance_m': trimmed_sim_data[35],
+        }
 
-real_time = True
-use_flight_gear = False
-export_to_csv = True
-
-#test code to make sure refactor still works
-
-#load the scenario file
-scenario_file = 'scenarios/brgrDroneDrop.json'
-modelparam = load_scenario(scenario_file)
-if modelparam is None:
-    print("No valid scenario file found, exiting")
-    sys.exit(1)
-
-#load the aircraft config and control unit
-aircraft, control_unit = load_aircraft_config(modelparam)
-
-#load the atmosphere config
-atmosphere = load_atmosphere(modelparam)
-
-#load the initial position
-y0 = load_init_position(modelparam)
-
-#setup the HITL system if active
-if control_unit is not None:
-    hitl_active = control_unit.is_hitl()
-else:
-    hitl_active = False
-
-#initialize the simulation object
-t_span = np.array([0.0, 120.0], 'd')
+    df = pd.DataFrame(csv_data)
+    filename = "output.csv"
+    df.to_csv(filename, index=False)
+    print(f"Data exported to {filename}")
 
 
-sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.01)
-
-# Create main Qt application
-app = QtWidgets.QApplication([])
-realtime_window = QtWidgets.QMainWindow()
-realtime_window.setWindowTitle('Real Time Flying')
-
-pg.setConfigOptions(antialias=True)
-
-# Create a central widget and layout
-central_widget = QtWidgets.QWidget()
-instrument_widget = QtWidgets.QWidget()
-main_layout = QtWidgets.QVBoxLayout()
-controls_layout = QtWidgets.QVBoxLayout()
-central_widget.setLayout(main_layout)
-instrument_widget.setLayout(controls_layout)
-realtime_window.setCentralWidget(instrument_widget)
-
-# Create plot area using pyqtgraph GraphicsLayoutWidget
-plot_widget = pg.GraphicsLayoutWidget()
-main_layout.addWidget(plot_widget)
-
-# Create control panel with Pause/Unpause buttons
-button_layout = QtWidgets.QHBoxLayout()
-pause_button = QtWidgets.QPushButton("Pause/Play")
-joystick = pg.JoystickButton()
-joystick.setFixedWidth(30)
-joystick.setFixedHeight(30)
-#unpause_button = QtWidgets.QPushButton("Unpause")
-button_layout.addWidget(pause_button)
-button_layout.addWidget(joystick)
-#button_layout.addWidget(unpause_button)
-controls_layout.addLayout(button_layout)
-
-# Connect buttons to simulation control
-pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
-#unpause_button.clicked.connect(sim_object.unpause_sim)
-
-
-if real_time is False:
-    sim_start_time = time.perf_counter()
-    sim_object.run_sim()
-    sim_end_time = time.perf_counter()
-
-sim_data = sim_object.return_results()
-
-plotter_object = Plotter(sim_data, modelparam['title'])
-
-
-def fdm_callback(fdm_data, event_pipe):
+def fdm_callback(fdm_data, current_pos):
     """updates flight data for Flightgear"""
-
-    current_pos = sim_object.latest_state()
 
     fdm_data.lon_rad = current_pos[0]
     fdm_data.lat_rad = current_pos[1]
@@ -275,71 +205,131 @@ def fdm_callback(fdm_data, event_pipe):
     return fdm_data  # return the whole structure
 
 
-def update():
-    """Update loop for simulation"""
-    
-    x, y = joystick.getState()
-    sim_object.update_manual_control(stick_x=x, stick_y=y)
+def start_simulation(scenario_file: str, timespan, real_time=False, export_to_csv=True):
+    """Starts the simulation for the given scenario file"""
+    use_flight_gear = False
+    timespan = np.array(timespan,'d')
+    #test code to make sure refactor still works
 
-    sim_data = sim_object.update_real_time()
+    #load the scenario file
+    modelparam = load_scenario("scenarios/" + scenario_file)
+    if modelparam is None:
+        print("No valid scenario file found, exiting")
+        sys.exit(1)
 
-    plotter_object.update_plots(sim_data)
+    #load the aircraft config and control unit
+    aircraft, control_unit = load_aircraft_config(modelparam)
 
-timer = QtCore.QTimer()
-timer.timeout.connect(update)
+    #load the atmosphere config
+    atmosphere = load_atmosphere(modelparam)
 
+    #load the initial position
+    y0 = load_init_position(modelparam)
 
+    #setup the HITL system if active
+    if control_unit is not None:
+        hitl_active = control_unit.is_hitl()
+    else:
+        hitl_active = False
 
-if not real_time:
-    #print("Sim took ", sim_end_time-sim_start_time)
-    print('Data Rows: ', sim_data[0].size)
+    #initialize the simulation object
+    t_span = np.array([0.0, 120.0], 'd')
 
-fdm_event_pipe = None
-if __name__ == '__main__' and use_flight_gear:
-    print("Starting FlightGear Connection")
-    fdm_conn = FDMConnection()
-    print('broke after fdm')
-    fdm_event_pipe = fdm_conn.connect_rx('localhost', 5501, fdm_callback)
-    print('broke at pipe')
-    fdm_conn.connect_tx('localhost', 5502)
-    print('broke at start')
-    fdm_conn.start()  # Start the FDM RX/TX loop
-    print("Started FlightGear Connection")
-timer.start(10)
-
-if export_to_csv and not real_time:
-    csv_data = {'time': sim_data[0],
-        'altitudeMsl_ft': sim_data[10]*conv.M_TO_FT,
-        'longitude_deg': sim_data[8]*conv.RAD_TO_DEG,
-        'latitude_deg': sim_data[9]*conv.RAD_TO_DEG,
-        'localGravity_ft_s2': sim_data[23] *conv.M_TO_FT,
-        'eulerAngle_deg_Yaw':  sim_data[16] *conv.RAD_TO_DEG,
-        'eulerAngle_deg_Pitch': sim_data[15] *conv.RAD_TO_DEG,
-        'eulerAngle_deg_Roll' : sim_data[14] *conv.RAD_TO_DEG,
-        'aero_bodyForce_lbf_X': sim_data[17] *conv.N_TO_LBF,
-        'aero_bodyForce_lbf_Y': sim_data[18] *conv.N_TO_LBF,
-        'aero_bodyForce_lbf_Z': sim_data[19] *conv.N_TO_LBF,
-        'aero_bodyMoment_ftlbf_L': sim_data[20] *conv.NM_TO_LBF_FT,
-        'aero_bodyMoment_ftlbf_M': sim_data[21] *conv.NM_TO_LBF_FT,
-        'aero_bodyMoment_ftlbf_N': sim_data[22] *conv.NM_TO_LBF_FT,
-        'trueAirspeed_nmi_h': sim_data[30]*conv.MPS_TO_KTS,
-        'airDensity_slug_ft3': sim_data[27] *conv.M_TO_FT,
-        'downrageDistance_m': sim_data[35],
-        }
-    
-    df = pd.DataFrame(csv_data)
-    filename = "output.csv"
-    df.to_csv(filename, index=False)
-
-    print(f"Data exported to {filename}")
-
-realtime_window.show()
-pg.exec()
+    sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.01)
 
 
-if hitl_active: #shut down the HIL system
-    try:
-        control_unit.shut_down_hil()
-        print("HITL system shut down")
-    except SerialException:
-        print("HITL shut down undisgracefully")
+    # Create main Qt application
+    app = QtWidgets.QApplication([])
+    realtime_window = QtWidgets.QMainWindow()
+    realtime_window.setWindowTitle('Real Time Flying')
+
+    pg.setConfigOptions(antialias=True)
+
+    # Create a central widget and layout
+    central_widget = QtWidgets.QWidget()
+    instrument_widget = QtWidgets.QWidget()
+    main_layout = QtWidgets.QVBoxLayout()
+    controls_layout = QtWidgets.QVBoxLayout()
+    central_widget.setLayout(main_layout)
+    instrument_widget.setLayout(controls_layout)
+    realtime_window.setCentralWidget(instrument_widget)
+
+    # Create plot area using pyqtgraph GraphicsLayoutWidget
+    plot_widget = pg.GraphicsLayoutWidget()
+    main_layout.addWidget(plot_widget)
+
+    # Create control panel with Pause/Unpause buttons
+    button_layout = QtWidgets.QHBoxLayout()
+    pause_button = QtWidgets.QPushButton("Pause/Play")
+    joystick = pg.JoystickButton()
+    joystick.setFixedWidth(30)
+    joystick.setFixedHeight(30)
+    #unpause_button = QtWidgets.QPushButton("Unpause")
+    button_layout.addWidget(pause_button)
+    button_layout.addWidget(joystick)
+    #button_layout.addWidget(unpause_button)
+    controls_layout.addLayout(button_layout)
+
+    # Connect buttons to simulation control
+    pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
+    #unpause_button.clicked.connect(sim_object.unpause_sim)
+
+
+    if real_time is False:
+        sim_start_time = time.perf_counter()
+        sim_object.run_sim()
+        sim_end_time = time.perf_counter()
+
+    sim_data = sim_object.return_results()
+
+    plotter_object = Plotter(sim_data, modelparam['title'])
+
+
+    def update():
+        """Update loop for simulation"""
+        x, y = joystick.getState()
+        sim_object.update_manual_control(stick_x=x, stick_y=y)
+
+        sim_data = sim_object.update_real_time()
+
+        plotter_object.update_plots(sim_data)
+        
+    timer = QtCore.QTimer()
+    timer.timeout.connect(update)
+
+    if not real_time:
+        #print("Sim took ", sim_end_time-sim_start_time)
+        print('Data Rows: ', sim_data[0].size)
+
+    fdm_event_pipe = None
+    if __name__ == '__main__' and use_flight_gear:
+        print("Starting FlightGear Connection")
+        fdm_conn = FDMConnection()
+        print('broke after fdm')
+        fdm_event_pipe = fdm_conn.connect_rx('localhost', 5501, fdm_callback)
+        print('broke at pipe')
+        fdm_conn.connect_tx('localhost', 5502)
+        print('broke at start')
+        fdm_conn.start()  # Start the FDM RX/TX loop
+        print("Started FlightGear Connection")
+
+    update_loop_speed_ms = 10
+    timer.start(update_loop_speed_ms)
+
+    if export_to_csv and not real_time:
+        print("Exporting data to CSV")
+        export_data(sim_data)
+
+
+    realtime_window.show()
+    pg.exec()
+
+
+    if hitl_active: #shut down the HIL system
+        try:
+            control_unit.shut_down_hil()
+            print("HITL system shut down")
+        except SerialException:
+            print("HITL shut down undisgracefully")
+
+start_simulation("brgrDroneDrop.json",[0,120])
