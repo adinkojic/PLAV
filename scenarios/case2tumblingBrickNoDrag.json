@@ -1,12 +1,11 @@
 {
     "title": "Case 2: Dragless Tumbling Brick",
     "modeldate":"2/16/25",
-    "hasgridfins":false,
     "lengthunits":"meters",
     "angleunits":"radians",
     "massunits": "kilograms",
 
-    "useF16":false,
+    "use_generic_aircraft":true,
 
     "init_alt": 9144,
     "init_vel": [0, 0, 0],

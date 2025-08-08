@@ -23,7 +23,6 @@ src/plav.egg-info/entry_points.txt
 src/plav.egg-info/requires.txt
 src/plav.egg-info/top_level.txt
 src/plav/atmosphere_models/ussa1976.py
-src/plav/vehicle_models/brgr_model.py
-src/plav/vehicle_models/f16_model.py
 src/plav/vehicle_models/generic_aircraft_config.py
 tests/test_models.py
+tests/test_nasa_check_cases.py

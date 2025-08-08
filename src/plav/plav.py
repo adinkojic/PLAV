@@ -10,6 +10,7 @@ import json
 import time
 import math
 from pathlib import Path
+import importlib.util
 
 import numpy as np
 #from scipy.integrate import solve_ivp
@@ -19,16 +20,15 @@ import pyqtgraph as pg
 import pandas as pd
 from flightgear_python.fg_if import FDMConnection
 from serial.serialutil import SerialException
+import typer
 
 from plav.quaternion_math import from_euler
 from plav.simulator import Simulator
 from plav.vehicle_models.generic_aircraft_config import AircraftConfig, init_aircraft, init_dummy_aircraft
 from plav.vehicle_models.brgr_model import init_brgr, BRGRConfig
-from plav.vehicle_models.f16_model import F16_aircraft
+from plav.vehicle_models.f16_model import init_f16
 from plav.atmosphere_models.ussa1976 import Atmosphere
 from plav.step_logging import SimDataLogger
-from src.plav.f16_control import F16Control, tas_to_eas
-from src.plav.f16_control_HITL import F16ControlHITL
 from plav.joystick_reader import JoystickReader
 from plav.plotter import Plotter
 
@@ -91,9 +91,6 @@ def load_scenario(scenario_file):
         modelparam = json.load(file)
     file.close()
 
-    if modelparam['useF16'] and modelparam['hasgridfins']:
-        print("Cannot use F16 and grid fins at the same time")
-        return None
 
     # needs to change 
     return modelparam
@@ -101,32 +98,16 @@ def load_scenario(scenario_file):
 def load_aircraft_config(modelparam):
     """load the aircraft config and control unit if relevant from the modelparam"""
     control_unit = None
-    if modelparam['useF16']:
-        print('Using F16')
-        control_vector = np.array(modelparam['init_control'], 'd')
-        aircraft = F16_aircraft(control_vector)
-
-        if modelparam["useSAS"] and not modelparam['hitl_active']:
-            print('Using Software Autopilot')
-            control_unit = F16Control(np.array(modelparam['commands'], 'd'))
-            stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
-            control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
-
-        if modelparam["useSAS"] and modelparam['hitl_active']:
-            print('Using HITL Autopilot')
-            try:
-                control_unit = F16ControlHITL(np.array(modelparam['commands'], 'd'), 'COM5')
-            except SerialException:
-                print("Serial port error, check if the arduino is connected and available")
-                sys.exit(1)
-            stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
-            control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
-    elif modelparam['hasgridfins']:
-        print('Using Grid Fin Model')
-        aircraft = init_brgr(modelparam)
-    else:
+    if modelparam['use_generic_aircraft']:
         print('Using Generic Model')
         aircraft = init_aircraft(modelparam)
+    else:
+        custom_fdm = Path("./vehicle_models/" + modelparam['aircraft_file'])
+        spec = importlib.util.spec_from_file_location(custom_fdm.stem, str(custom_fdm))
+        aircraft_plugin: AircraftConfig = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(aircraft_plugin)
+
+        aircraft, control_unit = aircraft_plugin.init_aircraft(modelparam)
 
     return aircraft, control_unit
 
@@ -158,6 +139,15 @@ def load_init_position(modelparam):
 
     return init_x
 
+def change_aircraft(sim_object: Simulator, modelparam, use_control_unit=True):
+    """Changes the aircraft to what's described in modelparam"""
+    aircraft, control_unit = load_aircraft_config(modelparam)
+
+    sim_object.change_aircraft(aircraft)
+    if use_control_unit:
+        sim_object.change_control_sys(control_unit)
+    return
+
 def export_data(trimmed_sim_data):
     """Export the simulation data to a CSV file"""
     csv_data = {'time': trimmed_sim_data[0],
@@ -184,7 +174,6 @@ def export_data(trimmed_sim_data):
     df.to_csv(filename, index=False)
     print(f"Data exported to {filename}")
 
-
 def fdm_callback(fdm_data, current_pos):
     """updates flight data for Flightgear"""
 
@@ -203,7 +192,6 @@ def fdm_callback(fdm_data, current_pos):
     #fdm_data.v_east_ft_per_s = sim_data[12,-1]*39.37/12
     #fdm_data.v_down_ft_per_s = sim_data[13,-1]*39.37/12
     return fdm_data  # return the whole structure
-
 
 def start_simulation(scenario_file: str, timespan, real_time=False, export_to_csv=True):
     """Starts the simulation for the given scenario file"""
@@ -293,7 +281,7 @@ def start_simulation(scenario_file: str, timespan, real_time=False, export_to_cs
         sim_data = sim_object.update_real_time()
 
         plotter_object.update_plots(sim_data)
-        
+
     timer = QtCore.QTimer()
     timer.timeout.connect(update)
 
@@ -332,4 +320,4 @@ def start_simulation(scenario_file: str, timespan, real_time=False, export_to_cs
         except SerialException:
             print("HITL shut down undisgracefully")
 
-start_simulation("brgrDroneDrop.json",[0,120])
+#start_simulation("brgrDroneDrop.json",[0,120])

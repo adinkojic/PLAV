@@ -265,6 +265,14 @@ class Simulator(object):
                 self.advance_timestep()
         return self.return_results()
 
+    def change_aircraft(self, new_aircraft_config: AircraftConfig):
+        """Changes the aircraft for future timesteps"""
+        self.aircraft = new_aircraft_config
+
+    def change_control_sys(self, new_control_sys= None):
+        """Changes the control system for future timesteps"""
+        self.control_sys = new_control_sys
+
     def update_manual_control(self, stick_x, stick_y):
         """pass in a control vector for the simulation"""
         command = np.array([0.0, stick_x, stick_y, 0.0],'d')

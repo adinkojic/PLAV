@@ -414,7 +414,7 @@ class BRGRConfig(object):
         """Returns Reynolds Number"""
         return self.reynolds
 
-def init_brgr(config_file) -> BRGRConfig:
+def init_aircraft(config_file) -> BRGRConfig:
     """Init aircraft from json file"""
     mass = config_file['mass']
     inertia = np.array(config_file['inertiatensor'])
@@ -448,7 +448,9 @@ def init_brgr(config_file) -> BRGRConfig:
     C_XlutY  = np.array(config_file['C_XlutY'], 'd')
     C_YlutY  = np.array(config_file['C_YlutY'], 'd')
 
-    aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-            C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
-
-    return aircraft_model
+    aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm,\
+                                C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                                C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db,\
+                                C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
+    #none for control unit
+    return aircraft_model, None

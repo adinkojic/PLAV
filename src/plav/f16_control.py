@@ -1,7 +1,7 @@
 """F-16 Control Scheme, implementing F16_control.dml"""
 
 import numpy as np
-from numba import jit, float64
+from numba import jit, float64, bool
 from numba.experimental import jitclass
 
 spec = [
@@ -42,9 +42,11 @@ spec = [
     ('time', float64),
 
     ('commands_list', float64[:,:]),
+
+    ('data_valid', bool),
 ]
 
-#@jitclass(spec)
+@jitclass(spec)
 class F16Control(object):
     """F-16 Control Sysem"""
     def __init__(self, commands):

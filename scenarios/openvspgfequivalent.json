@@ -1,12 +1,11 @@
 {
     "title": "OpenVSP Grid Fin Equivalent",
     "modeldate":"3/24/25",
-    "hasgridfins":false,
     "lengthunits":"meters",
     "angleunits":"radians",
     "massunits": "kilograms",
 
-    "useF16":false,
+    "use_generic_aircraft":true,
 
     "has_control":false,
 

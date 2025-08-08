@@ -1,12 +1,12 @@
 {
     "title": "Case 15: Flight Around the North Pole",
     "modeldate":"4/18/25",
-    "hasgridfins":false,
     "lengthunits":"meters",
     "angleunits":"radians",
     "massunits": "kilograms",
 
-    "useF16":true,
+    "use_generic_aircraft":false,
+    "aircraft_file":"f16_model.py",
 
     "has_control":true,
     "control_vector_size": 4,

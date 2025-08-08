@@ -5,6 +5,8 @@ import time
 
 import typer
 
+from plav.plav import start_simulation
+
 app = typer.Typer(help="PLAV Command Line Interface")
 
 @app.callback(invoke_without_command=True)
@@ -20,9 +22,12 @@ def main(ctx: typer.Context,
         raise typer.Exit(code=1)
 
 @app.command()
-def test():
+def start_sim():
     """Run a test command."""
-    typer.echo("This is a test command.")
+    typer.echo("Started sim")
+    start_simulation("case13AaltitudeF16.json",[0,30])
+
+
 
 
 @app.command()

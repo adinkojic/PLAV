@@ -2,13 +2,18 @@
 it's all lookup tables
 implements aero, inertia, and prop"""
 import math
+import sys
+
 
 import numpy as np
 from numba import jit, float64
 from numba.experimental import jitclass
+from serial.serialutil import SerialException
 
 from plav.generic_aircraft_config import get_dynamic_viscosity, velocity_to_alpha_beta
-
+from plav.f16_control import F16Control
+from plav.f16_control_HITL import F16ControlHITL
+from plav.generic_aircraft_config import AircraftConfig
 
 spec = [
     #deflections, d prefix is normalized -1 to 1
@@ -74,8 +79,34 @@ def bilinear_interp(x, y, x_grid, y_grid, z_grid):
 
     return numer/denom
 
+def init_aircraft(modelparam, use_hitl=False) -> AircraftConfig:
+    """Initalizes F16 aircraft maybe with HITL"""
+    control_vector = np.array(modelparam['init_control'], 'd')
+    aircraft = F16Aircraft(control_vector)
+
+    if modelparam["useSAS"] and not use_hitl:
+        print('Using Software Autopilot')
+        commands = np.array(modelparam['commands'], 'd')
+        control_unit = F16Control(commands)
+        stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
+        control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
+    elif modelparam["useSAS"] and use_hitl:
+        print('Using HITL Autopilot')
+        try:
+            commands = np.array(modelparam['commands'], 'd')
+            control_unit = F16ControlHITL(commands, 'COM5')
+        except SerialException:
+            print("Serial port error, check if the arduino is connected and available")
+            sys.exit(1)
+        stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
+        control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
+    else:
+        control_unit = None
+
+    return aircraft, control_unit
+
 @jitclass(spec)
-class F16_aircraft(object):
+class F16Aircraft(object):
     """Object used to lookup coefficients for F16 jet"""
     def __init__(self, init_control_vector):
         self.trim_rdr   = init_control_vector[0]
@@ -314,7 +345,6 @@ class F16_aircraft(object):
                         (self.ail + self.trim_ail) / 20.0, \
                         (self.el + self.trim_el)/25.0, \
                         (self.power + self.trim_power)], 'd')
-
 
 @jit(float64[:]())
 def get_alpha_table():

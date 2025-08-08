@@ -1,12 +1,12 @@
 {
     "title": "OpenVSP Wing Wind Tunnel Grid Fins",
     "modeldate":"4/19/25",
-    "hasgridfins":true,
     "lengthunits":"meters",
     "angleunits":"radians",
     "massunits": "kilograms",
 
-    "useF16":false,
+    "use_generic_aircraft":false,
+    "aircraft_file":"brgr_model.py",
 
     "has_control":true,
     "init_control": [0.0, 0.0,-0.1,0.0],
