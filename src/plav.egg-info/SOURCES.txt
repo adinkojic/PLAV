@@ -5,8 +5,6 @@ src/plav/__init__.py
 src/plav/avionics_package.py
 src/plav/cli.py
 src/plav/conversions.py
-src/plav/f16_control.py
-src/plav/f16_control_HITL.py
 src/plav/flight_control.py
 src/plav/joystick_reader.py
 src/plav/plav.py

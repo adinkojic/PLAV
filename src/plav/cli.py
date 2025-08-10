@@ -22,10 +22,14 @@ def main(ctx: typer.Context,
         raise typer.Exit(code=1)
 
 @app.command()
-def start_sim():
-    """Run a test command."""
-    typer.echo("Started sim")
-    start_simulation("case13AaltitudeF16.json",[0,30])
+def start_sim(scenario_name, no_gui = False, output_file_name = "output.csv"):
+    """Runs a hard simulation"""
+    if ".json" not in scenario_name:
+        scenario_name = scenario_name + ".json "
+
+
+    typer.echo("Starting scenario " + scenario_name)
+    start_simulation(scenario_name,[0,30])
 
 
 
@@ -49,5 +53,3 @@ def start_count():
             count += 1
             typer.echo(f"Count incremented to {count}. {bruh}")
         bruh = bruh + 1
-
-    

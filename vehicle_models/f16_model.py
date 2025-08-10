@@ -8,11 +8,8 @@ import sys
 import numpy as np
 from numba import jit, float64
 from numba.experimental import jitclass
-from serial.serialutil import SerialException
 
 from plav.generic_aircraft_config import get_dynamic_viscosity, velocity_to_alpha_beta
-from plav.f16_control import F16Control
-from plav.f16_control_HITL import F16ControlHITL
 from plav.generic_aircraft_config import AircraftConfig
 
 spec = [
@@ -79,31 +76,12 @@ def bilinear_interp(x, y, x_grid, y_grid, z_grid):
 
     return numer/denom
 
-def init_aircraft(modelparam, use_hitl=False) -> AircraftConfig:
+def init_aircraft(modelparam) -> AircraftConfig:
     """Initalizes F16 aircraft maybe with HITL"""
     control_vector = np.array(modelparam['init_control'], 'd')
     aircraft = F16Aircraft(control_vector)
 
-    if modelparam["useSAS"] and not use_hitl:
-        print('Using Software Autopilot')
-        commands = np.array(modelparam['commands'], 'd')
-        control_unit = F16Control(commands)
-        stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
-        control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
-    elif modelparam["useSAS"] and use_hitl:
-        print('Using HITL Autopilot')
-        try:
-            commands = np.array(modelparam['commands'], 'd')
-            control_unit = F16ControlHITL(commands, 'COM5')
-        except SerialException:
-            print("Serial port error, check if the arduino is connected and available")
-            sys.exit(1)
-        stability_augmentation_on_disc, autopilot_on_disc = 1.0, 1.0
-        control_unit.update_switches(stability_augmentation_on_disc, autopilot_on_disc)
-    else:
-        control_unit = None
-
-    return aircraft, control_unit
+    return aircraft
 
 @jitclass(spec)
 class F16Aircraft(object):

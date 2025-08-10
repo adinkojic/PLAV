@@ -8,6 +8,7 @@
     "use_generic_aircraft":false,
     "aircraft_file":"f16_model.py",
     "useSAS":true,
+    "control_file":"f16_control.py",
 
     "has_control":true,
     "control_vector_size": 4,

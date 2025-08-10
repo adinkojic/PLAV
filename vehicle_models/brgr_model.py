@@ -76,8 +76,7 @@ spec = [
 
 ]
 
-
-@jit(cache=True)
+@jit
 def get_local_alpha_beta(velocity, gamma, theta):
     """Gets the local Alpha and Beta of a fin
     velocity is the local velocity [m/s]
@@ -105,7 +104,7 @@ def get_local_alpha_beta(velocity, gamma, theta):
 
     return np.array([aab[1], aab[2]], 'd')
 
-@jit(cache=True)
+@jit
 def get_x_rotation_matrix(angle):
     """Gets a rotation matrix about X, useful for fins [rad]"""
     rotation_around_body = np.array([ [1., 0, 0], \
@@ -113,15 +112,17 @@ def get_x_rotation_matrix(angle):
                          [0, math.sin(angle), math.cos(angle)] ], 'd')
     return np.ascontiguousarray(rotation_around_body)
 
-@jitclass(spec)
+#@jitclass(spec)
 class BRGRConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
     information and even giving forces"""
 
-    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
-                init_control_vector = np.zeros(4), has_gridfins = 0, \
-                C_XYlutX = np.array([0.0, 0.0]), C_XlutY =np.array([0.0, 0.0]), C_YlutY = np.array([0.0, 0.0])):
+    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma,\
+                    C_mq, C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
+                    init_control_vector = np.zeros(4), has_gridfins = 0, \
+                    C_XYlutX = np.array([0.0, 0.0]), C_XlutY =np.array([0.0, 0.0]), \
+                    C_YlutY = np.array([0.0, 0.0])):
+
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
         self.cmac = cmac
@@ -453,4 +454,4 @@ def init_aircraft(config_file) -> BRGRConfig:
                                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db,\
                                 C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
     #none for control unit
-    return aircraft_model, None
+    return aircraft_model

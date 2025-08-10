@@ -25,10 +25,8 @@ import typer
 from plav.quaternion_math import from_euler
 from plav.simulator import Simulator
 from plav.vehicle_models.generic_aircraft_config import AircraftConfig, init_aircraft, init_dummy_aircraft
-from plav.vehicle_models.brgr_model import init_brgr, BRGRConfig
-from plav.vehicle_models.f16_model import init_f16
 from plav.atmosphere_models.ussa1976 import Atmosphere
-from plav.step_logging import SimDataLogger
+from plav.step_logging import SimDataLogger, return_data_for_csv
 from plav.joystick_reader import JoystickReader
 from plav.plotter import Plotter
 
@@ -103,11 +101,17 @@ def load_aircraft_config(modelparam):
         aircraft = init_aircraft(modelparam)
     else:
         custom_fdm = Path("./vehicle_models/" + modelparam['aircraft_file'])
-        spec = importlib.util.spec_from_file_location(custom_fdm.stem, str(custom_fdm))
-        aircraft_plugin: AircraftConfig = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(aircraft_plugin)
+        spec_aircraft = importlib.util.spec_from_file_location(custom_fdm.stem, str(custom_fdm))
+        aircraft_plugin: AircraftConfig = importlib.util.module_from_spec(spec_aircraft)
+        spec_aircraft.loader.exec_module(aircraft_plugin)
+        aircraft = aircraft_plugin.init_aircraft(modelparam)
 
-        aircraft, control_unit = aircraft_plugin.init_aircraft(modelparam)
+        if 'control_file' in modelparam:
+            custom_control = Path("./control_modules/" + modelparam['control_file'])
+            spec_control = importlib.util.spec_from_file_location(custom_control.stem, str(custom_control))
+            control_plugin = importlib.util.module_from_spec(spec_control)
+            spec_control.loader.exec_module(control_plugin)
+            control_unit = control_plugin.init_control(modelparam)
 
     return aircraft, control_unit
 
@@ -148,27 +152,20 @@ def change_aircraft(sim_object: Simulator, modelparam, use_control_unit=True):
         sim_object.change_control_sys(control_unit)
     return
 
+def change_control(sim_object: Simulator, modelparam):
+    """Changes the control unit to what's user specified"""
+    custom_control = Path("./control_modules/" + modelparam['control_file'])
+    spec_control = importlib.util.spec_from_file_location(custom_control.stem, str(custom_control))
+    control_plugin = importlib.util.module_from_spec(spec_control)
+    spec_control.loader.exec_module(control_plugin)
+    control_unit = control_plugin.init_control(modelparam)
+
+    sim_object.change_control(control_unit)
+    return
+
 def export_data(trimmed_sim_data):
     """Export the simulation data to a CSV file"""
-    csv_data = {'time': trimmed_sim_data[0],
-        'altitudeMsl_ft': trimmed_sim_data[10]*conv.M_TO_FT,
-        'longitude_deg': trimmed_sim_data[8]*conv.RAD_TO_DEG,
-        'latitude_deg': trimmed_sim_data[9]*conv.RAD_TO_DEG,
-        'localGravity_ft_s2': trimmed_sim_data[23] *conv.M_TO_FT,
-        'eulerAngle_deg_Yaw':  trimmed_sim_data[16] *conv.RAD_TO_DEG,
-        'eulerAngle_deg_Pitch': trimmed_sim_data[15] *conv.RAD_TO_DEG,
-        'eulerAngle_deg_Roll' : trimmed_sim_data[14] *conv.RAD_TO_DEG,
-        'aero_bodyForce_lbf_X': trimmed_sim_data[17] *conv.N_TO_LBF,
-        'aero_bodyForce_lbf_Y': trimmed_sim_data[18] *conv.N_TO_LBF,
-        'aero_bodyForce_lbf_Z': trimmed_sim_data[19] *conv.N_TO_LBF,
-        'aero_bodyMoment_ftlbf_L': trimmed_sim_data[20] *conv.NM_TO_LBF_FT,
-        'aero_bodyMoment_ftlbf_M': trimmed_sim_data[21] *conv.NM_TO_LBF_FT,
-        'aero_bodyMoment_ftlbf_N': trimmed_sim_data[22] *conv.NM_TO_LBF_FT,
-        'trueAirspeed_nmi_h': trimmed_sim_data[30]*conv.MPS_TO_KTS,
-        'airDensity_slug_ft3': trimmed_sim_data[27] *conv.M_TO_FT,
-        'downrageDistance_m': trimmed_sim_data[35],
-        }
-
+    csv_data = return_data_for_csv(trimmed_sim_data)
     df = pd.DataFrame(csv_data)
     filename = "output.csv"
     df.to_csv(filename, index=False)
@@ -193,10 +190,9 @@ def fdm_callback(fdm_data, current_pos):
     #fdm_data.v_down_ft_per_s = sim_data[13,-1]*39.37/12
     return fdm_data  # return the whole structure
 
-def start_simulation(scenario_file: str, timespan, real_time=False, export_to_csv=True):
+def start_simulation(scenario_file: str, timespan, real_time=False, no_gui = False, export_to_csv=True):
     """Starts the simulation for the given scenario file"""
     use_flight_gear = False
-    timespan = np.array(timespan,'d')
     #test code to make sure refactor still works
 
     #load the scenario file
@@ -207,6 +203,7 @@ def start_simulation(scenario_file: str, timespan, real_time=False, export_to_cs
 
     #load the aircraft config and control unit
     aircraft, control_unit = load_aircraft_config(modelparam)
+    # for some dumbas reason python returns aircraft as a tuple when no control
 
     #load the atmosphere config
     atmosphere = load_atmosphere(modelparam)
@@ -221,47 +218,9 @@ def start_simulation(scenario_file: str, timespan, real_time=False, export_to_cs
         hitl_active = False
 
     #initialize the simulation object
-    t_span = np.array([0.0, 120.0], 'd')
+    t_span = np.array(timespan, 'd')
 
     sim_object = Simulator(y0, t_span, aircraft, atmosphere, control_sys = control_unit, t_step=0.01)
-
-
-    # Create main Qt application
-    app = QtWidgets.QApplication([])
-    realtime_window = QtWidgets.QMainWindow()
-    realtime_window.setWindowTitle('Real Time Flying')
-
-    pg.setConfigOptions(antialias=True)
-
-    # Create a central widget and layout
-    central_widget = QtWidgets.QWidget()
-    instrument_widget = QtWidgets.QWidget()
-    main_layout = QtWidgets.QVBoxLayout()
-    controls_layout = QtWidgets.QVBoxLayout()
-    central_widget.setLayout(main_layout)
-    instrument_widget.setLayout(controls_layout)
-    realtime_window.setCentralWidget(instrument_widget)
-
-    # Create plot area using pyqtgraph GraphicsLayoutWidget
-    plot_widget = pg.GraphicsLayoutWidget()
-    main_layout.addWidget(plot_widget)
-
-    # Create control panel with Pause/Unpause buttons
-    button_layout = QtWidgets.QHBoxLayout()
-    pause_button = QtWidgets.QPushButton("Pause/Play")
-    joystick = pg.JoystickButton()
-    joystick.setFixedWidth(30)
-    joystick.setFixedHeight(30)
-    #unpause_button = QtWidgets.QPushButton("Unpause")
-    button_layout.addWidget(pause_button)
-    button_layout.addWidget(joystick)
-    #button_layout.addWidget(unpause_button)
-    controls_layout.addLayout(button_layout)
-
-    # Connect buttons to simulation control
-    pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
-    #unpause_button.clicked.connect(sim_object.unpause_sim)
-
 
     if real_time is False:
         sim_start_time = time.perf_counter()
@@ -270,7 +229,45 @@ def start_simulation(scenario_file: str, timespan, real_time=False, export_to_cs
 
     sim_data = sim_object.return_results()
 
-    plotter_object = Plotter(sim_data, modelparam['title'])
+    if not no_gui:
+        # Create main Qt application
+        app = QtWidgets.QApplication([])
+        realtime_window = QtWidgets.QMainWindow()
+        realtime_window.setWindowTitle('Real Time Flying')
+
+        pg.setConfigOptions(antialias=True)
+
+        # Create a central widget and layout
+        central_widget = QtWidgets.QWidget()
+        instrument_widget = QtWidgets.QWidget()
+        main_layout = QtWidgets.QVBoxLayout()
+        controls_layout = QtWidgets.QVBoxLayout()
+        central_widget.setLayout(main_layout)
+        instrument_widget.setLayout(controls_layout)
+        realtime_window.setCentralWidget(instrument_widget)
+
+        # Create plot area using pyqtgraph GraphicsLayoutWidget
+        plot_widget = pg.GraphicsLayoutWidget()
+        main_layout.addWidget(plot_widget)
+
+        # Create control panel with Pause/Unpause buttons
+        button_layout = QtWidgets.QHBoxLayout()
+        pause_button = QtWidgets.QPushButton("Pause/Play")
+        joystick = pg.JoystickButton()
+        joystick.setFixedWidth(30)
+        joystick.setFixedHeight(30)
+        #unpause_button = QtWidgets.QPushButton("Unpause")
+        button_layout.addWidget(pause_button)
+        button_layout.addWidget(joystick)
+        #button_layout.addWidget(unpause_button)
+        controls_layout.addLayout(button_layout)
+
+        # Connect buttons to simulation control
+        pause_button.clicked.connect(sim_object.pause_or_unpause_sim)
+        #unpause_button.clicked.connect(sim_object.unpause_sim)
+
+        plotter_object = Plotter(sim_data, modelparam['title'])
+        realtime_window.show()
 
 
     def update():
@@ -280,7 +277,8 @@ def start_simulation(scenario_file: str, timespan, real_time=False, export_to_cs
 
         sim_data = sim_object.update_real_time()
 
-        plotter_object.update_plots(sim_data)
+        if not no_gui:
+            plotter_object.update_plots(sim_data)
 
     timer = QtCore.QTimer()
     timer.timeout.connect(update)
@@ -309,8 +307,8 @@ def start_simulation(scenario_file: str, timespan, real_time=False, export_to_cs
         export_data(sim_data)
 
 
-    realtime_window.show()
-    pg.exec()
+    if not no_gui:
+        pg.exec()
 
 
     if hitl_active: #shut down the HIL system

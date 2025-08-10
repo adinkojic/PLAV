@@ -15,7 +15,6 @@ from numba import jit, float64
 from plav.quaternion_math import rotateFrameQ, rotateVectorQ, to_euler
 from plav.step_logging import SimDataLogger
 from plav.runge_kutta4 import basic_rk4
-from plav.f16_control import tas_to_eas
 from plav.atmosphere_models.ussa1976 import Atmosphere
 from plav.vehicle_models.generic_aircraft_config import AircraftConfig
 
@@ -29,7 +28,7 @@ def get_gravity(phi, h):
             - (3.0877e-6 - 4.4e-9*np.sin(phi)**2)*h + 7.2e-14*h**2
     return gravity
 
-@jit
+#@jit
 def x_dot(t, y, aircraft_config: AircraftConfig, sim_atmosphere: Atmosphere, log = None):
     """Implements standard NED equations
     [q1 q2 q3 q4], [p q r], (lambda) long, (phi)lat, alt, vn, ve, vd,
@@ -187,6 +186,9 @@ class Simulator(object):
             #for HIL it might block a bit as the aurdino computes
             total_control_vector = self.control_sys_request_response()
             self.aircraft.update_control(total_control_vector)
+        else:
+            total_control_vector = self.pilot_vec
+            self.aircraft.update_control(total_control_vector)
 
         self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state,\
                                            args= (self.aircraft,self.sim_atmosphere))
@@ -210,28 +212,9 @@ class Simulator(object):
         last_line = self.sim_log.get_lastest()
 
         if last_line is not None:
-            sim_time = last_line[0]
-            tas = last_line[30]*1.943844
-            density = last_line[27]
-            equivalent_airspeed = tas_to_eas(tas, density)
 
+            self.control_sys.update_enviroment(last_line)
 
-            altitude_msl = last_line[10] * 3.28084
-            angle_of_attack = last_line[31] * 180/math.pi
-            angle_of_sideslip = last_line[32] * 180/math.pi
-            euler_angle_roll = last_line[14] * 180/math.pi
-            euler_angle_pitch = last_line[15] * 180/math.pi
-            euler_angle_yaw = last_line[16] * 180/math.pi
-            body_angular_rate_roll = last_line[5]
-            body_angular_rate_pitch = last_line[6]
-            body_angular_rate_yaw = last_line[7]
-
-
-            self.control_sys.update_enviroment(altitude_msl, equivalent_airspeed, angle_of_attack, \
-                    angle_of_sideslip, euler_angle_roll, euler_angle_pitch, \
-                    euler_angle_yaw, body_angular_rate_roll ,\
-                    body_angular_rate_pitch, body_angular_rate_yaw, sim_time)
- 
             pilot_control_lat = self.pilot_vec[0]
             pilot_control_yaw = self.pilot_vec[1]
             pilot_control_long = self.pilot_vec[2]
