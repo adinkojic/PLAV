@@ -2,12 +2,19 @@
 
 from pathlib import Path
 import time
+import threading
 
 import typer
+from typing_extensions import Annotated
 
-from plav.plav import start_simulation
+from plav.plav import Plav
 
 app = typer.Typer(help="PLAV Command Line Interface")
+
+def pump_stdout(pipe):
+    for line in pipe:
+        typer.echo(line.rstrip())
+    pipe.close()
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context,
@@ -20,36 +27,61 @@ def main(ctx: typer.Context,
     if ctx.invoked_subcommand is None:
         typer.echo("No subcommand provided. Use --help.")
         raise typer.Exit(code=1)
+    
+@app.command()
+def test():
+    """test"""
+    typer.echo('hello')
 
 @app.command()
-def start_sim(scenario_name, no_gui = False, output_file_name = "output.csv"):
+def run_offline_sim(scenario_name,
+            no_gui: Annotated[bool, typer.Option("--nogui")] = False,
+            output_file_name = "output.csv"):
     """Runs a hard simulation"""
     if ".json" not in scenario_name:
         scenario_name = scenario_name + ".json "
 
 
     typer.echo("Starting scenario " + scenario_name)
-    start_simulation(scenario_name,[0,30])
-
+    plav_obj = Plav(scenario_name,[0,30], no_gui = no_gui)
 
 
 
 @app.command()
-def start_count():
-    """Start the count at 0."""
-    count = 0
-    typer.echo(f"Starting count at {count}. Use 'plav inc-count' to increment.")
+def run_interactive_sim(scenario_name, output_file_name = "output.csv"):
+    """Runs an interactive sim. Can reload scenarios, change vehicles, etc"""
 
-    bruh = 0
+    if ".json" not in scenario_name:
+        scenario_name = scenario_name + ".json "
 
-    while True:
-        cmd = typer.prompt(">")
+    #launch sim instance
+    sim_args = {
+        "scenario_file":scenario_name,
+        "timespan": [0,30],
+        "real_time": False,
+        "no_gui": False,
+        "export_to_csv": True
+    }
 
-        if cmd in ("exit", "quit"):
-            typer.echo("🛑 Count stopped.")
-            break
+    plav_obj = Plav(scenario_name,[0,30])
 
-        if cmd == "inc-count":
-            count += 1
-            typer.echo(f"Count incremented to {count}. {bruh}")
-        bruh = bruh + 1
+    try:
+        while True:
+            line = typer.prompt(">")
+            parts = line.strip().split()
+            if not parts:
+                continue
+            cmd, *rest = parts
+
+            if cmd in ("exit", "quit"):
+                typer.echo("🛑 Simulator terminated.")
+                break
+            if cmd in ("togglepause"):
+                plav_obj.toggle_pause()
+            if cmd in ("echo"):
+                typer.echo("echo")
+                continue
+    except KeyboardInterrupt:
+        pass
+    finally:
+        pass

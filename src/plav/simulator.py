@@ -28,7 +28,7 @@ def get_gravity(phi, h):
             - (3.0877e-6 - 4.4e-9*np.sin(phi)**2)*h + 7.2e-14*h**2
     return gravity
 
-#@jit
+@jit
 def x_dot(t, y, aircraft_config: AircraftConfig, sim_atmosphere: Atmosphere, log = None):
     """Implements standard NED equations
     [q1 q2 q3 q4], [p q r], (lambda) long, (phi)lat, alt, vn, ve, vd,
@@ -275,10 +275,13 @@ class Simulator(object):
 
     def pause_or_unpause_sim(self):
         """Flips state of sim"""
+        
         if self.paused:
             self.unpause_sim()
+            print("unpause")
         else:
             self.pause_sim()
+            print("pause")
 
     def run_sim(self):
         """runs the sim until t_span"""

@@ -7,6 +7,7 @@ src/plav/cli.py
 src/plav/conversions.py
 src/plav/flight_control.py
 src/plav/joystick_reader.py
+src/plav/pilot_control.py
 src/plav/plav.py
 src/plav/plotter.py
 src/plav/quaternion_math.py

@@ -112,7 +112,7 @@ def get_x_rotation_matrix(angle):
                          [0, math.sin(angle), math.cos(angle)] ], 'd')
     return np.ascontiguousarray(rotation_around_body)
 
-#@jitclass(spec)
+@jitclass(spec)
 class BRGRConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
     information and even giving forces"""
