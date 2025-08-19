@@ -17,7 +17,7 @@ def trim_glider_hddot0(
     airspeed: float,
     altitude: float,
     model: AircraftConfig,
-    bank_phi: float = 0.0,                 # rad
+    #bank_phi: float = 0.0,                 # rad
     guess: Optional[Dict[str, float]] = None,
     angle_bounds_deg: Optional[Dict[str, Tuple[float, float]]] = None,
 ):
@@ -39,8 +39,8 @@ def trim_glider_hddot0(
     dynamic_pressure = 0.5 * air_density * airspeed**2
     weight = gravity * model.get_mass()
 
-    cos_phi = np.cos(bank_phi)
-    tan_phi = np.tan(bank_phi)
+    cos_phi = 1.0#np.cos(bank_phi)
+    tan_phi = 0.0#np.tan(bank_phi)
 
     lift_req = (weight * cos_phi)
 
@@ -126,6 +126,7 @@ def trim_glider_hddot0(
     drag = -np.sin(alpha) * body_forces[2] - np.cos(alpha) * body_forces[0]
 
     glide_ratio = lift/drag
+    gamma = np.atan2(drag,lift)#flight path angle
 
     return {
         "converged": bool(sol.success),
@@ -134,11 +135,12 @@ def trim_glider_hddot0(
         # Trim state
         "alpha_deg": float(np.rad2deg(alpha)),
         "beta_deg":  float(np.rad2deg(beta)),
-        "de_deg":    float(de),
-        "da_deg":    float(da),
-        "dr_deg":    float(dr),
-        "bank_phi_deg": float(np.rad2deg(bank_phi)),
+        "de":    float(de),
+        "da":    float(da),
+        "dr":    float(dr),
+        #"bank_phi_deg": float(np.rad2deg(bank_phi)),
         # Derived kinematics
         "glide_ratio": float(glide_ratio),
+        "gamma_deg": float(np.rad2deg(gamma))
         # Aero / forces / moments
     }
