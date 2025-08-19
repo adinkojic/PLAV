@@ -53,7 +53,7 @@ def init_position(long, lat, alt, velocity, bearing, elevation, roll, init_omega
 class Plav(object):
     """Plav Simulator Object. Instaniating launches a simulator thread"""
     def __init__(self, scenario_file: str, timespan,
-                         real_time=False, no_gui = False, export_to_csv=True):
+                         real_time=False, no_gui = False, export_to_csv=True, runsim=True):
         self.no_gui = no_gui
         use_flight_gear = False
         self.real_time = real_time
@@ -64,18 +64,18 @@ class Plav(object):
             print("No valid scenario file found, exiting")
             sys.exit(1)
 
-        aircraft, control_unit = self.load_aircraft_config(modelparam)
+        self.aircraft, self.control_unit = self.load_aircraft_config(modelparam)
         atmosphere = self.load_atmosphere(modelparam)
         y0 = self.load_init_position(modelparam)
 
         self.hitl_active = False
-        if control_unit is not None:
-            self.hitl_active = control_unit.is_hitl()
+        if self.control_unit is not None:
+            self.hitl_active = self.control_unit.is_hitl()
             
 
         t_span = np.array(timespan, 'd')
-        self.sim_object = Simulator(y0, t_span, aircraft, atmosphere, 
-                            control_sys = control_unit, t_step=0.01)
+        self.sim_object = Simulator(y0, t_span, self.aircraft, atmosphere, 
+                            control_sys = self.control_unit, t_step=0.01)
 
         if real_time is False:
             sim_start_time = time.perf_counter()
@@ -85,7 +85,8 @@ class Plav(object):
         self.window_title = modelparam['title']
         self.active = True
 
-        self.run_simulation()
+        if runsim:
+            self.run_simulation()
 
 
     def run_simulation(self):
@@ -133,7 +134,9 @@ class Plav(object):
         #    except SerialException:
         #        print("HITL shut down undisgracefully")
 
-
+    def get_aircraft(self):
+        """Returns aircraft object"""
+        return self.aircraft
 
 
     def toggle_pause(self):

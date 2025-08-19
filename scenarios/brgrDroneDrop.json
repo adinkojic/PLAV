@@ -9,7 +9,7 @@
     "aircraft_file":"brgr_model.py",
 
     "has_control":true,
-    "init_control": [0.0, 0.0,-0.1,0.0],
+    "init_control": [0.0045129, 0.003989,-0.15342,0.0],
 
     "init_alt": 120.0,
     "init_vel": [0.0, 0.0, 0.1],

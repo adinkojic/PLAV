@@ -14,6 +14,7 @@ src/plav/quaternion_math.py
 src/plav/runge_kutta4.py
 src/plav/simulator.py
 src/plav/step_logging.py
+src/plav/trim_solver.py
 src/plav/wind_tunnel.py
 src/plav.egg-info/PKG-INFO
 src/plav.egg-info/SOURCES.txt
