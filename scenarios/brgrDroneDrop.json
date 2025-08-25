@@ -11,7 +11,7 @@
     "has_control":true,
     "trim_rudder": 0.0,
     "trim_aileron": 0.0,
-    "trim_elevator": 0.0,
+    "trim_elevator": -0.1,
     "trim_throttle": 0.0,
 
     "init_alt": 120.0,
@@ -32,9 +32,9 @@
         [-0.00026592, 2.647e-5, 0.1192]
     ],
 
-    "Sref": 0.13645134,
-    "cref": 0.1143,
-    "bref": 1.1938,
+    "Sref": 0.14,
+    "cref": 0.117475,
+    "bref": 1.1684,
     
     "xcp_wrt_cm": [-0.00254, 0.0, -0.0254],
 

@@ -34,7 +34,7 @@ def trim_glider_hddot0(
     """
     gravity = get_gravity(phi = 0.70, h = altitude) #NJ
     pdt = get_pressure_density_temp(altitude)
-    air_density = pdt[1] 
+    air_density = pdt[1]
 
     dynamic_pressure = 0.5 * air_density * airspeed**2
     weight = gravity * model.get_mass()
@@ -87,8 +87,7 @@ def trim_glider_hddot0(
             np.float64(343.0)
         )
 
-        control_vec = np.array([dr, da, de, 0.0],'d')
-        model.update_control(control_vec)
+        model.update_trim(dr, da, de, 0.0)
 
         body_forces, body_moments = model.get_forces()
         Fx = body_forces[0]

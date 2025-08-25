@@ -44,20 +44,28 @@ def wind_tunnel(scenario_name):
                 continue
             cmd, *rest = parts
 
-            if cmd in ("exit", "quit"):
-                typer.echo("Shutdown Wind Tunnel")
-                break
-            if cmd in ("alpha"):
-                tunnel.change_alpha(float(rest[0]))
-            if cmd in ("beta"):
-                tunnel.change_beta(float(rest[0]))
-            if cmd in ("airspeed"):
-                tunnel.change_airspeed(float(rest[0]))
-            if cmd in ("solve"):
-                tunnel.solve_forces()
-            if cmd in ("echo"):
-                typer.echo("echo")
-                continue
+            try:
+                if cmd in ("exit", "quit"):
+                    typer.echo("Shutdown Wind Tunnel")
+                    break
+                if cmd in ("alpha"):
+                    tunnel.change_alpha(float(rest[0]))
+                if cmd in ("beta"):
+                    tunnel.change_beta(float(rest[0]))
+                if cmd in ("airspeed"):
+                    tunnel.change_airspeed(float(rest[0]))
+                if cmd in ("solve"):
+                    tunnel.solve_forces()
+                if cmd in ("reload"):
+                    tunnel.reload_vehicle()
+                    typer.echo("Vehicle reloaded")
+                if cmd in ("trim"):
+                    tunnel.trim_out()
+                if cmd in ("echo"):
+                    typer.echo("echo")
+                    continue
+            except IndexError:
+                typer.echo("Missing argument value")
     except KeyboardInterrupt:
         pass
     finally:

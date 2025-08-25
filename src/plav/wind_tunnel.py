@@ -13,13 +13,14 @@ from plav.vehicle_models.generic_aircraft_config import AircraftConfig
 from plav.vehicle_models.generic_aircraft_config import velocity_to_alpha_beta, alpha_beta_to_velocity, get_wind_to_body_axis
 
 from plav.plav import load_scenario, load_aircraft_config
+from plav.trim_solver import trim_glider_hddot0
 
 import plav.conversions as conv
 
 class WindTunnel(object):
     """Wind Tunnel, for testing flight dynamics models"""
     def __init__(self, scenario_file):
-
+        self.scenario_file = scenario_file
         modelparam = load_scenario("scenarios/" + scenario_file)
         self.model, _ = load_aircraft_config(modelparam)
         self.S = modelparam['Sref']
@@ -35,6 +36,16 @@ class WindTunnel(object):
         self.qbar = 0.0
         self.update_qbar()
         self.speed_of_sound = 343.0 #ion wanna deal with this
+
+        self.pilot_rudder = 0.0
+        self.pilot_aileron = 0.0
+        self.pilot_elevator = 0.0
+        self.pilot_throttle = 0.0
+
+    def reload_vehicle(self):
+        """Reload the vehicle model"""
+        modelparam = load_scenario("scenarios/" + self.scenario_file)
+        self.model, _ = load_aircraft_config(modelparam)
 
     def change_alpha(self, alpha_deg):
         """Model alpha [deg]"""
@@ -60,6 +71,39 @@ class WindTunnel(object):
         self.density = self.pdt[1]
         self.update_qbar()
 
+    def change_rudder(self, rudder):
+        """Model rudder [rad]"""
+        self.pilot_rudder = rudder
+
+    def change_aileron(self, aileron):
+        """Model aileron [rad]"""
+        self.pilot_aileron = aileron
+
+    def change_elevator(self, elevator):
+        """Model elevator [rad]"""
+        self.pilot_elevator = elevator
+
+    def change_throttle(self, throttle):
+        """Model throttle [nd]"""
+        self.pilot_throttle = throttle
+
+    def zero_trim(self):
+        """Zero out model trim"""
+        self.model.update_trim(0.0, 0.0, 0.0, 0.0)
+
+    def trim_out(self, apply = True):
+        """Solves the model trim"""
+        trim_result = trim_glider_hddot0(
+            airspeed=self.airspeed,
+            altitude=self.altitude,
+            model=self.model
+        )
+
+        self.alpha = trim_result['alpha_deg']/conv.RAD_TO_DEG # rad
+        self.beta = trim_result['beta_deg']/conv.RAD_TO_DEG # rad
+
+        print(trim_result)
+
     def update_qbar(self):
         """Called internallly"""
         self.qbar = 0.5 * self.density * self.airspeed**2
@@ -68,8 +112,13 @@ class WindTunnel(object):
         """Solve and print forces"""
         wind_velocity = alpha_beta_to_velocity(self.airspeed, self.alpha, self.beta)
         self.model.update_conditions(self.altitude, wind_velocity, self.body_rate, \
-        self.density, self.pdt[2], self.speed_of_sound)
-        self.model.update_control(np.array([0.0, 0.0, 0.0, 0.0],'d'))
+                                    self.density, self.pdt[2], self.speed_of_sound)
+        self.model.update_control(
+            self.pilot_rudder,
+            self.pilot_aileron,
+            self.pilot_elevator,
+            self.pilot_throttle
+        )
         forces, moments = self.model.get_forces()
 
         
@@ -78,7 +127,12 @@ class WindTunnel(object):
         coeff_forces = forces / self.qbar / self.S
         
         coeff = self.model.get_coeff()
-        
+        control_vec = self.model.get_control_deflection()
+        vehicle_rudder = control_vec[0]
+        vehicle_aileron = control_vec[1]
+        vehicle_elevator = control_vec[2]
+        vehicle_throttle = control_vec[3]
+
         if not quiet:
             print(f"Wind Velocity: {wind_velocity}")
             print("Forces:", forces)
@@ -87,23 +141,28 @@ class WindTunnel(object):
             print("cref:", self.cbar)
             print("bref:", self.b)
 
-            print(f"Wind Tunnel Results at {self.airspeed} m/s, \
-                alpha={self.alpha * conv.RAD_TO_DEG} deg, \
-                beta={self.beta * conv.RAD_TO_DEG} deg, altitude={self.altitude} ft"
-            f"\n  Lift Coefficient: {-coeff_forces[2]:.4f}"
-            f"\n  Drag Coefficient: {-coeff_forces[0]:.4f}"
-            f"\n  Side Force Coefficient: {coeff_forces[1]:.4f}"
-            f"\n  Roll Moment Coefficient: {moments[0] / self.qbar / self.b:.4f}"
-            f"\n  Pitch Moment Coefficient: {moments[1] / self.qbar / self.cbar:.4f}"
-            f"\n  Yaw Moment Coefficient: {moments[2] / self.qbar / self.b:.4f}")
+            print(f"Results at {self.airspeed} m/s,"
+                f" alpha={self.alpha * conv.RAD_TO_DEG} deg,"
+                f" beta={self.beta * conv.RAD_TO_DEG} deg,"
+                f" altitude={self.altitude} ft"
+                f" rudder={vehicle_rudder:.2f} rad"
+                f" aileron={vehicle_aileron:.2f}"
+                f" elevator={vehicle_elevator:.2f}"
+                f" throttle={vehicle_throttle:.2f}"
+            f"\n  Lift Coefficient: {-coeff_forces[2]:.6f}"
+            f"\n  Drag Coefficient: {-coeff_forces[0]:.6f}"
+            f"\n  Side Force Coefficient: {coeff_forces[1]:.6f}"
+            f"\n  Roll Moment Coefficient: {moments[0] / self.qbar / self.b:.6f}"
+            f"\n  Pitch Moment Coefficient: {moments[1] / self.qbar / self.cbar:.6f}"
+            f"\n  Yaw Moment Coefficient: {moments[2] / self.qbar / self.b:.6f}")
 
             print(f"Body Forces:")
-            print(f"  X: {forces[0]:.4f}")
-            print(f"  Y: {forces[1]:.4f}")
-            print(f"  Z: {forces[2]:.4f}")
+            print(f"  X: {forces[0]:.6f}")
+            print(f"  Y: {forces[1]:.6f}")
+            print(f"  Z: {forces[2]:.6f}")
             print(f"Body Moments:")
-            print(f"  X: {moments[0]:.4f}")
-            print(f"  Y: {moments[1]:.4f}")
-            print(f"  Z: {moments[2]:.4f}")
+            print(f"  X: {moments[0]:.6f}")
+            print(f"  Y: {moments[1]:.6f}")
+            print(f"  Z: {moments[2]:.6f}")
 
-            print(f"L/D {forces[2] / forces[0]:.4f}")
+            print(f"L/D {forces[2] / forces[0]:.6f}")
