@@ -8,13 +8,10 @@ import typer
 from typing_extensions import Annotated
 
 from plav.plav import Plav
+from plav.wind_tunnel import WindTunnel
 
 app = typer.Typer(help="PLAV Command Line Interface")
 
-def pump_stdout(pipe):
-    for line in pipe:
-        typer.echo(line.rstrip())
-    pipe.close()
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context,
@@ -28,6 +25,44 @@ def main(ctx: typer.Context,
         typer.echo("No subcommand provided. Use --help.")
         raise typer.Exit(code=1)
     
+@app.command()
+def wind_tunnel(scenario_name):
+    """Run the interactive wind tunnel"""
+
+    print("Starting Wind Tunnel with " + scenario_name)
+    if ".json" not in scenario_name:
+        scenario_name = scenario_name + ".json "
+
+    tunnel = WindTunnel(scenario_name)
+    tunnel.solve_forces(quiet = True) #pump once
+
+    try:
+        while True:
+            line = typer.prompt(">")
+            parts = line.strip().split()
+            if not parts:
+                continue
+            cmd, *rest = parts
+
+            if cmd in ("exit", "quit"):
+                typer.echo("Shutdown Wind Tunnel")
+                break
+            if cmd in ("alpha"):
+                tunnel.change_alpha(float(rest[0]))
+            if cmd in ("beta"):
+                tunnel.change_beta(float(rest[0]))
+            if cmd in ("airspeed"):
+                tunnel.change_airspeed(float(rest[0]))
+            if cmd in ("solve"):
+                tunnel.solve_forces()
+            if cmd in ("echo"):
+                typer.echo("echo")
+                continue
+    except KeyboardInterrupt:
+        pass
+    finally:
+        pass
+
 @app.command()
 def test():
     """test"""
@@ -43,11 +78,11 @@ def run_offline_sim(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,3600], no_gui = no_gui)
+    plav_obj = Plav(scenario_name,[0,30], no_gui = no_gui)
 
 @app.command()
 def sim_with_sitl(scenario_name,
-            ardupilot_ip = "127.0.0.1",
+            ardupilot_ip = "0.0.0.0",
             no_gui: Annotated[bool, typer.Option("--nogui")] = False,
             output_file_name = "output.csv"):
     """Simulates the Vehicle with ArduPilot's SITL"""

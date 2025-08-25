@@ -228,7 +228,7 @@ class BRGRConfig(object):
 
         C_Y = self.C_Yb * self.beta #side force
         C_l = self.C_l + self.C_lr * r_hat + self.C_lp * p_hat #roll
-        C_n = self.C_np * p_hat + self.C_nr * r_hat # -self.C_nb * self.beta#yaw force
+        C_n = self.C_np * p_hat + self.C_nr * r_hat #+ self.C_nb * self.beta#yaw force
 
         return C_L,C_D,C_m, C_Y, C_l, C_n
 
