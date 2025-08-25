@@ -10,8 +10,10 @@
     "control_file":"f16_control.py",
 
     "has_control":true,
-    "control_vector_size": 4,
-    "init_control": [0.0,0.0,-3.27,0.1345],
+    "trim_rudder": 0.0,
+    "trim_aileron": 0.0,
+    "trim_elevator": -3.241,
+    "trim_throttle": 0.139019,
 
     "init_alt": 3048,
     "init_vel": [0, 171.7983864, 0],

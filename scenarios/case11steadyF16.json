@@ -11,8 +11,11 @@
     "useSAS":false,
 
     "has_control":true,
-    "control_vector_size": 4,
-    "init_control": [0.0,0.0,-3.241,0.1355],
+
+    "trim_rudder": 0.0,
+    "trim_aileron": 0.0,
+    "trim_elevator": -3.241,
+    "trim_throttle": 0.1355,
 
     "init_alt": 3051.9624,
     "init_vel": [121.92, 121.92, 0],

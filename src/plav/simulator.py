@@ -172,7 +172,10 @@ class Simulator(object):
         self.elapsed_time = 0.0
         self.time_at_last_pause = 0.0
 
-        self.pilot_vec = np.zeros(4, 'd')
+        self.pilot_rudder = 0.0
+        self.pilot_aileron = 0.0
+        self.pilot_elevator = 0.0
+        self.pilot_throttle = 0.0
         self.control_sys = control_sys
 
         #log the inital state
@@ -185,11 +188,15 @@ class Simulator(object):
         if self.control_sys is not None:
             #by now the HIL should have a response ready
             #for HIL it might block a bit as the aurdino computes
-            total_control_vector = self.control_sys_request_response()
-            self.aircraft.update_control(total_control_vector)
+            rudder, aileron, elevator, throttle = self.control_sys_request_response()
+            self.aircraft.update_control(rudder, aileron, elevator, throttle)
         else:
-            total_control_vector = self.pilot_vec
-            self.aircraft.update_control(total_control_vector)
+            self.aircraft.update_control(
+                self.pilot_rudder,
+                self.pilot_aileron,
+                self.pilot_elevator,
+                self.pilot_throttle,
+            )
 
         self.time, self.state = basic_rk4(x_dot, self.time, self.t_step, self.state,\
                                            args= (self.aircraft,self.sim_atmosphere))
@@ -216,10 +223,10 @@ class Simulator(object):
 
             self.control_sys.update_enviroment(last_line)
 
-            pilot_control_lat = self.pilot_vec[0]
-            pilot_control_yaw = self.pilot_vec[1]
-            pilot_control_long = self.pilot_vec[2]
-            pilot_control_throttle = self.pilot_vec[3]
+            pilot_control_lat = self.pilot_rudder
+            pilot_control_yaw = self.pilot_aileron
+            pilot_control_long = self.pilot_elevator
+            pilot_control_throttle = self.pilot_throttle
             self.control_sys.update_pilot_control(pilot_control_long, pilot_control_lat, \
                         pilot_control_yaw, pilot_control_throttle)
 
@@ -259,8 +266,17 @@ class Simulator(object):
 
     def update_manual_control(self, stick_x, stick_y):
         """pass in a control vector for the simulation"""
-        command = np.array([0.0, stick_x, stick_y, 0.0],'d')
-        self.pilot_vec = command
+        self.pilot_rudder = 0.0
+        self.pilot_aileron = stick_x
+        self.pilot_elevator = stick_y
+        self.pilot_throttle = 0.0
+
+        self.aircraft.update_control(
+            self.pilot_rudder,
+            self.pilot_aileron,
+            self.pilot_elevator,
+            self.pilot_throttle
+        )
 
     def pause_sim(self):
         """Pauses the sim, saving time at stop"""
@@ -276,7 +292,6 @@ class Simulator(object):
 
     def pause_or_unpause_sim(self):
         """Flips state of sim"""
-        
         if self.paused:
             self.unpause_sim()
             print("unpause")

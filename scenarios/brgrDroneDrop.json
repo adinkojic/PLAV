@@ -9,7 +9,10 @@
     "aircraft_file":"brgr_model.py",
 
     "has_control":true,
-    "init_control": [0.0,0.0,-0.1,0.0],
+    "trim_rudder": 0.0,
+    "trim_aileron": 0.0,
+    "trim_elevator": 0.0,
+    "trim_throttle": 0.0,
 
     "init_alt": 120.0,
     "init_vel": [0.0, 0.0, 0.1],

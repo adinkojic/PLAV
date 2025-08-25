@@ -203,7 +203,7 @@ class Plav(object):
             
 
         t_span = np.array(timespan, 'd')
-        self.sim_object = Simulator(y0, t_span, self.aircraft, atmosphere, 
+        self.sim_object = Simulator(y0, t_span, self.aircraft, atmosphere,
                             control_sys = self.control_unit, t_step=0.01)
 
         if real_time is False:

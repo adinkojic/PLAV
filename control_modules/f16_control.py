@@ -112,7 +112,7 @@ class F16Control(object):
         self.el = control[2] / 25.0 -  self.trim_el / 25.0
         self.power = control[3] / 100.0 - self.trim_power / 100.0
 
-        return np.array([self.rdr, self.ail, self.el, self.power], 'd')
+        return self.rdr, self.ail, self.el, self.power
 
     def check_commands(self):
         """for the NASA check cases, execute the latest command when it's its time"""
@@ -350,7 +350,7 @@ class F16ControlHITL(object):
         self.el = control[2] / 25.0 -  self.trim_el / 25.0
         self.power = control[3] / 100.0 - self.trim_power / 100.0
 
-        return np.array([self.rdr, self.ail, self.el, self.power], 'd')
+        return self.rdr, self.ail, self.el, self.power
 
     def check_commands(self):
         """for the NASA check cases, execute the latest command when it's its time"""

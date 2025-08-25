@@ -119,7 +119,7 @@ class BRGRConfig(object):
 
     def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma,\
                     C_mq, C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
-                    init_control_vector = np.zeros(4), has_gridfins = 0, \
+                    trim_rudder, trim_aileron, trim_elevator, trim_throttle, has_gridfins = 0, \
                     C_XYlutX = np.array([0.0, 0.0]), C_XlutY =np.array([0.0, 0.0]), \
                     C_YlutY = np.array([0.0, 0.0])):
 
@@ -130,10 +130,10 @@ class BRGRConfig(object):
         self.bref = bref
         self.cp_wrt_cm = cp_wrt_cm
 
-        self.trim_rdr   = init_control_vector[0]
-        self.trim_ail   = init_control_vector[1]
-        self.trim_el    = init_control_vector[2]
-        self.trim_power = init_control_vector[3]
+        self.trim_rdr   = trim_rudder
+        self.trim_ail   = trim_aileron
+        self.trim_el    = trim_elevator
+        self.trim_power = trim_throttle
 
         self.rdr   = 0.0
         self.ail   = 0.0
@@ -179,12 +179,19 @@ class BRGRConfig(object):
         self.star_force = np.array([0.,0.,0.], 'd')
         self.port_force = np.array([0.,0.,0.], 'd')
 
-    def update_control(self, control_vector):
+    def update_control(self, rudder, aileron, elevator, throttle):
         """Give the simulation a new control vector"""
-        self.rdr   = control_vector[0]
-        self.ail   = control_vector[1]
-        self.el    = control_vector[2]
-        self.power = control_vector[3]
+        self.rdr   = rudder
+        self.ail   = aileron
+        self.el    = elevator
+        self.power = throttle
+
+    def update_trim(self, rudder, aileron, elevator, throttle):
+        """Give the simulation a new trim vector"""
+        self.trim_rdr   = rudder
+        self.trim_ail   = aileron
+        self.trim_el    = elevator
+        self.trim_power = throttle
 
     def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
         """Update altitude and velocity it thinks it's at
@@ -443,7 +450,10 @@ def init_aircraft(config_file) -> BRGRConfig:
 
     cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
 
-    init_control_vector =  np.array(config_file['init_control'],'d')
+    trim_rudder   = config_file['trim_rudder']
+    trim_aileron  = config_file['trim_aileron']
+    trim_elevator = config_file['trim_elevator']
+    trim_throttle = config_file['trim_throttle']
 
     C_XYlutX = np.array(config_file['C_XYlutX'],'d')
     C_XlutY  = np.array(config_file['C_XlutY'], 'd')
@@ -452,6 +462,7 @@ def init_aircraft(config_file) -> BRGRConfig:
     aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm,\
                                 C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
                                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db,\
-                                C_nb, init_control_vector, 1, C_XYlutX, C_XlutY, C_YlutY)
+                                C_nb, trim_rudder, trim_aileron, trim_elevator, trim_throttle,
+                                1, C_XYlutX, C_XlutY, C_YlutY)
     #none for control unit
     return aircraft_model

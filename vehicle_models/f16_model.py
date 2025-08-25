@@ -78,19 +78,23 @@ def bilinear_interp(x, y, x_grid, y_grid, z_grid):
 
 def init_aircraft(modelparam) -> AircraftConfig:
     """Initalizes F16 aircraft maybe with HITL"""
-    control_vector = np.array(modelparam['init_control'], 'd')
-    aircraft = F16Aircraft(control_vector)
+    aircraft = F16Aircraft(
+        trim_rudder=modelparam['trim_rudder'],
+        trim_aileron=modelparam['trim_aileron'],
+        trim_elevator=modelparam['trim_elevator'],
+        trim_throttle=modelparam['trim_throttle']
+    )
 
     return aircraft
 
 @jitclass(spec)
 class F16Aircraft(object):
     """Object used to lookup coefficients for F16 jet"""
-    def __init__(self, init_control_vector):
-        self.trim_rdr   = init_control_vector[0]
-        self.trim_ail   = init_control_vector[1]
-        self.trim_el    = init_control_vector[2]
-        self.trim_power = init_control_vector[3]
+    def __init__(self, trim_rudder, trim_aileron, trim_elevator, trim_throttle):
+        self.trim_rdr   = trim_rudder
+        self.trim_ail   = trim_aileron
+        self.trim_el    = trim_elevator
+        self.trim_power = trim_throttle
 
         self.rdr   = 0.0
         self.ail   = 0.0
@@ -122,13 +126,20 @@ class F16Aircraft(object):
 
         self.cp_wrt_cm = self.get_aero_center_wrt_cm()
 
-    def update_control(self, control_vector):
-        """Give the simulation a new control vector
-        takes -1.0 to 1.0 as input"""
-        self.rdr   = control_vector[0] * 30.0
-        self.ail   = control_vector[1] * 20.0
-        self.el    = control_vector[2] * 25.0
-        self.power = control_vector[3] * 1.0
+
+    def update_control(self, rudder, aileron, elevator, throttle):
+        """Give the simulation a new control vector"""
+        self.rdr   = rudder * 30.0
+        self.ail   = aileron * 20.0
+        self.el    = elevator * 25.0
+        self.power = throttle * 1.0
+
+    def update_trim(self, rudder, aileron, elevator, throttle):
+        """Give the simulation a new trim vector"""
+        self.trim_rdr   = rudder * 30.0
+        self.trim_ail   = aileron * 20.0
+        self.trim_el    = elevator * 25.0
+        self.trim_power = throttle * 1.0
 
     def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
         """Update altitude and velocity it thinks it's at
