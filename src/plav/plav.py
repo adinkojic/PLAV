@@ -11,6 +11,9 @@ import time
 import math
 from pathlib import Path
 import importlib.util
+import socket
+import struct
+import json
 
 import numpy as np
 #from scipy.integrate import solve_ivp
@@ -32,6 +35,7 @@ from plav.plotter import Plotter
 from plav.pilot_control import PilotJoystick
 
 import plav.conversions as conv
+import plav.step_logging as slog # for log data indices
 
 #from pyqtgraph.Qt import QtWidgets
 
@@ -53,10 +57,12 @@ def init_position(long, lat, alt, velocity, bearing, elevation, roll, init_omega
 class Plav(object):
     """Plav Simulator Object. Instaniating launches a simulator thread"""
     def __init__(self, scenario_file: str, timespan,
-                         real_time=False, no_gui = False, export_to_csv=True, runsim=True):
+                         real_time=False, no_gui = False, export_to_csv=True, runsim=True,
+                         use_sitl=False):
         self.no_gui = no_gui
         use_flight_gear = False
         self.real_time = real_time
+        self.use_sitl = use_sitl
 
         #load the scenario file
         modelparam = self.load_scenario("scenarios/" + scenario_file)
@@ -84,6 +90,20 @@ class Plav(object):
 
         self.window_title = modelparam['title']
         self.active = True
+        self.address = None
+
+        if self.use_sitl:
+            # --- UDP communication setup ---
+            print('socketting')
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind(('0.0.0.0', 9002))
+            self.sock.settimeout(0.1)
+
+            self.last_sitl_frame = -1
+            self.connected = False
+            self.frame_count = 0
+            self.frame_time = time.time()
+            self.print_frame_count = 1000
 
         if runsim:
             self.run_simulation()
@@ -107,10 +127,64 @@ class Plav(object):
                 x, y = flight_stick.get_joystick_pos()
                 self.sim_object.update_manual_control(stick_x=x, stick_y=y)
 
+
+            #for SITL stuff
+            if self.use_sitl:
+                print('sockettingx2')
+                try:
+                    data, self.address = self.sock.recvfrom(100)
+                    parse_format = 'HHI16H'
+                    if len(data) != struct.calcsize(parse_format):
+                        print(f"Bad packet size: {len(data)}")
+                    decoded = struct.unpack(parse_format, data)
+                    magic = 18458
+                    if decoded[0] != magic:
+                        print(f"Incorrect magic: {decoded[0]}")
+                    frame_rate_hz = decoded[1]
+                    frame_number = decoded[2]
+                    pwm = decoded[3:]
+                    print(pwm)
+                    #TODO: if frame_rate_hz != RATE_HZ: ... RATE_HZ = frame_rate_hz
+                    #TODO: reset logic
+                    self.frame_count += 1
+                except Exception:
+                    time.sleep(0.01)
+                    
+
+                 
+
             sim_data = self.sim_object.update_real_time()
+
+
+
+            if self.use_sitl:
+                latest_data = sim_data[:, -1]
+                phys_time = latest_data[slog.SDI_TIME]
+                
+                gyro = [latest_data[slog.SDI_P], latest_data[slog.SDI_Q], latest_data[slog.SDI_R]]
+                accel = [latest_data[slog.SDI_FX]/1.8, latest_data[slog.SDI_FY]/1.8, latest_data[slog.SDI_FZ]/1.8]
+                quat = [latest_data[slog.SDI_Q1], latest_data[slog.SDI_Q2], latest_data[slog.SDI_Q3], latest_data[slog.SDI_Q4]]
+                pos = [latest_data[slog.SDI_DELTA_N], latest_data[slog.SDI_DELTA_E], latest_data[slog.SDI_DELTA_D]]
+                velo = [latest_data[slog.SDI_VN], latest_data[slog.SDI_VE], latest_data[slog.SDI_VD]]
+
+                print(gyro)
+
+                json_data = {
+                    "timestamp": phys_time,
+                    "imu": {
+                        "gyro": gyro,
+                        "accel_body": accel
+                    },
+                    "position": pos,
+                    "quaternion": quat,
+                    "velocity": velo
+                }
+
+                self.sock.sendto((json.dumps(json_data, separators=(',', ':')) + "\n").encode("ascii"), self.address)
 
             if not self.no_gui:
                 plotter_object.update_plots(sim_data)
+
 
 
         timer = QtCore.QTimer()

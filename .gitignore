@@ -6,3 +6,4 @@ __pycache__
 assets
 src\plav\__pycache__
 build
+test.py

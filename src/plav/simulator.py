@@ -148,7 +148,8 @@ def x_dot(t, y, aircraft_config: AircraftConfig, sim_atmosphere: Atmosphere, log
         log.load_line(t, y, aero_forces_body, \
                     aero_moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, static_pressure, air_temperature, \
-                    alpha, beta, reynolds, aircraft_thrust, control_deflection)
+                    alpha, beta, reynolds, aircraft_thrust, control_deflection,\
+                    accel_body)
 
     return x_dot
 

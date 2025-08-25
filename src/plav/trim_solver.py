@@ -104,7 +104,7 @@ def trim_glider_hddot0(
         r_lift = lift - weight
 
         return np.array([Mx, My, Mz, r_lift, Fy], 'd')
-    
+
     sol = least_squares(resid, x0, bounds=(lower_bound, upper_bound))
     alpha, beta, de, da, dr = sol.x
 
