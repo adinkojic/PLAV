@@ -58,11 +58,12 @@ class Plav(object):
     """Plav Simulator Object. Instaniating launches a simulator thread"""
     def __init__(self, scenario_file: str, timespan,
                          real_time=False, no_gui = False, export_to_csv=True, runsim=True,
-                         use_sitl=False):
+                         use_sitl=False, ardupilot_ip = "127.0.0.1"):
         self.no_gui = no_gui
         use_flight_gear = False
         self.real_time = real_time
         self.use_sitl = use_sitl
+        self.ardupilot_ip = ardupilot_ip
 
         #load the scenario file
         modelparam = self.load_scenario("scenarios/" + scenario_file)
@@ -96,7 +97,7 @@ class Plav(object):
             # --- UDP communication setup ---
             print('socketting')
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.bind(('0.0.0.0', 9002))
+            self.sock.bind((ardupilot_ip, 9002))
             self.sock.settimeout(0.1)
 
             self.last_sitl_frame = -1

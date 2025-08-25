@@ -47,6 +47,7 @@ def run_offline_sim(scenario_name,
 
 @app.command()
 def sim_with_sitl(scenario_name,
+            ardupilot_ip = "127.0.0.1",
             no_gui: Annotated[bool, typer.Option("--nogui")] = False,
             output_file_name = "output.csv"):
     """Simulates the Vehicle with ArduPilot's SITL"""
@@ -55,7 +56,7 @@ def sim_with_sitl(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,1], no_gui = no_gui, real_time=True, use_sitl=True)
+    plav_obj = Plav(scenario_name,[0,1], no_gui = no_gui, real_time=True, use_sitl=True, ardupilot_ip = ardupilot_ip)
 
 
 @app.command()
