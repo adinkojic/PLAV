@@ -149,7 +149,7 @@ def load_init_position(modelparam):
 
 def change_aircraft(sim_object: Simulator, modelparam, use_control_unit=True):
     """Changes the aircraft to what's described in modelparam"""
-    aircraft, control_unit = self.load_aircraft_config(modelparam)
+    aircraft, control_unit = load_aircraft_config(modelparam)
 
     sim_object.change_aircraft(aircraft)
     if use_control_unit:
@@ -270,8 +270,6 @@ class Plav(object):
                     ardupilot_elevator = (pwm[1] -1500) / 500.0 * 0
                     ardupilot_throttle = (pwm[2] -1500) / 500.0
                     ardupilot_rudder   = -(pwm[3] -1500) / 500.0
-
-                    print(f"ardupilot_aileron: {ardupilot_aileron}, ardupilot_elevator: {ardupilot_elevator}, ardupilot_throttle: {ardupilot_throttle}, ardupilot_rudder: {ardupilot_rudder}")
 
                     self.sim_object.update_ardupilot_control(aileron = ardupilot_aileron,
                                                 rudder = ardupilot_rudder,
