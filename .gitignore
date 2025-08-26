@@ -7,3 +7,5 @@ assets
 src\plav\__pycache__
 build
 test.py
+
+src\plav.egg-info
