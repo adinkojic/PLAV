@@ -8,7 +8,7 @@ from numba.experimental import jitclass
 from numba import jit
 import plav.quaternion_math as quat
 
-from plav.generic_aircraft_config import \
+from plav.vehicle_models.generic_aircraft_config import \
     get_dynamic_viscosity,get_wind_to_body_axis,velocity_to_alpha_beta
 
 
