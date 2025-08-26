@@ -12,6 +12,12 @@
 
     "has_control":true,
 
+    "Sref": 27.871023484,
+    "bref": 9.14401828804,
+    "cref": 3.45034290069,
+
+    "mass": 9298.705743,
+
     "trim_rudder": 0.0,
     "trim_aileron": 0.0,
     "trim_elevator": -1.53,

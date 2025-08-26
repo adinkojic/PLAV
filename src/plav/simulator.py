@@ -278,6 +278,11 @@ class Simulator(object):
             self.pilot_throttle
         )
 
+    def update_ardupilot_control(self, aileron, rudder, elevator, throttle):
+        """Updates the ArduPilot control inputs"""
+        self.aircraft.update_control(rudder, aileron, elevator, throttle)
+    
+
     def pause_sim(self):
         """Pauses the sim, saving time at stop"""
         if not self.paused:

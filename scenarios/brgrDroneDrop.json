@@ -11,15 +11,15 @@
     "has_control":true,
     "trim_rudder": 0.0,
     "trim_aileron": 0.0,
-    "trim_elevator": -0.1,
+    "trim_elevator": -0.12863619897995604,
     "trim_throttle": 0.0,
 
     "init_alt": 120.0,
-    "init_vel": [0.0, 0.0, 0.1],
+    "init_vel": [ 1.59689167e+01, -5.98447785e-04,  9.96844721e-01],
     "init_rot": [0.0, 0.0, 0.0],
     "init_lat": 0.7038736595,
     "init_lon": -1.303283080,
-    "init_ori": [0.0, -89.9, 330.0],
+    "init_ori": [0.0, 0.0, 0.0],
 
     "wind_alt_profile": [0, 200],
     "wind_speed_profile": [0.0, 0.0],

@@ -265,7 +265,20 @@ class Plav(object):
                     frame_rate_hz = decoded[1]
                     frame_number = decoded[2]
                     pwm = decoded[3:]
-                    
+
+                    ardupilot_aileron  = (pwm[0] -1000) / 500.0 #pwm pulse to our servo deflection
+                    ardupilot_elevator = (pwm[1] -1000) / 500.0
+                    ardupilot_throttle = (pwm[2] -1000) / 500.0
+                    ardupilot_rudder   = (pwm[3] -1000) / 500.0
+
+                    print(pwm[:4])
+
+                    self.sim_object.update_ardupilot_control(aileron = ardupilot_aileron,
+                                                rudder = ardupilot_rudder,
+                                                elevator = ardupilot_elevator,
+                                                throttle = ardupilot_throttle
+                                                )
+
                     #TODO: if frame_rate_hz != RATE_HZ: ... RATE_HZ = frame_rate_hz
                     #TODO: reset logic
                     self.frame_count += 1
