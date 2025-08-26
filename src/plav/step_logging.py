@@ -240,9 +240,9 @@ class SimDataLogger(object):
         line[SDI_FLIGHT_PATH] = flight_path
         line[SDI_DOWNRANGE] = downrange
         line[SDI_THRUST] = self.thrust
-        line[SDI_AILERON_CMD] = self.control_deflection[0]
-        line[SDI_ELEVATOR_CMD] = self.control_deflection[1]
-        line[SDI_RUDDER_CMD] = self.control_deflection[2]
+        line[SDI_RUDDER_CMD] = self.control_deflection[0]
+        line[SDI_AILERON_CMD] = self.control_deflection[1]
+        line[SDI_ELEVATOR_CMD] = self.control_deflection[2]
         line[SDI_THRUST_CMD] = self.control_deflection[3]
         line[SDI_DELTA_N] = ned_traveled[0]
         line[SDI_DELTA_E] = ned_traveled[1]
@@ -358,7 +358,7 @@ def lla_to_nea(lat, lon, alt, lat0, lon0, alt0):
     # Local tangent-plane small-angle mapping (include reference altitude)
     north_m = dlat_rad * (M + alt0)
     east_m  = dlon_rad * (N + alt0) * cos_phi0
-    alt_rel_m = alt - alt0
+    alt_rel_m = -(alt - alt0)
 
     return np.array([north_m, east_m, alt_rel_m],'d')
 

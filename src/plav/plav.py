@@ -246,7 +246,7 @@ class Plav(object):
 
         def update():
             """Update loop for simulation"""
-            if not self.no_gui:
+            if not self.no_gui and not self.use_sitl:
                 x, y = flight_stick.get_joystick_pos()
                 self.sim_object.update_manual_control(stick_x=x, stick_y=y)
 
@@ -266,12 +266,12 @@ class Plav(object):
                     frame_number = decoded[2]
                     pwm = decoded[3:]
 
-                    ardupilot_aileron  = (pwm[0] -1000) / 500.0 #pwm pulse to our servo deflection
-                    ardupilot_elevator = (pwm[1] -1000) / 500.0
-                    ardupilot_throttle = (pwm[2] -1000) / 500.0
-                    ardupilot_rudder   = (pwm[3] -1000) / 500.0
+                    ardupilot_aileron  = (pwm[0] -1500) / 500.0#pwm pulse to our servo deflection
+                    ardupilot_elevator = (pwm[1] -1500) / 500.0 * 0
+                    ardupilot_throttle = (pwm[2] -1500) / 500.0
+                    ardupilot_rudder   = -(pwm[3] -1500) / 500.0
 
-                    print(pwm[:4])
+                    print(f"ardupilot_aileron: {ardupilot_aileron}, ardupilot_elevator: {ardupilot_elevator}, ardupilot_throttle: {ardupilot_throttle}, ardupilot_rudder: {ardupilot_rudder}")
 
                     self.sim_object.update_ardupilot_control(aileron = ardupilot_aileron,
                                                 rudder = ardupilot_rudder,
@@ -298,11 +298,11 @@ class Plav(object):
                 
                 gyro = [latest_data[slog.SDI_P], latest_data[slog.SDI_Q], latest_data[slog.SDI_R]]
                 accel = [latest_data[slog.SDI_AX], latest_data[slog.SDI_AY], latest_data[slog.SDI_AZ]]
-                quat = [latest_data[slog.SDI_Q2], latest_data[slog.SDI_Q3], latest_data[slog.SDI_Q4], latest_data[slog.SDI_Q1]]
-                pos = [latest_data[slog.SDI_DELTA_N], latest_data[slog.SDI_DELTA_E], latest_data[slog.SDI_ALT]]
+                quat = [latest_data[slog.SDI_Q1], latest_data[slog.SDI_Q2], latest_data[slog.SDI_Q2], latest_data[slog.SDI_Q4]]
+                pos = [latest_data[slog.SDI_DELTA_N], latest_data[slog.SDI_DELTA_E], latest_data[slog.SDI_DELTA_D]]
                 velo = [latest_data[slog.SDI_VN], latest_data[slog.SDI_VE], latest_data[slog.SDI_VD]]
 
-                
+                #rpy = [latest_data[slog.SDI_ROLL], latest_data[slog.SDI_PITCH], latest_data[slog.SDI_YAW]]
 
                 json_data = {
                     "timestamp": phys_time,
@@ -312,6 +312,7 @@ class Plav(object):
                     },
                     "position": pos,
                     "quaternion": quat,
+                    #"attitude": rpy,
                     "velocity": velo
                 }
 
