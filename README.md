@@ -23,6 +23,6 @@ Works with ArduPilot's JSON with SITL (https://ardupilot.org/dev/docs/sitl-with-
 
 If using WSL, run PLAV's sim_with_sitl with ip 0.0.0.0.
 To figure out the IP to use for ArduPilot, run `ip route | awk '/^default/ {print $3}'`
-Then use that ip in `../Tools/autotest/sim_vehicle.py -f JSON:[WINDOWSIP] --console --map`
+Then use that ip in `../Tools/autotest/sim_vehicle.py -f JSON:[WINDOWSIP] --console --map` from the ArduPlane directory.
 
 If using Linux, use default values
