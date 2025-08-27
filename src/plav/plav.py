@@ -221,6 +221,7 @@ class Plav(object):
             
 
         if runsim:
+            print("Running sim")
             self.run_simulation()
 
 

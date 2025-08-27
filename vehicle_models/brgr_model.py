@@ -3,7 +3,7 @@ Abstracted away from any special state config"""
 import math
 
 import numpy as np
-from numba import float64, int64
+from numba import float64, int64, bool
 from numba.experimental import jitclass
 from numba import jit
 import plav.quaternion_math as quat
@@ -72,7 +72,9 @@ spec = [
     ('has_gridfins', int64),
     ('top_force',  float64[:]),
     ('star_force', float64[:]),
-    ('port_force', float64[:])
+    ('port_force', float64[:]),
+
+    ('plav_mixing', bool)
 
 ]
 
@@ -121,7 +123,7 @@ class BRGRConfig(object):
                     C_mq, C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
                     trim_rudder, trim_aileron, trim_elevator, trim_throttle, has_gridfins = 0, \
                     C_XYlutX = np.array([0.0, 0.0]), C_XlutY =np.array([0.0, 0.0]), \
-                    C_YlutY = np.array([0.0, 0.0])):
+                    C_YlutY = np.array([0.0, 0.0]), plav_mixing = False):
 
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
@@ -178,6 +180,8 @@ class BRGRConfig(object):
         self.top_force  = np.array([0.,0.,0.], 'd')
         self.star_force = np.array([0.,0.,0.], 'd')
         self.port_force = np.array([0.,0.,0.], 'd')
+
+        self.plav_mixing = plav_mixing
 
     def update_control(self, rudder, aileron, elevator, throttle):
         """Give the simulation a new control vector"""
@@ -297,14 +301,19 @@ class BRGRConfig(object):
 
         #control mixing
         yaw_adjustment_factor = 0.5
-        ail_command = self.ail * 0.5 + self.trim_ail
-        el_command  = self.el  * 0.5 + self.trim_el
-        rdr_command = self.rdr * 0.5 + self.trim_rdr
+        ail_command = self.ail + self.trim_ail
+        el_command  = self.el + self.trim_el
+        rdr_command = self.rdr + self.trim_rdr
 
-        #theta is the angle of deflection of the surface
-        deflection_top  = -ail_command + rdr_command
-        deflection_star = -ail_command + rdr_command*yaw_adjustment_factor + el_command
-        deflection_port = -ail_command + rdr_command*yaw_adjustment_factor - el_command
+        if self.plav_mixing:
+            #theta is the angle of deflection of the surface
+            deflection_top  = -ail_command + rdr_command
+            deflection_star = -ail_command + rdr_command*yaw_adjustment_factor + el_command
+            deflection_port = -ail_command + rdr_command*yaw_adjustment_factor - el_command
+        else:
+            deflection_top  = self.ail    * math.pi/2
+            deflection_star = self.el     * math.pi/2
+            deflection_port = self.power  * math.pi/2
 
         #get local alpha and beta in to each fin
         ab_top  = get_local_alpha_beta(self.velocity, gamma_top,  deflection_top )
@@ -459,10 +468,12 @@ def init_aircraft(config_file) -> BRGRConfig:
     C_XlutY  = np.array(config_file['C_XlutY'], 'd')
     C_YlutY  = np.array(config_file['C_YlutY'], 'd')
 
+    plav_mixing = config_file['plav_mixing']
+
     aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm,\
                                 C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
                                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db,\
                                 C_nb, trim_rudder, trim_aileron, trim_elevator, trim_throttle,
-                                1, C_XYlutX, C_XlutY, C_YlutY)
+                                1, C_XYlutX, C_XlutY, C_YlutY, plav_mixing)
     #none for control unit
     return aircraft_model

@@ -40,6 +40,9 @@ class ArduPilotSITL:
         self.velo = [0.0, 0.0, 0.0]
 
         self.frame_rate_hz = 1
+        self.fresh_data = False
+
+        self.transmitted = time.time()
 
         receiver_thread = threading.Thread(target=self.servo_receiver, daemon=True)
         sender_thread = threading.Thread(target=self.sitl_sender, daemon=True)
@@ -66,10 +69,16 @@ class ArduPilotSITL:
 
                 #print(frame_number)
 
-                self.ardupilot_aileron  = (pwm[0] -1500) / 500.0#pwm pulse to our servo deflection
-                self.ardupilot_elevator = (pwm[1] -1500) / 500.0 * 0
-                self.ardupilot_throttle = (pwm[2] -1500) / 500.0
-                self.ardupilot_rudder   = -(pwm[3] -1500) / 500.0
+                if 1000 <= pwm[0] <= 2000:
+                    self.ardupilot_aileron  = (pwm[0] -1500) / 500.0#pwm pulse to our servo deflection
+                else:
+                    print(f"pwm out of bounds: {pwm[0]}")
+                if 1000 <= pwm[1] <= 2000:
+                    self.ardupilot_elevator = (pwm[1] -1500) / 500.0 * 0
+                if 1000 <= pwm[2] <= 2000:
+                    self.ardupilot_throttle = (pwm[2] -1500) / 500.0
+                if 1000 <= pwm[3] <= 2000:
+                    self.ardupilot_rudder   = -(pwm[3] -1500) / 500.0
 
                 #TODO: if frame_rate_hz != RATE_HZ: ... RATE_HZ = frame_rate_hz
                 #TODO: reset logic
@@ -80,9 +89,16 @@ class ArduPilotSITL:
                 break
 
     def sitl_sender(self):
-        """daemon that the data to SITL"""
+        """daemon that the data to SITL
+        transmits every frame after fresh data
+        1 s if otherwise"""
 
         while True:
+
+            if not self.fresh_data:
+                if time.time() - self.transmitted < 1:
+                    continue
+
             json_data = {
                 "timestamp": self.phys_time,
                 "imu": {
@@ -99,8 +115,14 @@ class ArduPilotSITL:
 
             try:
                 self.sock.sendto((json.dumps(json_data, separators=(',', ':')) + "\n").encode("ascii"), self.address)
+                self.transmitted = time.time()
+                print("Sent data to SITL" + time.time())
             except TypeError:
                 pass
+            
+            
+            if self.fresh_data:
+                self.fresh_data = False
             time.sleep(1/self.frame_rate_hz)
     
     def get_control_output(self):
@@ -123,6 +145,8 @@ class ArduPilotSITL:
         self.velo = [latest_data[slog.SDI_VN], latest_data[slog.SDI_VE], latest_data[slog.SDI_VD]]
 
         #rpy = [latest_data[slog.SDI_ROLL], latest_data[slog.SDI_PITCH], latest_data[slog.SDI_YAW]]
+
+        self.fresh_data = True
 
         
 
