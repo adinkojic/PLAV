@@ -17,6 +17,7 @@ from plav.step_logging import SimDataLogger
 from plav.runge_kutta4 import basic_rk4
 from plav.atmosphere_models.ussa1976 import Atmosphere
 from plav.vehicle_models.generic_aircraft_config import AircraftConfig
+from plav.control.ardupilot_sitl import ArduPilotSITL
 
 @jit(float64(float64,float64))
 def get_gravity(phi, h):
@@ -157,7 +158,7 @@ class Simulator(object):
     """A sim object is required to store all the required data nicely."""
     def __init__(self,
             init_state, time_span, aircraft: AircraftConfig, sim_atmosphere: Atmosphere,
-            control_sys= None,t_step = 0.1
+            control_sys: ArduPilotSITL = None,t_step = 0.1
                 ):
         self.state = init_state
         self.t_span = time_span
@@ -221,7 +222,7 @@ class Simulator(object):
 
         if last_line is not None:
 
-            self.control_sys.update_enviroment(last_line)
+            self.control_sys.update_environment(last_line)
 
             pilot_control_lat = self.pilot_rudder
             pilot_control_yaw = self.pilot_aileron
@@ -232,8 +233,7 @@ class Simulator(object):
 
     def control_sys_request_response(self):
         """request a reponse from the control system, which should have a response ready"""
-        control_vec = self.control_sys.get_control_output()
-        return control_vec
+        return self.control_sys.get_control_output()
 
     def latest_state(self):
         """returns the most recent state

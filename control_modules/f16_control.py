@@ -125,8 +125,8 @@ class F16Control(object):
 
                 self.update_commands(eas_command, alt_command, lat_command, yaw_command)
 
-    def update_enviroment(self, data_line):
-        """Update the enviroment variables"""
+    def update_environment(self, data_line):
+        """Update the environment variables"""
 
         self.time = data_line[slog.SDI_TIME]
         tas = data_line[slog.SDI_TAS]*conv.MPS_TO_KTS
@@ -363,8 +363,8 @@ class F16ControlHITL(object):
 
                 self.update_commands(eas_command, alt_command, lat_command, yaw_command)
 
-    def update_enviroment(self, data_line):
-        """Update the enviroment variables
+    def update_environment(self, data_line):
+        """Update the environment variables
         Needs to take true values from sim and either convert to
         what it needs or add noise/whatever to make it work"""
 
@@ -385,8 +385,8 @@ class F16ControlHITL(object):
         self.update_device_env()
 
     def update_device_env(self):
-        """Updates the HITL device with the current enviroment"""
-        packet = make_enviroment_packet(self.altitude_msl, self.equivalent_airspeed, \
+        """Updates the HITL device with the current environment"""
+        packet = make_environment_packet(self.altitude_msl, self.equivalent_airspeed, \
                                         self.angle_of_attack, self.angle_of_sideslip, \
                                         self.euler_angle_roll, self.euler_angle_pitch, \
                                         self.euler_angle_yaw, self.body_angular_rate_roll ,\
@@ -481,11 +481,11 @@ def tas_to_eas(tas, density):
     """Convert True Airspeed to Equivalent Airspeed"""
     return tas * np.sqrt(density / 1.225)
 
-def make_enviroment_packet(altitude_msl, equivalent_airspeed, angle_of_attack, \
+def make_environment_packet(altitude_msl, equivalent_airspeed, angle_of_attack, \
                         angle_of_sideslip, euler_angle_roll, euler_angle_pitch, \
                         euler_angle_yaw, body_angular_rate_roll ,\
                         body_angular_rate_pitch, body_angular_rate_yaw, sim_time):
-    """Update the enviroment variables to the HITL device"""
+    """Update the environment variables to the HITL device"""
     bit_message = b'+++e'
 
     float_scaling = 21474.83648

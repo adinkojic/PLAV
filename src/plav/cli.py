@@ -24,7 +24,7 @@ def main(ctx: typer.Context,
     if ctx.invoked_subcommand is None:
         typer.echo("No subcommand provided. Use --help.")
         raise typer.Exit(code=1)
-    
+
 @app.command()
 def wind_tunnel(scenario_name):
     """Run the interactive wind tunnel"""

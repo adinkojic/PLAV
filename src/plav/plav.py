@@ -34,6 +34,7 @@ from plav.step_logging import SimDataLogger, return_data_for_csv
 from plav.joystick_reader import JoystickReader
 from plav.plotter import Plotter
 from plav.pilot_control import PilotJoystick
+from plav.control.ardupilot_sitl import ArduPilotSITL
 
 import plav.conversions as conv
 import plav.step_logging as slog # for log data indices
@@ -197,6 +198,9 @@ class Plav(object):
         atmosphere = load_atmosphere(modelparam)
         y0 = load_init_position(modelparam)
 
+        if self.use_sitl:
+            self.control_unit = ArduPilotSITL(ardupilot_ip = self.ardupilot_ip)
+
         self.hitl_active = False
         if self.control_unit is not None:
             self.hitl_active = self.control_unit.is_hitl()
@@ -214,19 +218,7 @@ class Plav(object):
         self.window_title = modelparam['title']
         self.active = True
         self.address = None
-
-        if self.use_sitl:
-            # --- UDP communication setup ---
-            print('Initalizing SITL UDP communication')
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.bind((ardupilot_ip, 9002))
-            self.sock.settimeout(0.1)
-
-            self.last_sitl_frame = -1
-            self.connected = False
-            self.frame_count = 0
-            self.frame_time = time.time()
-            self.print_frame_count = 1000
+            
 
         if runsim:
             self.run_simulation()
@@ -250,71 +242,7 @@ class Plav(object):
                 x, y = flight_stick.get_joystick_pos()
                 self.sim_object.update_manual_control(stick_x=x, stick_y=y)
 
-
-            #for SITL stuff
-            if self.use_sitl:
-                try:
-                    data, self.address = self.sock.recvfrom(100)
-                    parse_format = 'HHI16H'
-                    if len(data) != struct.calcsize(parse_format):
-                        print(f"Bad packet size: {len(data)}")
-                    decoded = struct.unpack(parse_format, data)
-                    magic = 18458
-                    if decoded[0] != magic:
-                        print(f"Incorrect magic: {decoded[0]}")
-                    frame_rate_hz = decoded[1]
-                    frame_number = decoded[2]
-                    pwm = decoded[3:]
-
-                    ardupilot_aileron  = (pwm[0] -1500) / 500.0#pwm pulse to our servo deflection
-                    ardupilot_elevator = (pwm[1] -1500) / 500.0 * 0
-                    ardupilot_throttle = (pwm[2] -1500) / 500.0
-                    ardupilot_rudder   = -(pwm[3] -1500) / 500.0
-
-                    self.sim_object.update_ardupilot_control(aileron = ardupilot_aileron,
-                                                rudder = ardupilot_rudder,
-                                                elevator = ardupilot_elevator,
-                                                throttle = ardupilot_throttle
-                                                )
-
-                    #TODO: if frame_rate_hz != RATE_HZ: ... RATE_HZ = frame_rate_hz
-                    #TODO: reset logic
-                    self.frame_count += 1
-                except Exception:
-                    time.sleep(0.01)
-                    
-
-                 
-
             sim_data = self.sim_object.update_real_time()
-
-
-
-            if self.use_sitl:
-                latest_data = sim_data[:, -1]
-                phys_time = latest_data[slog.SDI_TIME]
-                
-                gyro = [latest_data[slog.SDI_P], latest_data[slog.SDI_Q], latest_data[slog.SDI_R]]
-                accel = [latest_data[slog.SDI_AX], latest_data[slog.SDI_AY], latest_data[slog.SDI_AZ]]
-                quat = [latest_data[slog.SDI_Q1], latest_data[slog.SDI_Q2], latest_data[slog.SDI_Q2], latest_data[slog.SDI_Q4]]
-                pos = [latest_data[slog.SDI_DELTA_N], latest_data[slog.SDI_DELTA_E], latest_data[slog.SDI_DELTA_D]]
-                velo = [latest_data[slog.SDI_VN], latest_data[slog.SDI_VE], latest_data[slog.SDI_VD]]
-
-                #rpy = [latest_data[slog.SDI_ROLL], latest_data[slog.SDI_PITCH], latest_data[slog.SDI_YAW]]
-
-                json_data = {
-                    "timestamp": phys_time,
-                    "imu": {
-                        "gyro": gyro,
-                        "accel_body": accel
-                    },
-                    "position": pos,
-                    "quaternion": quat,
-                    #"attitude": rpy,
-                    "velocity": velo
-                }
-
-                self.sock.sendto((json.dumps(json_data, separators=(',', ':')) + "\n").encode("ascii"), self.address)
 
             if not self.no_gui:
                 plotter_object.update_plots(sim_data)
