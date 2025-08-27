@@ -8,7 +8,7 @@
     "use_generic_aircraft":false,
     "aircraft_file":"brgr_model.py",
 
-    "plav_mixing": false,
+    "plav_mixing": true,
 
     "has_control":true,
     "trim_rudder": 0.0,
