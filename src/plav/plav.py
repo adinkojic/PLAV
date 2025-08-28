@@ -223,10 +223,8 @@ class Plav(object):
         self.window_title = modelparam['title']
         self.active = True
         self.address = None
-            
-        print(runsim)
+        
         if runsim:
-            print("Running sim")
             self.run_simulation()
 
 
@@ -241,8 +239,6 @@ class Plav(object):
 
             plotter_object = Plotter(sim_data, self.window_title)
             flight_stick = PilotJoystick(self.sim_object.pause_or_unpause_sim)
-
-        print("PreUpdate")
 
         def update():
             """Update loop for simulation"""
@@ -271,6 +267,7 @@ class Plav(object):
 
 
         if not self.no_gui or self.hitl_active:
+            print("Displaying GUI")
             pg.exec()
         #if self.hitl_active: #shut down the HIL system
         #    try:

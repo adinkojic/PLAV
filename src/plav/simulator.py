@@ -160,7 +160,6 @@ class Simulator(object):
             init_state, time_span, aircraft: AircraftConfig, sim_atmosphere: Atmosphere,
             control_sys: ArduPilotSITL = None,t_step = 0.1
                 ):
-        print("entered sim object")
         
         self.state = init_state
         self.t_span = time_span
@@ -182,9 +181,7 @@ class Simulator(object):
         self.control_sys = control_sys
 
         #log the inital state
-        print("prexdot")
         x_dot(self.time, self.state, aircraft, sim_atmosphere, self.sim_log)
-        print("postxdot")
         self.sim_log.save_line()
 
     def advance_timestep(self):
@@ -295,12 +292,16 @@ class Simulator(object):
         if not self.paused:
             self.paused = True
             self.time_at_last_pause = self.elapsed_time
+            if self.control_sys.is_hitl():
+                self.control_sys.paused()
 
     def unpause_sim(self):
         """Unpauses sim, starts counting time again"""
         if self.paused:
             self.paused = False
             self.start_time = time.time()
+            if self.control_sys.is_hitl():
+                self.control_sys.unpaused()
 
     def pause_or_unpause_sim(self):
         """Flips state of sim"""

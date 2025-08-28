@@ -42,17 +42,16 @@ class ArduPilotSITL:
         self.frame_rate_hz = 1
         self.fresh_data = False
 
-
+        self.sim_paused = False
 
         self.transmitted = time.time()
 
         receiver_thread = threading.Thread(target=self.servo_receiver, daemon=True)
-        #sender_thread = threading.Thread(target=self.sitl_sender, daemon=True)
         self.servo_receiver(True) #run at least once to get the addy
         print(self.frame_rate_hz)
         receiver_thread.start()
         self.sitl_sender()
-        #sender_thread.start()
+        self.sender_thread = None
         print('SITL UDP communication initialized')
 
     def servo_receiver(self, oneshot= False):
@@ -92,6 +91,27 @@ class ArduPilotSITL:
             except socket.timeout:
                 time.sleep(0.01)
 
+    def paused(self):
+        """call when pausing"""
+        self.sim_paused = True
+        if self.sender_thread is None:
+            self.sender_thread = threading.Thread(target=self.paused_daemon, daemon=True)
+            self.sender_thread.start()
+
+    def unpaused(self):
+        """call when unpausing"""
+        self.sim_paused = False
+        if self.sender_thread is not None:
+            self.sender_thread.join()
+            self.sender_thread = None
+
+    def paused_daemon(self):
+        """Daemon thread that runs when the simulation is paused to keep SITL updated"""
+        while self.sim_paused:
+            self.sitl_sender()
+            time.sleep(0.1)
+
+
     def sitl_sender(self):
         """daemon that the data to SITL
         transmits every frame after fresh data
@@ -120,11 +140,6 @@ class ArduPilotSITL:
             pass
         except TypeError:
             pass
-        
-        #if self.fresh_data:
-        #    self.fresh_data = False
-        #time.sleep(1/self.frame_rate_hz)
-        #time.sleep(0.001)
     
     def get_control_output(self):
         """Returns latest control output"""
