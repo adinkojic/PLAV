@@ -61,6 +61,20 @@ def wind_tunnel(scenario_name):
                     typer.echo("Vehicle reloaded")
                 if cmd in ("trim"):
                     tunnel.trim_out()
+                if cmd in ("density"):
+                    tunnel.print_density()
+                if cmd in ("aileron"):
+                    tunnel.set_aileron(float(rest[0]))
+                if cmd in ("elevator"):
+                    tunnel.set_elevator(float(rest[0]))
+                if cmd in ("rudder"):
+                    tunnel.set_rudder(float(rest[0]))
+                if cmd in ("throttle"):
+                    tunnel.set_throttle(float(rest[0]))
+                if cmd in ("realistic_mixing"):
+                    tunnel.use_realistic_mixing()
+                if cmd in ("plav_mixing"):
+                    tunnel.use_plav_mixing()
                 if cmd in ("echo"):
                     typer.echo("echo")
                     continue

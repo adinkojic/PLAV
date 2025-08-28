@@ -11,9 +11,9 @@
     "plav_mixing": true,
 
     "has_control":true,
-    "trim_rudder": 0.005,
-    "trim_aileron": -0.002,
-    "trim_elevator": 0.001,
+    "trim_rudder": 0.000,
+    "trim_aileron": 0.000,
+    "trim_elevator": 0.000,
     "trim_throttle": 0.0,
 
     "init_alt": 120.0,
@@ -38,7 +38,7 @@
     "cref": 0.117475,
     "bref": 1.1684,
     
-    "xcp_wrt_cm": [-0.00254, 0.0, -0.0254],
+    "xcp_wrt_cm": [-0.01905, 0.0, -0.01905],
 
     "C_L0": 0.46,
     "C_La": 5.73,

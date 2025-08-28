@@ -108,6 +108,36 @@ class WindTunnel(object):
         """Called internallly"""
         self.qbar = 0.5 * self.density * self.airspeed**2
 
+    def print_density(self):
+        """print density"""
+        print(self.density)
+
+    def use_realistic_mixing(self):
+        """Use realistic mixing for control surfaces"""
+        self.model.use_realistic_mixing()
+        print("Using realistic mixing")
+
+    def use_plav_mixing(self):
+        """Use plav mixing for control surfaces"""
+        self.model.use_plav_mixing()
+        print("Using plav mixing")
+
+    def set_aileron(self, aileron):
+        """directly set aileron command"""
+        self.pilot_aileron = aileron
+
+    def set_elevator(self, elevator):
+        """directly set elevator command"""
+        self.pilot_elevator = elevator
+
+    def set_rudder(self, rudder):
+        """directly set rudder command"""
+        self.pilot_rudder = rudder
+
+    def set_throttle(self, throttle):
+        """directly set throttle command"""
+        self.pilot_throttle = throttle
+
     def solve_forces(self, quiet = False):
         """Solve and print forces"""
         wind_velocity = alpha_beta_to_velocity(self.airspeed, self.alpha, self.beta)
@@ -126,7 +156,7 @@ class WindTunnel(object):
         forces = rotateFrameQ(wind_to_body_axis, forces)
         coeff_forces = forces / self.qbar / self.S
         
-        coeff = self.model.get_coeff()
+        #coeff = self.model.get_coeff()
         control_vec = self.model.get_control_deflection()
         vehicle_rudder = control_vec[0]
         vehicle_aileron = control_vec[1]
@@ -152,9 +182,9 @@ class WindTunnel(object):
             f"\n  Lift Coefficient: {-coeff_forces[2]:.6f}"
             f"\n  Drag Coefficient: {-coeff_forces[0]:.6f}"
             f"\n  Side Force Coefficient: {coeff_forces[1]:.6f}"
-            f"\n  Roll Moment Coefficient: {moments[0] / self.qbar / self.b:.6f}"
-            f"\n  Pitch Moment Coefficient: {moments[1] / self.qbar / self.cbar:.6f}"
-            f"\n  Yaw Moment Coefficient: {moments[2] / self.qbar / self.b:.6f}")
+            f"\n  Roll Moment Coefficient: {moments[0] / self.qbar / self.S / self.b:.6f}"
+            f"\n  Pitch Moment Coefficient: {moments[1] / self.qbar / self.S /self.cbar:.6f}"
+            f"\n  Yaw Moment Coefficient: {moments[2] / self.qbar / self.S / self.b:.6f}")
 
             print(f"Body Forces:")
             print(f"  X: {forces[0]:.6f}")

@@ -292,7 +292,7 @@ class Simulator(object):
         if not self.paused:
             self.paused = True
             self.time_at_last_pause = self.elapsed_time
-            if self.control_sys.is_hitl():
+            if self.control_sys is not None and self.control_sys.is_hitl():
                 self.control_sys.paused()
 
     def unpause_sim(self):
@@ -300,7 +300,7 @@ class Simulator(object):
         if self.paused:
             self.paused = False
             self.start_time = time.time()
-            if self.control_sys.is_hitl():
+            if self.control_sys is not None and self.control_sys.is_hitl():
                 self.control_sys.unpaused()
 
     def pause_or_unpause_sim(self):

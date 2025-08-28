@@ -296,6 +296,14 @@ class BRGRConfig(object):
                         (self.el + self.trim_el), \
                         (self.power + self.trim_power)], 'd')
 
+    def use_realistic_mixing(self):
+        """Realistic mixing, where surfaces are mapped to aileron, elevator, throttle"""
+        self.plav_mixing = 0
+
+    def use_plav_mixing(self):
+        """PLAV Mixing"""
+        self.plav_mixing = 1
+
     def calculate_grid_fin_forces(self):
         """Calculates the forces of each grid fin"""
         qbar = self.get_qbar()
@@ -319,8 +327,8 @@ class BRGRConfig(object):
         if self.plav_mixing == 1:
             #theta is the angle of deflection of the surface
             deflection_top  = -ail_command*0.2 + rdr_command*0.2
-            deflection_star = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.3
-            deflection_port = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.3
+            deflection_star = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
+            deflection_port = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
         else:
             deflection_top  = self.ail    * math.pi/2
             deflection_star = self.el     * math.pi/2
