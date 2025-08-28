@@ -11,6 +11,7 @@ import plav.quaternion_math as quat
 from plav.vehicle_models.generic_aircraft_config import \
     get_dynamic_viscosity,get_wind_to_body_axis,velocity_to_alpha_beta
 
+from plav.plav import load_scenario
 
 spec = [
     #geometrics
@@ -46,6 +47,8 @@ spec = [
     #areodynamics
     ('C_L0', float64),
     ('C_La', float64),
+    ('C_Lmax', float64),
+    ('C_Lmin', float64),
     ('C_D0', float64),
     ('epsilon', float64),
     ('C_m0', float64),
@@ -74,7 +77,7 @@ spec = [
     ('star_force', float64[:]),
     ('port_force', float64[:]),
 
-    ('plav_mixing', bool)
+    ('plav_mixing', int64)
 
 ]
 
@@ -119,11 +122,11 @@ class BRGRConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
     information and even giving forces"""
 
-    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, C_m0, C_ma,\
+    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_Lmax, C_Lmin, C_D0, epsilon, C_m0, C_ma,\
                     C_mq, C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
                     trim_rudder, trim_aileron, trim_elevator, trim_throttle, has_gridfins = 0, \
                     C_XYlutX = np.array([0.0, 0.0]), C_XlutY =np.array([0.0, 0.0]), \
-                    C_YlutY = np.array([0.0, 0.0]), plav_mixing = False):
+                    C_YlutY = np.array([0.0, 0.0]), plav_mixing = 1):
 
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
@@ -144,6 +147,8 @@ class BRGRConfig(object):
 
         self.C_L0 = C_L0
         self.C_La = C_La
+        self.C_Lmax = C_Lmax
+        self.C_Lmin = C_Lmin
         self.C_D0 = C_D0
         self.epsilon = epsilon
         self.C_m0 = C_m0
@@ -232,9 +237,15 @@ class BRGRConfig(object):
             q_hat = self.cmac * q/2/self.airspeed
             r_hat = self.bref * r/2/self.airspeed
 
-        C_L = self.C_L0 + self.C_La * self.alpha #this needs to be limited but it isnt working right
+        C_L = self.C_L0 + self.C_La * self.alpha
+
+        if C_L > self.C_Lmax:
+            C_L = self.C_Lmax
+        if C_L < self.C_Lmin:
+            C_L = self.C_Lmin
+
         C_D = self.C_D0 + self.epsilon * C_L**2 + self.C_Db * abs(self.beta)
-        C_m = self.C_m0 + self.C_mq * q_hat + self.C_mbb * self.beta ** 2
+        C_m = self.C_m0 + self.C_mq * q_hat #+ self.C_mbb * self.beta ** 2
         # + self.C_ma * self.alpha this is covered by crossing forces with x_cp
 
         C_Y = self.C_Yb * self.beta #side force
@@ -305,11 +316,11 @@ class BRGRConfig(object):
         el_command  = self.el + self.trim_el
         rdr_command = self.rdr + self.trim_rdr
 
-        if self.plav_mixing:
+        if self.plav_mixing == 1:
             #theta is the angle of deflection of the surface
-            deflection_top  = -ail_command + rdr_command
-            deflection_star = -ail_command + rdr_command*yaw_adjustment_factor + el_command
-            deflection_port = -ail_command + rdr_command*yaw_adjustment_factor - el_command
+            deflection_top  = -ail_command*0.2 + rdr_command*0.2
+            deflection_star = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.3
+            deflection_port = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.3
         else:
             deflection_top  = self.ail    * math.pi/2
             deflection_star = self.el     * math.pi/2
@@ -440,6 +451,8 @@ def init_aircraft(config_file) -> BRGRConfig:
     bref = config_file['bref']
     C_L0 = config_file['C_L0']
     C_La = config_file['C_La']
+    C_Lmax = config_file['C_Lmax']
+    C_Lmin = config_file['C_Lmin']
     C_D0 = config_file['C_D0']
     epsilon = config_file['k2']
     C_m0 = config_file['C_m0']
@@ -468,12 +481,21 @@ def init_aircraft(config_file) -> BRGRConfig:
     C_XlutY  = np.array(config_file['C_XlutY'], 'd')
     C_YlutY  = np.array(config_file['C_YlutY'], 'd')
 
-    plav_mixing = config_file['plav_mixing']
+    if config_file['plav_mixing']:
+        plav_mixing = 1
+        print("Using PLAV mixing")
+    else:
+        plav_mixing = 0
+        print("Using realistics mixing")
 
     aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm,\
-                                C_L0, C_La, C_D0, epsilon, C_m0, C_ma, C_mq,\
+                                C_L0, C_La, C_Lmax, C_Lmin, C_D0, epsilon, C_m0, C_ma, C_mq,\
                                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db,\
                                 C_nb, trim_rudder, trim_aileron, trim_elevator, trim_throttle,
                                 1, C_XYlutX, C_XlutY, C_YlutY, plav_mixing)
     #none for control unit
     return aircraft_model
+
+#modelparam = load_scenario("scenarios/brgrDroneDrop.json")
+
+#air = init_aircraft(modelparam)

@@ -5,9 +5,9 @@
     "angleunits":"radians",
     "massunits": "kilograms",
 
-    "use_generic_aircraft":true,
+    "use_generic_aircraft": true,
 
-    "has_control":false,
+    "has_control": false,
 
     "init_alt": 120,
     "init_vel": [0.0, 0.0, 0.1],
@@ -35,6 +35,8 @@
 
     "C_L0": 0.44,
     "C_La": 5.2521,
+    "C_Lmax": 1.3,
+    "C_Lmin":-0.4,
     "C_D0": 0.02457,
     "k2": 0.028,
     "C_Db": 0.03667,
@@ -42,7 +44,7 @@
     "C_m0": 0.07,
     "C_ma": -0.52087,
     "C_mq": -0.1,
-    "C_mbb": 27.575,
+    "C_mbb": 0.0,
 
     "C_nb": -0.038197,
     "C_Yb":  -0.2005,

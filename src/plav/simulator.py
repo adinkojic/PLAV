@@ -160,6 +160,8 @@ class Simulator(object):
             init_state, time_span, aircraft: AircraftConfig, sim_atmosphere: Atmosphere,
             control_sys: ArduPilotSITL = None,t_step = 0.1
                 ):
+        print("entered sim object")
+        
         self.state = init_state
         self.t_span = time_span
         self.time = time_span[0]
@@ -180,7 +182,9 @@ class Simulator(object):
         self.control_sys = control_sys
 
         #log the inital state
+        print("prexdot")
         x_dot(self.time, self.state, aircraft, sim_atmosphere, self.sim_log)
+        print("postxdot")
         self.sim_log.save_line()
 
     def advance_timestep(self):

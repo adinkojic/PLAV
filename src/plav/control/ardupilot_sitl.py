@@ -42,13 +42,17 @@ class ArduPilotSITL:
         self.frame_rate_hz = 1
         self.fresh_data = False
 
+
+
         self.transmitted = time.time()
 
         receiver_thread = threading.Thread(target=self.servo_receiver, daemon=True)
-        sender_thread = threading.Thread(target=self.sitl_sender, daemon=True)
+        #sender_thread = threading.Thread(target=self.sitl_sender, daemon=True)
         self.servo_receiver(True) #run at least once to get the addy
+        print(self.frame_rate_hz)
         receiver_thread.start()
-        sender_thread.start()
+        self.sitl_sender()
+        #sender_thread.start()
         print('SITL UDP communication initialized')
 
     def servo_receiver(self, oneshot= False):
@@ -66,15 +70,16 @@ class ArduPilotSITL:
                 self.frame_rate_hz = decoded[1]
                 frame_number = decoded[2]
                 pwm = decoded[3:]
+                #print(self.frame_rate_hz)
 
                 #print(frame_number)
 
                 if 1000 <= pwm[0] <= 2000:
                     self.ardupilot_aileron  = (pwm[0] -1500) / 500.0#pwm pulse to our servo deflection
-                else:
-                    print(f"pwm out of bounds: {pwm[0]}")
+                #else:
+                    #print(f"pwm out of bounds: {pwm[0]}")
                 if 1000 <= pwm[1] <= 2000:
-                    self.ardupilot_elevator = (pwm[1] -1500) / 500.0 * 0
+                    self.ardupilot_elevator = -(pwm[1] -1500) / 500.0
                 if 1000 <= pwm[2] <= 2000:
                     self.ardupilot_throttle = (pwm[2] -1500) / 500.0
                 if 1000 <= pwm[3] <= 2000:
@@ -83,47 +88,46 @@ class ArduPilotSITL:
                 #TODO: if frame_rate_hz != RATE_HZ: ... RATE_HZ = frame_rate_hz
                 #TODO: reset logic
                 self.frame_count += 1
+
             except socket.timeout:
                 time.sleep(0.01)
-            except KeyboardInterrupt:
-                break
 
     def sitl_sender(self):
         """daemon that the data to SITL
         transmits every frame after fresh data
         1 s if otherwise"""
 
-        while True:
+        #if not self.fresh_data:
+        #    if time.time() - self.transmitted < 1.0:
+        #        continue
 
-            if not self.fresh_data:
-                if time.time() - self.transmitted < 1:
-                    continue
+        json_data = {
+            "timestamp": self.phys_time,
+            "imu": {
+                "gyro": self.gyro,
+                "accel_body": self.accel
+            },
+            "position": self.pos,
+            "quaternion": self.quat,
+            #"attitude": rpy,
+            "velocity": self.velo
+        }
 
-            json_data = {
-                "timestamp": self.phys_time,
-                "imu": {
-                    "gyro": self.gyro,
-                    "accel_body": self.accel
-                },
-                "position": self.pos,
-                "quaternion": self.quat,
-                #"attitude": rpy,
-                "velocity": self.velo
-            }
+        #print(json_data["timestamp"])
 
-            #print(json_data["timestamp"])
-
-            try:
-                self.sock.sendto((json.dumps(json_data, separators=(',', ':')) + "\n").encode("ascii"), self.address)
-                self.transmitted = time.time()
-                print("Sent data to SITL" + time.time())
-            except TypeError:
-                pass
-            
-            
-            if self.fresh_data:
-                self.fresh_data = False
-            time.sleep(1/self.frame_rate_hz)
+        try:
+            print("trying to send")
+            self.sock.sendto((json.dumps(json_data, separators=(',', ':')) + "\n").encode("ascii"), self.address)
+            self.transmitted = time.time()
+            print("Sent data to SITL" + time.time())
+        except TypeError:
+            pass
+        
+        
+        #if self.fresh_data:
+        #    self.fresh_data = False
+        #time.sleep(1/self.frame_rate_hz)
+        #time.sleep(0.001)
     
     def get_control_output(self):
         """Returns latest control output"""
@@ -147,12 +151,14 @@ class ArduPilotSITL:
         #rpy = [latest_data[slog.SDI_ROLL], latest_data[slog.SDI_PITCH], latest_data[slog.SDI_YAW]]
 
         self.fresh_data = True
+        self.sitl_sender()
 
-        
+        #sender_thread = threading.Thread(target=self.sitl_sender, daemon=True)
+        #sender_thread.start()
 
     def is_hitl(self):
         """Check if the control system is HITL/SITL"""
-        return True
+        return False
 
     def update_pilot_control(self, pilot_control_long, pilot_control_lat, pilot_control_yaw, \
                         pilot_control_throttle):

@@ -77,7 +77,7 @@ def test():
     typer.echo('hello')
 
 @app.command()
-def run_offline_sim(scenario_name,
+def offline_sim(scenario_name,
             no_gui: Annotated[bool, typer.Option("--nogui")] = False,
             output_file_name = "output.csv"):
     """Runs a hard simulation"""
@@ -89,7 +89,7 @@ def run_offline_sim(scenario_name,
     plav_obj = Plav(scenario_name,[0,30], no_gui = no_gui)
 
 @app.command()
-def sim_with_sitl(scenario_name,
+def sitl_sim(scenario_name,
             ardupilot_ip = "0.0.0.0",
             no_gui: Annotated[bool, typer.Option("--nogui")] = False,
             output_file_name = "output.csv"):
@@ -104,7 +104,7 @@ def sim_with_sitl(scenario_name,
 
 
 @app.command()
-def run_interactive_sim(scenario_name, output_file_name = "output.csv"):
+def interactive_sim(scenario_name, output_file_name = "output.csv"):
     """Runs an interactive sim. Can reload scenarios, change vehicles, etc"""
 
     if ".json" not in scenario_name:

@@ -201,14 +201,19 @@ class Plav(object):
         if self.use_sitl:
             self.control_unit = ArduPilotSITL(ardupilot_ip = self.ardupilot_ip)
 
+        print("Control Unit Ready")
+
         self.hitl_active = False
         if self.control_unit is not None:
             self.hitl_active = self.control_unit.is_hitl()
-            
+
+        print("Prepping sim")
 
         t_span = np.array(timespan, 'd')
         self.sim_object = Simulator(y0, t_span, self.aircraft, atmosphere,
                             control_sys = self.control_unit, t_step=0.01)
+        
+        print("Sim Ready")
 
         if real_time is False:
             sim_start_time = time.perf_counter()
@@ -219,7 +224,7 @@ class Plav(object):
         self.active = True
         self.address = None
             
-
+        print(runsim)
         if runsim:
             print("Running sim")
             self.run_simulation()
@@ -236,6 +241,8 @@ class Plav(object):
 
             plotter_object = Plotter(sim_data, self.window_title)
             flight_stick = PilotJoystick(self.sim_object.pause_or_unpause_sim)
+
+        print("PreUpdate")
 
         def update():
             """Update loop for simulation"""
@@ -254,7 +261,7 @@ class Plav(object):
         timer.timeout.connect(update)
 
         if not self.no_gui or self.hitl_active:
-            update_loop_speed_ms = 10
+            update_loop_speed_ms = 1
             timer.start(update_loop_speed_ms)
 
         #if export_to_csv and not self.real_time:
