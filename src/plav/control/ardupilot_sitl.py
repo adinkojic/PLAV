@@ -75,7 +75,7 @@ class ArduPilotSITL:
                 #print(frame_number)
 
                 if 1000 <= pwm[0] <= 2000:
-                    self.ardupilot_aileron  = (pwm[0] -1500) / 500.0#pwm pulse to our servo deflection
+                    self.ardupilot_aileron = (pwm[0] -1500) / 500.0#pwm pulse our servo deflection
                 #else:
                     #print(f"pwm out of bounds: {pwm[0]}")
                 if 1000 <= pwm[1] <= 2000:
@@ -100,7 +100,6 @@ class ArduPilotSITL:
         #if not self.fresh_data:
         #    if time.time() - self.transmitted < 1.0:
         #        continue
-
         json_data = {
             "timestamp": self.phys_time,
             "imu": {
@@ -116,13 +115,11 @@ class ArduPilotSITL:
         #print(json_data["timestamp"])
 
         try:
-            print("trying to send")
             self.sock.sendto((json.dumps(json_data, separators=(',', ':')) + "\n").encode("ascii"), self.address)
-            self.transmitted = time.time()
-            print("Sent data to SITL" + time.time())
+        except socket.timeout:
+            pass
         except TypeError:
             pass
-        
         
         #if self.fresh_data:
         #    self.fresh_data = False
@@ -150,7 +147,7 @@ class ArduPilotSITL:
 
         #rpy = [latest_data[slog.SDI_ROLL], latest_data[slog.SDI_PITCH], latest_data[slog.SDI_YAW]]
 
-        self.fresh_data = True
+        #self.fresh_data = True
         self.sitl_sender()
 
         #sender_thread = threading.Thread(target=self.sitl_sender, daemon=True)
@@ -158,7 +155,7 @@ class ArduPilotSITL:
 
     def is_hitl(self):
         """Check if the control system is HITL/SITL"""
-        return False
+        return True
 
     def update_pilot_control(self, pilot_control_long, pilot_control_lat, pilot_control_yaw, \
                         pilot_control_throttle):

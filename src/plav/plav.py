@@ -257,6 +257,7 @@ class Plav(object):
 
 
 
+
         timer = QtCore.QTimer()
         timer.timeout.connect(update)
 
