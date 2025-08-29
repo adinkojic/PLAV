@@ -119,7 +119,7 @@ def offline_sim(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,7200], no_gui = no_gui)
+    plav_obj = Plav(scenario_name,[0,30], no_gui = no_gui)
 
 @app.command()
 def sitl_sim(scenario_name,

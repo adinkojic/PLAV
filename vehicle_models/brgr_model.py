@@ -87,6 +87,9 @@ spec = [
     ('brgr_Sref', float64),
     ('brgr_mass', float64),
 
+    ('prev_command', float64[:]),
+    ('prev_position', float64[:]),
+
 ]
 
 @jit
@@ -156,6 +159,9 @@ class BRGRConfig(object):
         self.ail   = 0.0
         self.el    = 0.0
         self.power = 0.0
+
+        self.prev_command = np.zeros(3, 'd')
+        self.prev_position = np.zeros(3, 'd')
 
         self.C_L0 = C_L0
         self.C_La = C_La
@@ -394,13 +400,27 @@ class BRGRConfig(object):
 
         if self.plav_mixing == 1:
             #theta is the angle of deflection of the surface
-            deflection_top  = -ail_command*0.2 + rdr_command*0.2
-            deflection_star = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
-            deflection_port = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
+            deflection_top_command  = -ail_command*0.2 + rdr_command*0.2
+            deflection_star_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
+            deflection_port_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
         else:
-            deflection_top  = self.ail    * math.pi/2
-            deflection_star = self.el     * math.pi/2
-            deflection_port = self.power  * math.pi/2
+            deflection_top_command = self.ail    * math.pi/2
+            deflection_star_command = self.el     * math.pi/2
+            deflection_port_command = self.power  * math.pi/2
+
+        #this is a low pass filter to make the servos act realistic
+        b_0 = 0.0154662914
+        b_1 = 0.0154662914
+        a_1 = 0.9690674172
+        current_command = np.array([deflection_top_command, deflection_star_command, deflection_port_command, self.power], 'd')
+
+        deflection_top = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
+        deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
+        deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
+
+        #store previous commands and positions
+        self.prev_command = current_command
+        self.prev_position = np.array([deflection_top, deflection_star, deflection_port], 'd')
 
         #get local alpha and beta in to each fin
         ab_top  = get_local_alpha_beta(self.velocity, gamma_top,  deflection_top )
