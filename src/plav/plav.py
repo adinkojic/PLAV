@@ -8,6 +8,7 @@ Refactored 3 to OOO style
 import sys
 import json
 import time
+from datetime import datetime, timezone
 import math
 from pathlib import Path
 import importlib.util
@@ -35,6 +36,7 @@ from plav.joystick_reader import JoystickReader
 from plav.plotter import Plotter
 from plav.pilot_control import PilotJoystick
 from plav.control.ardupilot_sitl import ArduPilotSITL
+from plav.air_profile_generator import get_live_wind_profile
 
 import plav.conversions as conv
 import plav.step_logging as slog # for log data indices
@@ -120,12 +122,17 @@ def load_aircraft_config(modelparam) -> tuple[AircraftConfig, typing.Any]:
 
     return aircraft, control_unit
 
-def load_atmosphere(modelparam, use_file_atmosphere:bool = True):
+def load_atmosphere(modelparam, use_file_atmosphere:bool = True, use_live_atmosphere:bool = False):
     """load the atmosphere config from the modelparam and return an Atmosphere object"""
-    if use_file_atmosphere:
+    if use_file_atmosphere and not use_live_atmosphere:
         wind_alt_profile       = np.array(modelparam['wind_alt_profile'], dtype='d')
         wind_speed_profile     = np.array(modelparam['wind_speed_profile'], dtype='d')
         wind_direction_profile = np.array(modelparam['wind_direction_profile'], dtype='d')
+    if use_live_atmosphere:
+        wind_alt_profile, wind_speed_profile, wind_direction_profile = get_live_wind_profile(
+                            lat=modelparam['init_lat']*conv.RAD_TO_DEG,
+                            lon=modelparam['init_lon']*conv.RAD_TO_DEG,
+                            time=datetime.now(timezone.utc))
     else:
         wind_alt_profile = np.array([0, 0], dtype='d')
         wind_speed_profile = np.array([0, 0], dtype='d')
@@ -181,7 +188,8 @@ class Plav(object):
     """Plav Simulator Object. Instaniating launches a simulator thread"""
     def __init__(self, scenario_file: str, timespan, timestep = 0.01,
                          real_time=False, no_gui = False, export_to_csv=True, runsim=True,
-                         use_sitl=False, ardupilot_ip = "127.0.0.1", imu_noise=False):
+                         use_sitl=False, ardupilot_ip = "127.0.0.1", imu_noise=False,
+                         live_atmosphere = False):
         self.no_gui = no_gui
         use_flight_gear = False
         self.real_time = real_time
@@ -195,7 +203,7 @@ class Plav(object):
             sys.exit(1)
 
         self.aircraft, self.control_unit = load_aircraft_config(modelparam)
-        atmosphere = load_atmosphere(modelparam)
+        atmosphere = load_atmosphere(modelparam, use_live_atmosphere=live_atmosphere)
         y0 = load_init_position(modelparam)
 
         if self.use_sitl:

@@ -42,6 +42,7 @@ class ArduPilotSITL:
         self.quat = [1.0, 0.0, 0.0, 0.0]
         self.pos = [0.0, 0.0, 0.0]
         self.velo = [0.0, 0.0, 0.0]
+        self.airspeed = 0.0
 
         self.frame_rate_hz = 1
         self.fresh_data = False
@@ -65,7 +66,6 @@ class ArduPilotSITL:
 
         receiver_thread = threading.Thread(target=self.servo_receiver, daemon=True)
         self.servo_receiver(True) #run at least once to get the addy
-        print(self.frame_rate_hz)
         receiver_thread.start()
         self.sitl_sender()
         self.sender_thread = None
@@ -158,9 +158,10 @@ class ArduPilotSITL:
             "position": self.pos,
             "quaternion": self.quat,
             #"attitude": rpy,
-            "velocity": self.velo
+            "velocity": self.velo,
+            "airspeed": self.airspeed,
         }
-
+        #print(self.pos[2])
 
         try:
             self.sock.sendto((json.dumps(json_data, separators=(',', ':')) + "\n").encode("ascii"), self.address)
@@ -187,6 +188,8 @@ class ArduPilotSITL:
                latest_data[slog.SDI_DELTA_D]]
 
         self.velo = [latest_data[slog.SDI_VN], latest_data[slog.SDI_VE], latest_data[slog.SDI_VD]]
+
+        self.airspeed = latest_data[slog.SDI_TAS]
 
         #rpy = [latest_data[slog.SDI_ROLL], latest_data[slog.SDI_PITCH], latest_data[slog.SDI_YAW]]
 

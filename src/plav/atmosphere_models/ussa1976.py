@@ -101,6 +101,12 @@ class Atmosphere(object):
         self.current_density = 0.0
         self.current_temperature = 0.0
 
+    def change_wind_profile(self, wind_alt_profile, wind_speed_profile, wind_direction_profile):
+        """updates the wind profile"""
+        self.wind_alt       = wind_alt_profile
+        self.wind_speed     = wind_speed_profile
+        self.wind_direction = wind_direction_profile
+
     def update_conditions(self, altitude, time = 0.0):
         """Updates experienced atmosphere conditons
         must be called every timestep"""

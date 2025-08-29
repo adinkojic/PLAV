@@ -27,9 +27,9 @@
     "init_lon": -1.28751267,
     "init_ori": [0.0, -89.9, 0.0],
 
-    "wind_alt_profile": [0, 200],
-    "wind_speed_profile": [0.0, 0.0],
-    "wind_direction_profile": [0, 0],
+    "wind_alt_profile": [0, 30000],
+    "wind_speed_profile": [10.0, 30.0],
+    "wind_direction_profile": [0.0, 0.0],
 
     "mass": 1.8,
     "inertiatensor": [
