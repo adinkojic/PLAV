@@ -125,6 +125,7 @@ def offline_sim(scenario_name,
 def sitl_sim(scenario_name,
             ardupilot_ip = "0.0.0.0",
             no_gui: Annotated[bool, typer.Option("--nogui")] = False,
+            imu_noise: Annotated[bool, typer.Option("--noise")] = False,
             output_file_name = "output.csv"):
     """Simulates the Vehicle with ArduPilot's SITL"""
     if ".json" not in scenario_name:
@@ -133,7 +134,7 @@ def sitl_sim(scenario_name,
 
     typer.echo("Starting scenario " + scenario_name)
     plav_obj = Plav(scenario_name,[0,0.01], timestep=0.001, no_gui = no_gui, real_time=True,
-                    use_sitl=True, ardupilot_ip = ardupilot_ip)
+                    use_sitl=True, ardupilot_ip = ardupilot_ip, imu_noise=imu_noise)
 
 
 @app.command()

@@ -2,7 +2,11 @@
 
 import time, socket, struct, json, threading
 
+import numpy as np
+
+from plav.imu_noise import IMUNoise, deg_to_rad, ug_to_mps2_per_sqrtHz, dph_to_radps
 import plav.step_logging as slog
+
 
 class ArduPilotSITL:
     """ArduPilot interface for Control
@@ -11,7 +15,7 @@ class ArduPilotSITL:
     127.0.0.1 if running both in Linux
     """
 
-    def __init__(self, ardupilot_ip = "0.0.0.0", ardupilot_port = 9002):
+    def __init__(self, ardupilot_ip = "0.0.0.0", ardupilot_port = 9002, add_noise = False):
         self.ardupilot_ip = ardupilot_ip
         # --- UDP communication setup ---
         print('Initalizing SITL UDP communication')
@@ -33,8 +37,8 @@ class ArduPilotSITL:
         self.address = None
 
         self.phys_time = 0.0
-        self.gyro = [0.0, 0.0, 0.0]
-        self.accel = [0.0, 0.0, 0.0]
+        self.gyro = np.zeros(3,'d')
+        self.accel = np.zeros(3,'d')
         self.quat = [1.0, 0.0, 0.0, 0.0]
         self.pos = [0.0, 0.0, 0.0]
         self.velo = [0.0, 0.0, 0.0]
@@ -43,6 +47,19 @@ class ArduPilotSITL:
         self.fresh_data = False
 
         self.sim_paused = False
+
+        if add_noise:
+            self.imu_noise = IMUNoise( #values taken from ICM-45686 datasheet
+                fs=1000.0,
+                gyro_nd=deg_to_rad(0.0038),
+                accel_nd=ug_to_mps2_per_sqrtHz(70.0),
+                gyro_bias_sigma=dph_to_radps(10.0),
+                gyro_bias_tau=500.0,
+                accel_bias_sigma=1.0e-2*9.80665,
+                accel_bias_tau=500.0,
+            )
+        else:
+            self.imu_noise = None
 
         self.transmitted = time.time()
 
@@ -120,11 +137,23 @@ class ArduPilotSITL:
         #if not self.fresh_data:
         #    if time.time() - self.transmitted < 1.0:
         #        continue
+
+        
+
+        if self.imu_noise is not None:
+            gyro_out, accel_out = self.imu_noise.step(self.gyro,self.accel)
+        else:
+            gyro_out = self.gyro
+            accel_out = self.accel
+
+        gyro_out = gyro_out.tolist()
+        accel_out = accel_out.tolist()
+
         json_data = {
             "timestamp": self.phys_time,
             "imu": {
-                "gyro": self.gyro,
-                "accel_body": self.accel
+                "gyro": gyro_out,
+                "accel_body": accel_out
             },
             "position": self.pos,
             "quaternion": self.quat,
@@ -132,7 +161,6 @@ class ArduPilotSITL:
             "velocity": self.velo
         }
 
-        #print(json_data["timestamp"])
 
         try:
             self.sock.sendto((json.dumps(json_data, separators=(',', ':')) + "\n").encode("ascii"), self.address)
@@ -148,9 +176,9 @@ class ArduPilotSITL:
     def update_environment(self, latest_data):
         """Sends the environment data to the SITL"""
         self.phys_time = latest_data[slog.SDI_TIME]
-        self.gyro = [latest_data[slog.SDI_P], latest_data[slog.SDI_Q], latest_data[slog.SDI_R]]
+        self.gyro = np.array([latest_data[slog.SDI_P], latest_data[slog.SDI_Q], latest_data[slog.SDI_R]],'d')
 
-        self.accel = [latest_data[slog.SDI_AX], latest_data[slog.SDI_AY], latest_data[slog.SDI_AZ]]
+        self.accel = np.array([latest_data[slog.SDI_AX], latest_data[slog.SDI_AY], latest_data[slog.SDI_AZ]],'d')
 
         self.quat = [latest_data[slog.SDI_Q1], latest_data[slog.SDI_Q2],
                 latest_data[slog.SDI_Q3], latest_data[slog.SDI_Q4]]

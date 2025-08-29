@@ -412,7 +412,7 @@ class BRGRConfig(object):
         b_0 = 0.0154662914
         b_1 = 0.0154662914
         a_1 = 0.9690674172
-        current_command = np.array([deflection_top_command, deflection_star_command, deflection_port_command, self.power], 'd')
+        current_command = np.array([deflection_top_command, deflection_star_command, deflection_port_command], 'd')
 
         deflection_top = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
         deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]

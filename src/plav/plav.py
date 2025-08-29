@@ -181,7 +181,7 @@ class Plav(object):
     """Plav Simulator Object. Instaniating launches a simulator thread"""
     def __init__(self, scenario_file: str, timespan, timestep = 0.01,
                          real_time=False, no_gui = False, export_to_csv=True, runsim=True,
-                         use_sitl=False, ardupilot_ip = "127.0.0.1"):
+                         use_sitl=False, ardupilot_ip = "127.0.0.1", imu_noise=False):
         self.no_gui = no_gui
         use_flight_gear = False
         self.real_time = real_time
@@ -199,7 +199,7 @@ class Plav(object):
         y0 = load_init_position(modelparam)
 
         if self.use_sitl:
-            self.control_unit = ArduPilotSITL(ardupilot_ip = self.ardupilot_ip)
+            self.control_unit = ArduPilotSITL(ardupilot_ip = self.ardupilot_ip, add_noise=imu_noise)
 
         print("Control Unit Ready")
 
