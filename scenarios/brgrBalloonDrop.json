@@ -20,11 +20,11 @@
     "trim_elevator": -0.1,
     "trim_throttle": 0.0,
 
-    "init_alt": 34300.0,
+    "init_alt": 10000.0,
     "init_vel": [ 0.0, 0.0,  0.0],
     "init_rot": [0.0, 0.0, 0.0],
-    "init_lat": 0.7038736595,
-    "init_lon": -1.303283080,
+    "init_lat": 0.702839063228,
+    "init_lon": -1.28751267,
     "init_ori": [0.0, -89.9, 0.0],
 
     "wind_alt_profile": [0, 200],

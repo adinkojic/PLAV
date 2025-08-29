@@ -232,13 +232,16 @@ class Plav(object):
         """Main thread for running the sim (blocking)"""
 
         sim_data = self.sim_object.return_results()
+
+        print(sim_data.shape)
         if not self.no_gui:
             # Create main Qt application
             app = QtWidgets.QApplication([])
             pg.setConfigOptions(antialias=True)
 
             plotter_object = Plotter(sim_data, self.window_title)
-            flight_stick = PilotJoystick(self.sim_object.pause_or_unpause_sim)
+            flight_stick = PilotJoystick(self.sim_object.pause_or_unpause_sim, 
+                                         self.sim_object.trigger_aircraft_event)
 
         def update():
             """Update loop for simulation"""

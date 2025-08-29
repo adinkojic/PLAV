@@ -7,7 +7,7 @@ class PilotJoystick(QtWidgets.QMainWindow):
     """Pilot joystick and pause button class for simulation
     pausing_function: func that when called pauses/unpause sim"""
 
-    def __init__(self, pausing_function):
+    def __init__(self, pausing_function, aircraft_event):
         super().__init__()
         self.setWindowTitle('Real Time Flying')
         # Create a central widget and layout
@@ -26,15 +26,18 @@ class PilotJoystick(QtWidgets.QMainWindow):
         # Create control panel with Pause/Unpause buttons
         button_layout = QtWidgets.QHBoxLayout()
         pause_button = QtWidgets.QPushButton("Pause/Play")
+        event_button = QtWidgets.QPushButton("Send Event")
         self.joystick = pg.JoystickButton()
         self.joystick.setFixedWidth(30)
         self.joystick.setFixedHeight(30)
         button_layout.addWidget(pause_button)
+        button_layout.addWidget(event_button)
         button_layout.addWidget(self.joystick)
         controls_layout.addLayout(button_layout)
 
         # Connect buttons to simulation control
         pause_button.clicked.connect(pausing_function)
+        event_button.clicked.connect(aircraft_event)
         self.show()
 
     def get_joystick_pos(self):

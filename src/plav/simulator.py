@@ -258,6 +258,10 @@ class Simulator(object):
                 self.advance_timestep()
         return self.return_results()
 
+    def trigger_aircraft_event(self):
+        """Triggers an event in the aircraft"""
+        self.aircraft.trigger_event()
+
     def change_aircraft(self, new_aircraft_config: AircraftConfig):
         """Changes the aircraft for future timesteps"""
         self.aircraft = new_aircraft_config

@@ -8,49 +8,6 @@ from numba.experimental import jitclass
 from plav.quaternion_math import to_euler
 import plav.conversions as conv
 
-spec = [
-
-    ('time', float64),
-
-    #positionals
-    ('lon_lat_alt', float64[:]),
-    ('ned_velocity', float64[:]),
-
-    ('body_acceleration', float64[:]),
-
-    #rotationals
-    ('body_rate', float64[:]),
-    ('quat', float64[:]),
-    ('euler', float64[:]),
-
-    #forces and moments
-    ('aero_body_force', float64[:]),
-    ('aero_body_moment', float64[:]),
-    ('thrust', float64),
-
-    #enviroment
-    ('local_gravity', float64),
-    ('speed_of_sound', float64),
-    ('mach', float64),
-    ('dynamic_pressure', float64),
-    ('true_airspeed', float64),
-    ('air_density', float64),
-    ('ambient_pressure', float64),
-    ('ambient_temperature', float64),
-
-    ('control_deflection', float64[:]),
-
-    #derived
-    ('alpha', float64),
-    ('beta', float64),
-    ('reynolds', float64),
-
-    ('data', float64[:,:]),
-    ('data_columns', int64),
-    ('valid_data_size', int64)
-
-]
-
 #index of data in sim_data
 SDI_TIME = 0
 SDI_Q1 = 1
@@ -102,11 +59,58 @@ SDI_AZ = 46
 
 SDI_LINE_SIZE = 47 #total size of a line
 
+spec = [
+
+    ('time', float64),
+
+    #positionals
+    ('lon_lat_alt', float64[:]),
+    ('ned_velocity', float64[:]),
+
+    ('body_acceleration', float64[:]),
+
+    #rotationals
+    ('body_rate', float64[:]),
+    ('quat', float64[:]),
+    ('euler', float64[:]),
+
+    #forces and moments
+    ('aero_body_force', float64[:]),
+    ('aero_body_moment', float64[:]),
+    ('thrust', float64),
+
+    #enviroment
+    ('local_gravity', float64),
+    ('speed_of_sound', float64),
+    ('mach', float64),
+    ('dynamic_pressure', float64),
+    ('true_airspeed', float64),
+    ('air_density', float64),
+    ('ambient_pressure', float64),
+    ('ambient_temperature', float64),
+
+    ('control_deflection', float64[:]),
+
+    #derived
+    ('alpha', float64),
+    ('beta', float64),
+    ('reynolds', float64),
+
+    ('data', float64[:,:]),
+    ('data_columns', int64),
+    ('valid_data_size', int64),
+    ('line', float64[:]),
+    ('save_interval', float64),
+
+]
+
 @jitclass(spec)
 class SimDataLogger(object):
     """Jitted Logger Object to Run in the Function as an arg"""
 
     def __init__(self, preallocated = 1):
+        self.save_interval = 0.1 #configurable saving interval
+
         self.time = 0.0
 
         self.lon_lat_alt = np.zeros(3)
@@ -137,12 +141,10 @@ class SimDataLogger(object):
         self.control_deflection = np.zeros(4,'d')
         self.body_acceleration = np.zeros(3,'d')
 
-        line = self.make_line()
+        self.line = self.make_line()
 
-        data_columns = np.size(line)
-
-        self.data_columns = int64(np.size(line))
-        self.data = np.zeros((data_columns, int64(preallocated)))
+        self.data_columns = int64(np.size(self.line))
+        self.data = np.zeros((self.data_columns, int64(preallocated)))
         self.valid_data_size = 0
 
     def get_lastest(self):
@@ -150,7 +152,7 @@ class SimDataLogger(object):
         if self.valid_data_size == 0:
             return None
         else:
-            return self.data[:, self.valid_data_size - 1]
+            return self.line
 
     def load_line(self, time, state, aero_body_force, \
                     aero_body_moment, local_gravity, speed_of_sound, mach ,dynamic_pressure, \
@@ -255,8 +257,13 @@ class SimDataLogger(object):
 
     def save_line(self):
         """Saves the currently loaded data as a line"""
-        line = self.make_line()
-        self.append_data(line)
+        self.line = self.make_line()
+
+        this_time = self.line[SDI_TIME]
+        last_time = self.data[SDI_TIME, self.valid_data_size - 1]
+
+        if self.valid_data_size == 0 or (this_time - last_time) >= self.save_interval:
+            self.append_data(self.line)
 
     def increase_size(self):
         """Double the data size if necessary"""

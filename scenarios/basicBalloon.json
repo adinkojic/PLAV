@@ -8,7 +8,7 @@
     "use_generic_aircraft":false,
         "aircraft_file":"balloon_model.py",
 
-    "gas_cf": 200,
+    "gas_cf": 10000,
     "burst_dia_ft": 42.7,
 
     "init_alt": 33000,

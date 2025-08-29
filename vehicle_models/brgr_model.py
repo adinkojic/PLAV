@@ -123,7 +123,9 @@ def get_x_rotation_matrix(angle):
     rotation_around_body = np.array([ [1., 0, 0], \
                          [0, math.cos(angle), -math.sin(angle)], \
                          [0, math.sin(angle), math.cos(angle)] ], 'd')
-    return np.ascontiguousarray(rotation_around_body)
+    
+    rotation_around_body = np.ascontiguousarray(rotation_around_body)
+    return rotation_around_body
 
 @jitclass(spec)
 class BRGRConfig(object):
@@ -329,6 +331,10 @@ class BRGRConfig(object):
         """PLAV Mixing"""
         self.plav_mixing = 1
 
+    def trigger_event(self):
+        """Triggers cut_balloon event"""
+        self.cut_balloon()
+
     def cut_balloon(self):
         """Cuts the balloon"""
         self.on_balloon = 0
@@ -337,7 +343,7 @@ class BRGRConfig(object):
 
     def get_buoyancy_force(self):
         """Solves for buoyancy forces"""
-        self.mass = self.brgr_mass + 3.0 #3kg balloon
+        self.mass = self.brgr_mass + 3.5 #3kg balloon + 0.5 kg He
 
         pressure_sea = 101_325.0 #Pa
         temperature_sea = 288.15 #K

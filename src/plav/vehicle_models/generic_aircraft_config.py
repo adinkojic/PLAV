@@ -275,6 +275,10 @@ class AircraftConfig(object):
     def get_mass(self):
         """Returns mass in kg"""
         return self.mass
+    
+    def trigger_event(self):
+        """does nothing"""
+        pass
 
     def get_Re(self, density, viscosity):
         """Gets reynolds number from given conditions"""

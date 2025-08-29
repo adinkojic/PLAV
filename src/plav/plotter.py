@@ -7,6 +7,7 @@ from PyQt6 import QtWidgets, QtCore
 from pyqtgraph.Qt import QtCore
 from matplotlib import colormaps
 import pyqtgraph as pg
+from scipy import signal
 
 import plav.conversions as conv
 import plav.step_logging as slog # for log data indices
@@ -109,10 +110,10 @@ class Plotter(QtWidgets.QMainWindow):
                               pen =pen0, name="Path")
 
 
-        altitude_plot = plot_widget.addPlot(title="Altitude [ft] vs Time")
+        altitude_plot = plot_widget.addPlot(title="Altitude [m] vs Time")
         #altitude_plot.addLegend()
         self.alt = altitude_plot.plot(self.sim_data[slog.SDI_TIME],
-                                 self.sim_data[slog.SDI_ALT]*conv.M_TO_FT,
+                                 self.sim_data[slog.SDI_ALT],
                                  pen=(240,20,20), name="Altitude")
 
         downrange_plot = plot_widget.addPlot(title="Downrange Distance [m] vs Time")
@@ -124,7 +125,7 @@ class Plotter(QtWidgets.QMainWindow):
 
         airspeed = plot_widget.addPlot(title="Airspeed [TAS] vs Time")
         #airspeed.addLegend()
-        self.speed = airspeed.plot(self.sim_data[slog.SDI_TIME], 
+        self.speed = airspeed.plot(self.sim_data[slog.SDI_TIME],
                               self.sim_data[slog.SDI_TAS]*conv.MPS_TO_KTS,
                               pen=(40, 40, 180), name="airspeed")
 
@@ -149,40 +150,40 @@ class Plotter(QtWidgets.QMainWindow):
 
         plot_widget.nextRow()
 
-        velocity_plot = plot_widget.addPlot(title="Velocity [ft/s] vs Time [s]")
+        velocity_plot = plot_widget.addPlot(title="Velocity [m/s] vs Time [s]")
         velocity_plot.addLegend()
         self.vn = velocity_plot.plot(self.sim_data[slog.SDI_TIME],
-                                self.sim_data[slog.SDI_VN]*conv.M_TO_FT,
+                                self.sim_data[slog.SDI_VN],
                                 pen=(240,20,20), name="Vn")
         self.ve = velocity_plot.plot(self.sim_data[slog.SDI_TIME],
-                                self.sim_data[slog.SDI_VE]*conv.M_TO_FT,
+                                self.sim_data[slog.SDI_VE],
                                 pen=(20,240,20), name="Ve")
         self.vd = velocity_plot.plot(self.sim_data[slog.SDI_TIME],
-                                self.sim_data[slog.SDI_VD]*conv.M_TO_FT,
+                                self.sim_data[slog.SDI_VD],
                                 pen=(240,20,240), name="Vd")
 
-        body_forces = plot_widget.addPlot(title="Body force [lbf] vs Time")
+        body_forces = plot_widget.addPlot(title="Body force [N] vs Time")
         body_forces.addLegend()
         self.fx = body_forces.plot(self.sim_data[slog.SDI_TIME],
-                              self.sim_data[slog.SDI_FX] *conv.N_TO_LBF,
+                              self.sim_data[slog.SDI_FX],
                               pen=(40, 40, 255), name="X")
         self.fy = body_forces.plot(self.sim_data[slog.SDI_TIME],
-                              self.sim_data[slog.SDI_FY] *conv.N_TO_LBF,
+                              self.sim_data[slog.SDI_FY],
                               pen=(40, 255, 40), name="Y")
         self.fz = body_forces.plot(self.sim_data[slog.SDI_TIME],
-                              self.sim_data[slog.SDI_FZ] *conv.N_TO_LBF,
+                              self.sim_data[slog.SDI_FZ],
                               pen=(255, 40, 40), name="Z")
 
-        body_moment = plot_widget.addPlot(title="Body Moment [ft lbf] vs Time")
+        body_moment = plot_widget.addPlot(title="Body Moment [N m] vs Time")
         body_moment.addLegend()
         self.mx = body_moment.plot(self.sim_data[slog.SDI_TIME],
-                              self.sim_data[slog.SDI_MX] *conv.NM_TO_LBF_FT,
+                              self.sim_data[slog.SDI_MX],
                               pen=(40, 40, 180), name="X")
         self.my = body_moment.plot(self.sim_data[slog.SDI_TIME],
-                              self.sim_data[slog.SDI_MY] *conv.NM_TO_LBF_FT,
+                              self.sim_data[slog.SDI_MY],
                               pen=(40, 180, 40), name="Y")
         self.mz = body_moment.plot(self.sim_data[slog.SDI_TIME],
-                              self.sim_data[slog.SDI_MZ] *conv.NM_TO_LBF_FT,
+                              self.sim_data[slog.SDI_MZ],
                               pen=(180, 40, 40), name="Z")
 
 
@@ -200,9 +201,9 @@ class Plotter(QtWidgets.QMainWindow):
 
         plot_widget.nextRow()
 
-        local_gravity = plot_widget.addPlot(title="Local Gravity [ft/s^2] vs Time")
+        local_gravity = plot_widget.addPlot(title="Local Gravity [m/s^2] vs Time")
         self.gravity = local_gravity.plot(self.sim_data[slog.SDI_TIME],
-                                     self.sim_data[slog.SDI_GRAVITY] *conv.M_TO_FT,
+                                     self.sim_data[slog.SDI_GRAVITY],
                                      pen=(10,130,20), name="Gravity")
 
         air_density_plot = plot_widget.addPlot(title="Air density [kg/m^3] vs Time")
@@ -274,16 +275,17 @@ class Plotter(QtWidgets.QMainWindow):
         """Set new simulation data and update plots."""
         self.sim_data = new_sim_data
 
+
         # Update all plot data
         self.lon.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_LONG]*conv.RAD_TO_DEG)
         self.lat.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_LAT]*conv.RAD_TO_DEG)
-        self.alt.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_ALT]*conv.M_TO_FT)
+        self.alt.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_ALT])
         self.path.setData(self.sim_data[slog.SDI_LONG]*conv.RAD_TO_DEG,
                           self.sim_data[slog.SDI_LAT]*conv.RAD_TO_DEG)
 
-        self.vn.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_VN]*conv.M_TO_FT)
-        self.ve.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_VE]*conv.M_TO_FT)
-        self.vd.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_VD]*conv.M_TO_FT)
+        self.vn.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_VN])
+        self.ve.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_VE])
+        self.vd.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_VD])
 
         self.p.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_P]*conv.RAD_TO_DEG)
         self.q.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_Q]*conv.RAD_TO_DEG)
@@ -297,15 +299,15 @@ class Plotter(QtWidgets.QMainWindow):
                          self.sim_data[slog.SDI_YAW]*conv.RAD_TO_DEG)
 
         self.gravity.setData(self.sim_data[slog.SDI_TIME],
-                             self.sim_data[slog.SDI_GRAVITY]*conv.M_TO_FT)
+                             self.sim_data[slog.SDI_GRAVITY])
 
-        self.fx.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_FX]*conv.N_TO_LBF)
-        self.fy.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_FY]*conv.N_TO_LBF)
-        self.fz.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_FZ]*conv.N_TO_LBF)
+        self.fx.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_FX])
+        self.fy.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_FY])
+        self.fz.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_FZ])
 
-        self.mx.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_MX]*conv.NM_TO_LBF_FT)
-        self.my.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_MY]*conv.NM_TO_LBF_FT)
-        self.mz.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_MZ]*conv.NM_TO_LBF_FT)
+        self.mx.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_MX])
+        self.my.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_MY])
+        self.mz.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_MZ])
 
         self.speed.setData(self.sim_data[slog.SDI_TIME],
                            self.sim_data[slog.SDI_TAS]*conv.MPS_TO_KTS)
