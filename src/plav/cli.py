@@ -48,12 +48,29 @@ def wind_tunnel(scenario_name):
                 if cmd in ("exit", "quit"):
                     typer.echo("Shutdown Wind Tunnel")
                     break
+                if cmd in ("help"):
+                    typer.echo("Available commands:")
+                    typer.echo("  exit, quit: Shutdown Wind Tunnel")
+                    typer.echo("  alpha <value>: Set angle of attack")
+                    typer.echo("  beta <value>: Set sideslip angle")
+                    typer.echo("  airspeed <value>: Set airspeed")
+                    typer.echo("  trim <value>: Trim out the vehicle at the specified airspeed")
+                    typer.echo("  density: Print air density")
+                    typer.echo("  solve: Solve for forces and coefficients at current conditions")
+                    typer.echo("  aileron <value>: Set aileron deflection")
+                    typer.echo("  elevator <value>: Set elevator deflection")
+                    typer.echo("  rudder <value>: Set rudder deflection")
+                    typer.echo("  throttle <value>: Set throttle")
+                    typer.echo("  realistic_mixing: Use realistic mixing for control surfaces")
+                    typer.echo("  plav_mixing: Use PLAV mixing for control surfaces")
                 if cmd in ("alpha"):
                     tunnel.change_alpha(float(rest[0]))
                 if cmd in ("beta"):
                     tunnel.change_beta(float(rest[0]))
                 if cmd in ("airspeed"):
                     tunnel.change_airspeed(float(rest[0]))
+                if cmd in ("altitude"):
+                    tunnel.change_altitude(float(rest[0]))
                 if cmd in ("solve"):
                     tunnel.solve_forces()
                 if cmd in ("reload"):
@@ -75,6 +92,8 @@ def wind_tunnel(scenario_name):
                     tunnel.use_realistic_mixing()
                 if cmd in ("plav_mixing"):
                     tunnel.use_plav_mixing()
+                if cmd in ("balloon_diameter"):
+                    typer.echo(f"Balloon Diameter: {tunnel.get_balloon_diameter()} ft")
                 if cmd in ("echo"):
                     typer.echo("echo")
                     continue
@@ -100,7 +119,7 @@ def offline_sim(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,30], no_gui = no_gui)
+    plav_obj = Plav(scenario_name,[0,600], no_gui = no_gui)
 
 @app.command()
 def sitl_sim(scenario_name,

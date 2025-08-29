@@ -43,6 +43,7 @@ spec = [
     ('density', float64),
     ('temperature', float64),
     ('mach', float64),
+    ('gravity', float64[:]),
 
     #areodynamics
     ('C_L0', float64),
@@ -77,7 +78,14 @@ spec = [
     ('star_force', float64[:]),
     ('port_force', float64[:]),
 
-    ('plav_mixing', int64)
+    ('plav_mixing', int64),
+    ('on_balloon', int64),
+    ('gas_cf', float64),
+    ('burst_dia_ft', float64),
+    ('burst_flag', float64),
+    ('balloon_volume', float64),
+    ('brgr_Sref', float64),
+    ('brgr_mass', float64),
 
 ]
 
@@ -126,12 +134,15 @@ class BRGRConfig(object):
                     C_mq, C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
                     trim_rudder, trim_aileron, trim_elevator, trim_throttle, has_gridfins = 0, \
                     C_XYlutX = np.array([0.0, 0.0]), C_XlutY =np.array([0.0, 0.0]), \
-                    C_YlutY = np.array([0.0, 0.0]), plav_mixing = 1):
+                    C_YlutY = np.array([0.0, 0.0]), plav_mixing = 1, on_balloon = 0, \
+                    gas_cf = 200, burst_dia_ft = 47.2):
 
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
         self.cmac = cmac
         self.Sref = Sref
+        self.brgr_Sref = Sref
+        self.brgr_mass = mass
         self.bref = bref
         self.cp_wrt_cm = cp_wrt_cm
 
@@ -168,7 +179,7 @@ class BRGRConfig(object):
 
         self.altitude = 0.0
         self.velocity = np.zeros(3, 'd')
-        self.omega = np.zeros(3)
+        self.omega = np.zeros(3, 'd')
         self.airspeed = 0.0
         self.alpha = 0.0
         self.beta = 0.0
@@ -176,6 +187,7 @@ class BRGRConfig(object):
         self.density = 0.0
         self.temperature = 0.0
         self.mach = 0.0
+        self.gravity = np.zeros(3,'d')
 
         self.C_XYlutX = C_XYlutX
         self.C_XlutY  = C_XlutY
@@ -187,6 +199,13 @@ class BRGRConfig(object):
         self.port_force = np.array([0.,0.,0.], 'd')
 
         self.plav_mixing = plav_mixing
+        self.on_balloon = on_balloon
+
+        self.gas_cf = gas_cf
+        self.burst_dia_ft = burst_dia_ft
+        self.burst_flag = 0
+        self.balloon_volume = gas_cf / 35.315
+        
 
     def update_control(self, rudder, aileron, elevator, throttle):
         """Give the simulation a new control vector"""
@@ -202,12 +221,13 @@ class BRGRConfig(object):
         self.trim_el    = elevator
         self.trim_power = throttle
 
-    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
+    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound, gravity):
         """Update altitude and velocity it thinks it's at
         Call this before every get_forces()"""
         self.altitude = altitude
         self.velocity = velocity
         self.omega = omega
+        self.gravity = gravity
 
         self.density = density
         self.temperature = temperature
@@ -257,7 +277,6 @@ class BRGRConfig(object):
     def get_forces(self):
         """Gets forces on aircraft from state and known derivatives"""
 
-
         C_L,C_D,C_m, C_Y, C_l, C_n = self.get_coeff()
 
         qbar = 0.5 * self.density *self.airspeed**2
@@ -287,6 +306,12 @@ class BRGRConfig(object):
             body_forces_body = body_forces_body + gridfin_forces
             moments_with_torque = moments_with_torque + gridfin_moments
 
+        if self.on_balloon == 1:
+            balloon_forces, moment_from_balloon = self.get_buoyancy_force()
+            body_forces_body = body_forces_body + balloon_forces
+            moments_with_torque = moments_with_torque + moment_from_balloon
+
+
         return body_forces_body, moments_with_torque
 
     def get_control_deflection(self):
@@ -303,6 +328,44 @@ class BRGRConfig(object):
     def use_plav_mixing(self):
         """PLAV Mixing"""
         self.plav_mixing = 1
+
+    def cut_balloon(self):
+        """Cuts the balloon"""
+        self.on_balloon = 0
+        self.Sref = self.brgr_Sref
+        self.mass = self.brgr_mass
+
+    def get_buoyancy_force(self):
+        """Solves for buoyancy forces"""
+        self.mass = self.brgr_mass + 3.0 #3kg balloon
+
+        pressure_sea = 101_325.0 #Pa
+        temperature_sea = 288.15 #K
+        density_sea = (287.05 * temperature_sea) /pressure_sea
+
+        volume_sea = self.gas_cf / 35.315 #cubic feet to m^3
+        burst_volume = (4/3) * np.pi * (self.burst_dia_ft / 3.281 / 2)**3
+
+        amb_pressure = 287.05 * self.temperature * self.density
+
+        self.balloon_volume = pressure_sea * volume_sea * temperature_sea /self.temperature /amb_pressure
+
+        self.Sref = (self.balloon_volume /(4/3) / np.pi)**(2/3) * np.pi #approx cross sectional area from volume
+
+        if self.balloon_volume > burst_volume :
+            self.burst_flag = 1
+
+        if self.burst_flag == 1:
+            self.Sref = 10.0
+            self.cut_balloon()
+            return np.zeros(3,'d'), np.zeros(3,'d')
+
+        bouancy_force = self.density * self.balloon_volume * -self.gravity
+
+        mounting_arm = np.array([-0.4826, 0.001, 0.0254], 'd') #from cm to center of balloon
+        bouancy_moment = np.cross(mounting_arm, bouancy_force)
+
+        return bouancy_force, bouancy_moment
 
     def calculate_grid_fin_forces(self):
         """Calculates the forces of each grid fin"""
@@ -496,11 +559,21 @@ def init_aircraft(config_file) -> BRGRConfig:
         plav_mixing = 0
         print("Using realistics mixing")
 
+    if config_file['on_balloon']:
+        on_balloon = 1
+        gas_cf = config_file['gas_cf']
+        burst_dia_ft = config_file['burst_dia_ft']
+        print("Using balloon model")
+    else:
+        on_balloon = 0
+        gas_cf = 0.0
+        burst_dia_ft = 0.0
+
     aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm,\
                                 C_L0, C_La, C_Lmax, C_Lmin, C_D0, epsilon, C_m0, C_ma, C_mq,\
                                 C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db,\
                                 C_nb, trim_rudder, trim_aileron, trim_elevator, trim_throttle,
-                                1, C_XYlutX, C_XlutY, C_YlutY, plav_mixing)
+                                1, C_XYlutX, C_XlutY, C_YlutY, plav_mixing, on_balloon, gas_cf, burst_dia_ft)
     #none for control unit
     return aircraft_model
 

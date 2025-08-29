@@ -43,6 +43,7 @@ spec = [
     ('density', float64),
     ('temperature', float64),
     ('mach', float64),
+    ('gravity', float64[:]),
 ]
 
 @jit(float64(float64, float64, float64[:], float64[:], float64[:,:]))
@@ -114,8 +115,8 @@ class F16Aircraft(object):
         ]) #kg m^2
 
         self.altitude = 0.0
-        self.velocity = np.zeros(3)
-        self.omega = np.zeros(3)
+        self.velocity = np.zeros(3,'d')
+        self.omega = np.zeros(3,'d')
         self.airspeed = 0
         self.alpha = 0
         self.beta = 0
@@ -123,6 +124,7 @@ class F16Aircraft(object):
         self.density = 0
         self.temperature = 0
         self.mach = 0
+        self.gravity = np.zeros(3,'d')
 
         self.cp_wrt_cm = self.get_aero_center_wrt_cm()
 
@@ -141,12 +143,13 @@ class F16Aircraft(object):
         self.trim_el    = elevator * 25.0
         self.trim_power = throttle * 1.0
 
-    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound):
+    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound, gravity):
         """Update altitude and velocity it thinks it's at
         Call this before every get_forces()"""
         self.altitude = altitude
         self.velocity = velocity
         self.omega = omega
+        self.gravity = gravity
 
         self.density = density
         self.temperature = temperature

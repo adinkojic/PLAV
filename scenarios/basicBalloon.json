@@ -1,0 +1,60 @@
+{
+    "title": "Case 1: Dragless Sphere",
+    "modeldate":"3/13/25",
+    "lengthunits":"meters",
+    "angleunits":"radians",
+    "massunits": "kilograms",
+
+    "use_generic_aircraft":false,
+        "aircraft_file":"balloon_model.py",
+
+    "gas_cf": 200,
+    "burst_dia_ft": 42.7,
+
+    "init_alt": 33000,
+    "init_vel": [0, 0, 0],
+    "init_rot": [0, 0.0, 0.0],
+    "init_lat": 0.0,
+    "init_lon": 0.0,
+    "init_ori": [0.0, 0.0, 0.0],
+
+    "wind_alt_profile": [0, 0],
+    "wind_speed_profile": [0, 0],
+    "wind_direction_profile": [0, 0],
+
+    "mass": 5.0,
+    "inertiatensor": [
+        [4.88094461, 0.0, 0.0],
+        [0.0, 4.88094461, 0.0],
+        [0.0, 0.0, 4.88094461]
+    ],
+    "xcp_wrt_cm": [0.0, 0.0, 0.0],
+
+    "Sref": 1.0,
+    "cref": 0.0,
+    "bref": 0.0,
+    
+    "C_L0": 0.0,
+    "C_La": 0.0,
+    "C_D0": 1.0,
+    "k2": 0.0,
+
+    "C_m0": 0.0,
+    "C_ma": 0.0,
+    "C_mq": -0.1,
+
+    "C_Yb":  0.0,
+    "C_l":  0.0,
+    "C_lp": -0.1,
+    "C_lr": 0.0,
+    "C_np": 0.0,
+    "C_nr": -0.1,
+
+    "C_Db": 0.0,
+    "C_mbb": 0.0,
+    "C_nb": 0.0,
+
+    "has_control":false
+
+
+}

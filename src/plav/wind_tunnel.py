@@ -8,9 +8,10 @@ import numpy as np
 #from plav import get_gravity
 
 from plav.atmosphere_models.ussa1976 import get_pressure_density_temp, get_speed_of_sound
-from plav.quaternion_math import rotateFrameQ
+from plav.quaternion_math import rotateFrameQ, rotateVectorQ
 from plav.vehicle_models.generic_aircraft_config import AircraftConfig
 from plav.vehicle_models.generic_aircraft_config import velocity_to_alpha_beta, alpha_beta_to_velocity, get_wind_to_body_axis
+from plav.simulator import get_gravity
 
 from plav.plav import load_scenario, load_aircraft_config
 from plav.trim_solver import trim_glider_hddot0
@@ -42,6 +43,8 @@ class WindTunnel(object):
         self.pilot_elevator = 0.0
         self.pilot_throttle = 0.0
 
+        self.gravity = np.array([0.0, 0.0, 9.81], 'd')
+
     def reload_vehicle(self):
         """Reload the vehicle model"""
         modelparam = load_scenario("scenarios/" + self.scenario_file)
@@ -70,6 +73,9 @@ class WindTunnel(object):
         self.pdt = get_pressure_density_temp(altitude)
         self.density = self.pdt[1]
         self.update_qbar()
+        gravity_mag = get_gravity(0.78, self.altitude)
+        q = np.array([1,0,0,0], 'd')
+        self.gravity = rotateVectorQ(q, np.array([0, 0, gravity_mag]))
 
     def change_rudder(self, rudder):
         """Model rudder [rad]"""
@@ -122,6 +128,10 @@ class WindTunnel(object):
         self.model.use_plav_mixing()
         print("Using plav mixing")
 
+    def get_balloon_diameter(self):
+        """Get the current balloon volume"""
+        return self.model.get_balloon_diameter()
+
     def set_aileron(self, aileron):
         """directly set aileron command"""
         self.pilot_aileron = aileron
@@ -142,7 +152,7 @@ class WindTunnel(object):
         """Solve and print forces"""
         wind_velocity = alpha_beta_to_velocity(self.airspeed, self.alpha, self.beta)
         self.model.update_conditions(self.altitude, wind_velocity, self.body_rate, \
-                                    self.density, self.pdt[2], self.speed_of_sound)
+                                    self.density, self.pdt[2], self.speed_of_sound, self.gravity)
         self.model.update_control(
             self.pilot_rudder,
             self.pilot_aileron,
@@ -151,7 +161,11 @@ class WindTunnel(object):
         )
         forces, moments = self.model.get_forces()
 
-        
+        try:
+            self.S = self.model.get_area()
+        except AttributeError:
+            pass
+
         wind_to_body_axis = get_wind_to_body_axis(self.alpha, self.beta)
         forces = rotateFrameQ(wind_to_body_axis, forces)
         coeff_forces = forces / self.qbar / self.S

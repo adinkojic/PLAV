@@ -1,5 +1,4 @@
-"""Aircraft config file with helper functions
-Abstracted away from any special state config"""
+"""Basic balloon model"""
 import math
 
 import numpy as np
@@ -7,6 +6,8 @@ from numba import float64
 from numba.experimental import jitclass
 from numba import jit
 from plav.quaternion_math import from_angle_axis, mulitply, rotateVectorQ
+
+
 
 spec = [
     #geometrics
@@ -17,15 +18,7 @@ spec = [
     ('inertiamatrix', float64[:,:]),
     ('cp_wrt_cm', float64[:]),
 
-    ('rdr', float64),
-    ('ail', float64),
-    ('el', float64),
-    ('power', float64),
-
-    ('trim_rdr', float64),
-    ('trim_ail', float64),
-    ('trim_el', float64),
-    ('trim_power', float64),
+    
 
     #enviromentals
     ('altitude', float64),
@@ -40,31 +33,23 @@ spec = [
     ('mach', float64),
     ('gravity', float64[:]),
 
-    #areodynamics
-    ('C_L0', float64),
-    ('C_La', float64),
+    
     ('C_D0', float64),
     ('epsilon', float64),
-    ('C_m0', float64),
-    ('C_ma', float64),
-    ('C_mq', float64),
-    ('C_mbb', float64),
-    ('C_Yb', float64),
-    ('C_R', float64),
-    ('C_Z', float64),
-    ('C_Db', float64),
-    ('C_nb', float64),
+    
 
-    ('C_Yb', float64),
-    ('C_l', float64),
+    ('C_mq', float64),
     ('C_lp', float64),
-    ('C_lr', float64),
-    ('C_np', float64),
     ('C_nr', float64),
 
+    #balloon specific
+    ('gas_cf', float64),
+    ('burst_dia_ft', float64),
+    ('burst_flag', float64),
+    ('balloon_volume', float64)
 ]
 
-@jit(float64(float64),cache=True)
+@jit(float64(float64))
 def get_dynamic_viscosity(temperature):
     """Equation 51 of USSA1976"""
     beta = 1.458e-6
@@ -74,7 +59,7 @@ def get_dynamic_viscosity(temperature):
 
     return mu
 
-@jit(float64[:](float64[:]),cache=True)
+@jit(float64[:](float64[:]))
 def velocity_to_alpha_beta(velocity_body):
     """Gets velocity to alpha beta, assumes x direction is datum
     Reference: Fundamentals of Helicopter Dyanmics 10.42, 10.43"""
@@ -88,7 +73,7 @@ def velocity_to_alpha_beta(velocity_body):
 
     return np.array([airspeed, alpha, beta], 'd')
 
-@jit(float64[:](float64,float64,float64),cache=True)
+@jit(float64[:](float64,float64,float64))
 def alpha_beta_to_velocity(airspeed, alpha, beta):
     """Turns airspeed, alpha, and beta to UVW values"""
     u = airspeed * math.cos(beta) * math.cos(alpha)
@@ -97,7 +82,7 @@ def alpha_beta_to_velocity(airspeed, alpha, beta):
 
     return np.array([u, v, w], 'd')
 
-@jit(float64[:](float64, float64),cache=True)
+@jit(float64[:](float64, float64))
 def get_wind_to_body_axis(alpha, beta):
     """Gets velocity to body axis, assumes x direction is datum"""
     beta_rot  = from_angle_axis(-beta, np.array([0.0, 0.0, 1.0]))
@@ -111,9 +96,7 @@ class AircraftConfig(object):
     """Aircraft jit'd object, responsible for storing all aircraft
     information and even givings forces"""
 
-    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_D0, epsilon, \
-                C_m0, C_ma, C_mq, C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
-                trim_rudder = 0, trim_aileron = 0, trim_elevator = 0, trim_throttle = 0):
+    def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_D0, C_mq, C_lp, C_nr, gas_cf, burst_dia_ft):
         self.mass = mass
         self.inertiamatrix = np.ascontiguousarray(inertia)
         self.cmac = cmac
@@ -121,34 +104,11 @@ class AircraftConfig(object):
         self.bref = bref
         self.cp_wrt_cm = cp_wrt_cm
 
-        self.trim_rdr   = trim_rudder
-        self.trim_ail   = trim_aileron
-        self.trim_el    = trim_elevator
-        self.trim_power = trim_throttle
-
-        self.rdr   = 0.0
-        self.ail   = 0.0
-        self.el    = 0.0
-        self.power = 0.0
-
-        self.C_L0 = C_L0
-        self.C_La = C_La
+        
         self.C_D0 = C_D0
-        self.epsilon = epsilon
-        self.C_m0 = C_m0
-        self.C_ma = C_ma
-        self.C_mq = C_mq
-        self.C_mbb= C_mbb
-        self.C_Db = C_Db
-
-        self.C_Yb = C_Yb
-        self.C_l  = C_l
         self.C_lp = C_lp
-        self.C_lr = C_lr
-        self.C_np = C_np
+        self.C_mq = C_mq
         self.C_nr = C_nr
-        self.C_nb = C_nb
-
 
         self.altitude = 0.0
         self.velocity = np.zeros(3, 'd')
@@ -162,19 +122,17 @@ class AircraftConfig(object):
         self.mach = 0.0
         self.gravity = np.zeros(3, 'd')
 
+        self.gas_cf = gas_cf
+        self.burst_dia_ft = burst_dia_ft
+        self.burst_flag = 0
+        self.balloon_volume = gas_cf / 35.315
+
     def update_control(self, rudder, aileron, elevator, throttle):
-        """Give the simulation a new control vector"""
-        self.rdr   = rudder
-        self.ail   = aileron
-        self.el    = elevator
-        self.power = throttle
+        """pass"""
+        
 
     def update_trim(self, rudder, aileron, elevator, throttle):
-        """Give the simulation a new trim vector"""
-        self.trim_rdr   = rudder
-        self.trim_ail   = aileron
-        self.trim_el    = elevator
-        self.trim_power = throttle
+        """pass"""
 
     def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound, gravity):
         """Update altitude and velocity it thinks it's at
@@ -203,7 +161,7 @@ class AircraftConfig(object):
         p, q, r = self.omega[0], self.omega[1], self.omega[2]
 
         #non-dimensional airspeed
-        if abs(self.airspeed) < 0.1: #avoids div/0
+        if self.airspeed**2 < 0.1: #avoids div/0
             p_hat = 0
             q_hat = 0
             r_hat = 0
@@ -212,14 +170,14 @@ class AircraftConfig(object):
             q_hat = self.cmac * q/2/self.airspeed
             r_hat = self.bref * r/2/self.airspeed
 
-        C_L = self.C_L0 + self.C_La * self.alpha #this needs to be limited but it isnt working right
-        C_D = self.C_D0 + self.epsilon * C_L**2 + self.C_Db * abs(self.beta)
-        C_m = self.C_m0 + self.C_mq * q_hat + self.C_mbb * self.beta ** 2
+        C_L = 0.0
+        C_D = self.C_D0
+        C_m = self.C_mq * q_hat
         # + self.C_ma * self.alpha this is covered by crossing forces with x_cp
 
-        C_Y = self.C_Yb * self.beta #side force
-        C_l = self.C_l + self.C_lr * r_hat + self.C_lp * p_hat #roll
-        C_n = self.C_np * p_hat + self.C_nr * r_hat # -self.C_nb * self.beta#yaw force
+        C_Y = 0.0
+        C_l = self.C_lp * p_hat
+        C_n = self.C_nr * r_hat
 
         return C_L,C_D,C_m, C_Y, C_l, C_n
 
@@ -245,6 +203,8 @@ class AircraftConfig(object):
 
         aero_moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
 
+        body_forces_body = body_forces_body + self.get_buoyancy_force()
+
         moments_with_torque = np.array([
             aero_moments[0] - self.cp_wrt_cm[2]*body_forces_body[1] + self.cp_wrt_cm[1]*body_forces_body[2],
             aero_moments[1] + self.cp_wrt_cm[2]*body_forces_body[0] - self.cp_wrt_cm[0]*body_forces_body[2],
@@ -253,12 +213,48 @@ class AircraftConfig(object):
 
         return body_forces_body, moments_with_torque
 
+    def get_buoyancy_force(self):
+        """Solves for buoyancy forces"""
+
+        pressure_sea = 101_325.0 #Pa
+        temperature_sea = 288.15 #K
+        density_sea = (287.05 * temperature_sea) /pressure_sea
+
+        volume_sea = self.gas_cf / 35.315 #cubic feet to m^3
+        burst_volume = (4/3) * np.pi * (self.burst_dia_ft / 3.281 / 2)**3
+
+        amb_pressure = 287.05 * self.temperature * self.density
+
+        self.balloon_volume = pressure_sea * volume_sea * temperature_sea /self.temperature /amb_pressure
+
+        self.Sref = (self.balloon_volume /(4/3) / np.pi)**(2/3) * np.pi #approx cross sectional area from volume
+
+        if self.balloon_volume > burst_volume :
+            self.burst_flag = 1
+
+        if self.burst_flag == 1:
+            self.Sref = 10.0
+            return np.zeros(3,'d')
+
+        bouancy_force = self.density * self.balloon_volume * -self.gravity
+
+        return bouancy_force
+    
+    def get_area(self):
+        """Returns Sref"""
+        return self.Sref
+
+    def get_burst_flag(self):
+        """Returns burst flag"""
+        return self.burst_flag
+    
+    def get_balloon_diameter(self):
+        """returns current diameter [ft]"""
+        return (self.balloon_volume * 35.315 /(4/3) / np.pi)**(1/3) * 2 #diameter from volume
+
     def get_control_deflection(self):
         """Returns the current control state"""
-        return np.array([(self.rdr + self.trim_rdr), \
-                        (self.ail + self.trim_ail), \
-                        (self.el + self.trim_el), \
-                        (self.power + self.trim_power)], 'd')
+        return np.zeros(4, 'd')
 
     def calculate_thrust(self):
         """dummy for now, returns 0.0"""
@@ -311,46 +307,20 @@ def init_aircraft(config_file) -> AircraftConfig:
     cmac = config_file['cref']
     Sref = config_file['Sref']
     bref = config_file['bref']
-    C_L0 = config_file['C_L0']
-    C_La = config_file['C_La']
+
     C_D0 = config_file['C_D0']
-    epsilon = config_file['k2']
-    C_m0 = config_file['C_m0']
-    C_ma = config_file['C_ma']
     C_mq = config_file['C_mq']
-    C_Db = config_file['C_Db']
-
-    C_Yb  = config_file['C_Yb']
-    C_l  = config_file['C_l']
     C_lp = config_file['C_lp']
-    C_lr = config_file['C_lr']
-    C_np = config_file['C_np']
     C_nr = config_file['C_nr']
-    C_nb = config_file['C_nb']
-
-    C_mbb = config_file['C_mbb']
 
 
     cp_wrt_cm = np.array( config_file['xcp_wrt_cm'])
 
+    gas_cf = config_file['gas_cf']
+    burst_dia_ft = config_file['burst_dia_ft']
 
-    if config_file['has_control']:
-        init_control_vector =  np.array(config_file['init_control'],'d')
-        aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, \
-                                        C_D0, epsilon, C_m0, C_ma, C_mq,C_Yb, C_l, C_lp, C_lr, \
-                                        C_np, C_nr, C_mbb, C_Db, C_nb, init_control_vector)
-    else:
-        aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, \
-                                        C_D0, epsilon, C_m0, C_ma, C_mq, C_Yb, C_l, C_lp, C_lr, \
-                                        C_np, C_nr, C_mbb, C_Db, C_nb)
+    aircraft_model = AircraftConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_D0, C_mq, C_lp, \
+                                    C_nr, gas_cf, burst_dia_ft)
 
     return aircraft_model
 
-def init_dummy_aircraft() -> AircraftConfig:
-    """Returns a dummy aircraft config for initialization"""
-
-    return AircraftConfig(mass = 1.0, inertia = np.eye(3,'d'), cmac = 1.0, Sref = 1.0, bref = 1.0,\
-                        cp_wrt_cm = np.array([1.0, 0.0, 0.0], 'd'), C_L0 = 0.0, C_La = 0.0, \
-                        C_D0 = 0.0, epsilon = 0.0, C_m0 = 0.0, C_ma = 0.0, C_mq = 0.0, C_Yb = 0.0,\
-                        C_l = 0.0, C_lp = 0.0, C_lr = 0.0, C_np = 0.0, C_nr = 0.0, C_mbb = 0.0, \
-                        C_Db = 0.0, C_nb = 0.0)
