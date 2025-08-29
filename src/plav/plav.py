@@ -179,7 +179,7 @@ def export_data(trimmed_sim_data):
 
 class Plav(object):
     """Plav Simulator Object. Instaniating launches a simulator thread"""
-    def __init__(self, scenario_file: str, timespan,
+    def __init__(self, scenario_file: str, timespan, timestep = 0.01,
                          real_time=False, no_gui = False, export_to_csv=True, runsim=True,
                          use_sitl=False, ardupilot_ip = "127.0.0.1"):
         self.no_gui = no_gui

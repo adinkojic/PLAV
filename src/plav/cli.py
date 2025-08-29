@@ -119,7 +119,7 @@ def offline_sim(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,1500], no_gui = no_gui)
+    plav_obj = Plav(scenario_name,[0,7200], no_gui = no_gui)
 
 @app.command()
 def sitl_sim(scenario_name,
@@ -132,7 +132,7 @@ def sitl_sim(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,0.01], no_gui = no_gui, real_time=True,
+    plav_obj = Plav(scenario_name,[0,0.01], timestep=0.001, no_gui = no_gui, real_time=True,
                     use_sitl=True, ardupilot_ip = ardupilot_ip)
 
 

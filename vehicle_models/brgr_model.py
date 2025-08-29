@@ -120,11 +120,10 @@ def get_local_alpha_beta(velocity, gamma, theta):
 @jit
 def get_x_rotation_matrix(angle):
     """Gets a rotation matrix about X, useful for fins [rad]"""
-    rotation_around_body = np.array([ [1., 0, 0], \
-                         [0, math.cos(angle), -math.sin(angle)], \
-                         [0, math.sin(angle), math.cos(angle)] ], 'd')
-    
-    rotation_around_body = np.ascontiguousarray(rotation_around_body)
+    rotation_around_body = np.array([ [1., 0.0, 0.0], \
+                         [0.0, math.cos(angle), -math.sin(angle)], \
+                         [0.0, math.sin(angle), math.cos(angle)] ], 'd')
+
     return rotation_around_body
 
 @jitclass(spec)
@@ -292,10 +291,10 @@ class BRGRConfig(object):
 
         wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
 
-        body_forces_wind = np.array([-body_drag, body_side, -body_lift])
+        body_forces_wind = np.array([-body_drag, body_side, -body_lift],'d')
         body_forces_body = quat.rotateVectorQ(wind_to_body, body_forces_wind)
 
-        aero_moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment])
+        aero_moments = np.array([body_rolling_moment, body_pitching_moment, body_yawing_moment],'d')
 
         moments_with_torque = np.array([
             aero_moments[0] - self.cp_wrt_cm[2]*body_forces_body[1] + self.cp_wrt_cm[1]*body_forces_body[2],
