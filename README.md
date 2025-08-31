@@ -12,14 +12,19 @@ To run the check cases youself, download the software and install the dependenci
 
 `pip install -r requirements.txt`
 
-There's no UI yet, so find the json file load input in `plav.py` and enter the approriate case. They are avaible in the `\aircraftConfigs` folder. There are options to use to real time and hardware-in-the-loop simulation and the sim duration. Run `plav.py` it will run the sim. The sim can be unpaused with the Pause/Play button.
-
 To test the HITL mode, install the sim proof-of-concept Arduino code in `\arduinoCode` with the Arduino IDE. Make sure you enter the correct COM port and close the Arduino IDE. The systems supports both offline and real-time simulation modes.
 
 ### ArduPilot SITL
 
 Works with ArduPilot's JSON with SITL (https://ardupilot.org/dev/docs/sitl-with-JSON.html)
 (Ardupilot control not fully implemented)
+
+Start PLAV first and make sure it's running. Run
+`plav sitl-sim --noise --live`
+`--noise` adds sensor noise, `--live` adds live wind data
+Remember to click the play button.
+
+Then, start ArduPilot SITL. (It works if you start ArduPilot first but SITL boots much quicker if PLAV is already running).
 
 If using WSL, run PLAV's sim_with_sitl with ip 0.0.0.0.
 To figure out the IP to use for ArduPilot, run `ip route | awk '/^default/ {print $3}'`
