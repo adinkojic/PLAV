@@ -30,4 +30,9 @@ If using WSL, run PLAV's sim_with_sitl with ip 0.0.0.0.
 To figure out the IP to use for ArduPilot, run `ip route | awk '/^default/ {print $3}'`
 Then use that ip in `../Tools/autotest/sim_vehicle.py -f JSON:[WINDOWSIP] --console --map` from the ArduPlane directory.
 
+Add 
+`BRGRBalloon=40.269712,-73.769042,34000.0,0
+BRGRDrone=40.3320972,-74.6733131, 120.0,0`
+to your locations.text in ArduPilot too
+
 If using Linux, use default values
