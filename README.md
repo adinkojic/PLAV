@@ -33,6 +33,6 @@ Then use that ip in `../Tools/autotest/sim_vehicle.py -f JSON:[WINDOWSIP] --cons
 Add 
 `BRGRBalloon=40.269712,-73.769042,34000.0,0
 BRGRDrone=40.3320972,-74.6733131, 120.0,0`
-to your locations.text in ArduPilot too
+to your locations.txt in ArduPilot too
 
 If using Linux, use default values
