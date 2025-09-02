@@ -60,6 +60,11 @@ class Plotter(QtWidgets.QMainWindow):
         self.downrange = None
         self.flight_path = None
 
+        self.rudder_cmd = None
+        self.aileron_cmd = None
+        self.throttle_cmd = None
+        self.elevator_cmd = None
+
         self.init_UI(title)
 
     def init_UI(self, title):
@@ -269,7 +274,20 @@ class Plotter(QtWidgets.QMainWindow):
                                      pen=(10,255,10),name="Elevator")
         self.throttle = control_plot.plot(self.sim_data[slog.SDI_TIME],
                                      self.sim_data[slog.SDI_THRUST_CMD],
-                                     pen=(255,255,255),name="Throttle")
+                                     pen=(128,128,128),name="Throttle")
+        
+        self.rudder_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
+                                             self.sim_data[slog.SDI_CONTROL_0],
+                                             pen=(50,50,255),name="Rudder Cmd")
+        self.aileron_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
+                                              self.sim_data[slog.SDI_CONTROL_1],
+                                              pen=(255,50,50),name="Aileron Cmd")
+        self.elevator_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
+                                               self.sim_data[slog.SDI_CONTROL_2],
+                                               pen=(50,255,50),name="Elevator Cmd")
+        self.throttle_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
+                                               self.sim_data[slog.SDI_CONTROL_3],
+                                               pen=(255,255,255),name="Throttle Cmd")
 
     def update_plots(self, new_sim_data):
         """Set new simulation data and update plots."""
@@ -336,3 +354,8 @@ class Plotter(QtWidgets.QMainWindow):
         self.aileron.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_AILERON_CMD])
         self.elevator.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_ELEVATOR_CMD])
         self.throttle.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_THRUST_CMD])
+
+        self.rudder_cmd.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_CONTROL_0])
+        self.aileron_cmd.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_CONTROL_1])
+        self.elevator_cmd.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_CONTROL_2])
+        self.throttle_cmd.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_CONTROL_3])

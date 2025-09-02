@@ -321,12 +321,19 @@ class BRGRConfig(object):
 
         return body_forces_body, moments_with_torque
 
-    def get_control_deflection(self):
-        """Returns the current control state"""
+    def get_control_command(self):
+        """Returns the current control command"""
         return np.array([(self.rdr + self.trim_rdr), \
                         (self.ail + self.trim_ail), \
                         (self.el + self.trim_el), \
                         (self.power + self.trim_power)], 'd')
+
+    def get_control_deflection(self):
+        """Returns the actual control surface deflections"""
+        return np.array([-self.prev_position[0], \
+                        self.prev_position[1], \
+                        -self.prev_position[2], \
+                        0.0], 'd')
 
     def use_realistic_mixing(self):
         """Realistic mixing, where surfaces are mapped to aileron, elevator, throttle"""
@@ -404,9 +411,9 @@ class BRGRConfig(object):
             deflection_star_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
             deflection_port_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
         else:
-            deflection_top_command = self.ail    * math.pi/2
-            deflection_star_command = self.el     * math.pi/2
-            deflection_port_command = self.power  * math.pi/2
+            deflection_top_command  = self.rdr * math.pi/2
+            deflection_star_command = self.ail * math.pi/2
+            deflection_port_command = self.el  * math.pi/2
 
         #this is a low pass filter to make the servos act realistic
         b_0 = 0.0154662914

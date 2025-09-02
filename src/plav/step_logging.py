@@ -56,8 +56,15 @@ SDI_DELTA_D = 43
 SDI_AX = 44
 SDI_AY = 45
 SDI_AZ = 46
+SDI_WIND_N = 47
+SDI_WIND_E = 48
+SDI_WIND_D = 49
+SDI_CONTROL_0 = 50
+SDI_CONTROL_1 = 51
+SDI_CONTROL_2 = 52
+SDI_CONTROL_3 = 53
 
-SDI_LINE_SIZE = 47 #total size of a line
+SDI_LINE_SIZE = 54 #total size of a line
 
 spec = [
 
@@ -90,6 +97,8 @@ spec = [
     ('ambient_temperature', float64),
 
     ('control_deflection', float64[:]),
+    ('control_command', float64[:]),
+    ('wind_ned', float64[:]),
 
     #derived
     ('alpha', float64),
@@ -138,7 +147,10 @@ class SimDataLogger(object):
         self.reynolds = 0.0
         self.thrust = 0.0
 
+        self.wind_ned = np.zeros(3,'d')
+
         self.control_deflection = np.zeros(4,'d')
+        self.control_command = np.zeros(4,'d')
         self.body_acceleration = np.zeros(3,'d')
 
         self.line = self.make_line()
@@ -157,7 +169,8 @@ class SimDataLogger(object):
     def load_line(self, time, state, aero_body_force, \
                     aero_body_moment, local_gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, ambient_pressure, ambient_temperature, \
-                    alpha, beta, reynolds, thrust, control_deflection, body_acceleration):
+                    alpha, beta, reynolds, thrust, control_deflection, body_acceleration,\
+                    wind_ned, control_command):
         """Loads a line of data for the object so it can be used for the logger"""
 
         self.time = np.array([time])
@@ -186,6 +199,8 @@ class SimDataLogger(object):
         self.thrust = np.array([thrust], 'd')
         self.control_deflection = control_deflection
         self.body_acceleration = body_acceleration
+        self.wind_ned = wind_ned
+        self.control_command = control_command
 
     def make_line(self):
         """Makes a line of data"""
@@ -198,8 +213,8 @@ class SimDataLogger(object):
             inital_lon = self.data[SDI_LONG][0]
             inital_alt = self.data[SDI_ALT][0]
             downrange = dist_vincenty(self.lon_lat_alt[1],self.lon_lat_alt[0],inital_lat,inital_lon)
-            ned_traveled = lla_to_nea(self.lon_lat_alt[1],self.lon_lat_alt[0],self.lon_lat_alt[2],\
-                                      inital_lat,inital_lon,inital_alt)
+            ned_traveled = ned_displacement(inital_lat, inital_lon, inital_alt,
+                                            self.lon_lat_alt[1],self.lon_lat_alt[0],self.lon_lat_alt[2])
         else:
             downrange = 0.0
             ned_traveled = np.zeros(3,'d')
@@ -252,6 +267,13 @@ class SimDataLogger(object):
         line[SDI_AX] = self.body_acceleration[0]
         line[SDI_AY] = self.body_acceleration[1]
         line[SDI_AZ] = self.body_acceleration[2]
+        line[SDI_WIND_N] = self.wind_ned[0]
+        line[SDI_WIND_E] = self.wind_ned[1]
+        line[SDI_WIND_D] = self.wind_ned[2]
+        line[SDI_CONTROL_0] = self.control_command[0]
+        line[SDI_CONTROL_1] = self.control_command[1]
+        line[SDI_CONTROL_2] = self.control_command[2]
+        line[SDI_CONTROL_3] = self.control_command[3]
 
         return line
 
@@ -318,56 +340,53 @@ def calculate_flight_path_angle(velocity_ned):
 
     return np.float64(flight_path_angle)
 
+@jit(float64[:](float64, float64, float64))
+def lla_to_ecef(lat, lon, h_m):
+    """Geodetic (lat, lon, h) -> ECEF (x, y, z) in meters, WGS-84."""
+
+    _A = 6378137.0                      # semi-major axis [m]
+    _F = 1 / 298.257223563              # flattening
+    _E2 = _F * (2 - _F)                 # eccentricity^2
+
+
+    s = math.sin(lat)
+    c = math.cos(lat)
+    N = _A / math.sqrt(1.0 - _E2 * s * s)  # prime vertical radius of curvature
+
+    x = (N + h_m) * c * math.cos(lon)
+    y = (N + h_m) * c * math.sin(lon)
+    z = (N * (1.0 - _E2) + h_m) * s
+    return np.array([x, y, z], 'd')
+
+@jit(float64[:,:](float64, float64))
+def ecef_to_ned_matrix(lat, lon):
+    """
+    Rotation matrix R that maps ECEF vectors to NED at (lat, lon).
+    ned = R @ vec_ecef
+    """
+
+    sL, cL = math.sin(lat), math.cos(lat)
+    s_lambda, c_lambda = math.sin(lon), math.cos(lon)
+
+    return np.array([
+        [-sL * c_lambda, -sL * s_lambda,  cL],
+        [   -s_lambda   ,     c_lambda   ,  0.0],
+        [-cL * c_lambda, -cL * s_lambda, -sL],
+    ],'d')
+
 @jit(float64[:](float64, float64, float64, float64, float64, float64))
-def lla_to_nea(lat, lon, alt, lat0, lon0, alt0):
+def ned_displacement(lat0, lon0, h0, lat1, lon1, h1):
     """
-    obv chatgpt lol
-
-    Convert geodetic coordinates (latitude, longitude, altitude) to local
-    North-East-Altitude offsets [meters] relative to an initial reference.
-    
-    Args:
-        lat, lon, alt   : target point [rad, rad, meters]
-        lat0, lon0, alt0: reference point [rad, rad, meters]
-    
-    Returns:
-        (north_m, east_m, alt_rel_m)
-        north_m   : +north offset in meters
-        east_m    : +east offset in meters
-        alt_rel_m : altitude relative to reference (alt - alt0) in meters
-    
-    Notes:
-      - Uses WGS-84 ellipsoid and a small-angle approximation on the local
-        tangent plane at (lat0, lon0, alt0):
-            north ≈ Δφ * (M(φ0) + h0)
-            east  ≈ Δλ * (N(φ0) + h0) * cos(φ0)
-        where M and N are meridian and prime-vertical radii of curvature.
-      - Accurate to ~meter-level over neighborhood scales (≲ ~100–200 km).
-        For larger separations, use an ECEF→ENU formulation or a geodesic.
+    NED displacement (meters) from (lat0,lon0,h0) to (lat1,lon1,h1),
+    defined at the initial point's local tangent plane.
     """
-    # WGS-84 parameters
-    a = 6378137.0                 # semi-major axis [m]
-    f = 1.0 / 298.257223563       # flattening
-    e2 = f * (2.0 - f)            # first eccentricity squared
-
-    # Reference latitude in radians
-    sin_phi0 = math.sin(lat0)
-    cos_phi0 = math.cos(lat0)
-
-    # Radii of curvature at reference latitude
-    N = a / math.sqrt(1.0 - e2 * sin_phi0 * sin_phi0)                 # prime vertical
-    M = a * (1.0 - e2) / (1.0 - e2 * sin_phi0 * sin_phi0) ** 1.5      # meridian
-
-    # Wrap longitude difference to [-180, 180] to choose shortest path
-    dlon_rad = (lon - lon0 + math.pi) % (math.pi*2) - math.pi
-    dlat_rad = lat - lat0
-
-    # Local tangent-plane small-angle mapping (include reference altitude)
-    north_m = dlat_rad * (M + alt0)
-    east_m  = dlon_rad * (N + alt0) * cos_phi0
-    alt_rel_m = -(alt - alt0)
-
-    return np.array([north_m, east_m, alt_rel_m],'d')
+    r0 = lla_to_ecef(lat0, lon0, h0)
+    r1 = lla_to_ecef(lat1, lon1, h1)
+    dr_ecef = r1 - r0                   # chord vector in ECEF
+    R_en = ecef_to_ned_matrix(lat0, lon0)
+    ned = R_en @ dr_ecef
+    ned[2] = h0 - h1
+    return ned
 
 @jit(float64(float64, float64, float64, float64))
 def dist_vincenty(lat1, lon1, lat2, lon2):

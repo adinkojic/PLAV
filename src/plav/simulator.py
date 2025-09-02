@@ -69,7 +69,9 @@ def x_dot(t, y, aircraft_config: AircraftConfig, sim_atmosphere: Atmosphere, log
     speed_of_sound = sim_atmosphere.get_speed_of_sound()
 
     #adds wind
-    v_airspeed = rotateVectorQ(q, np.array([vn, ve, vd], 'd') + sim_atmosphere.get_wind_ned())
+    wind = sim_atmosphere.get_wind_ned()
+
+    v_airspeed = rotateVectorQ(q, np.array([vn, ve, vd], 'd') + wind)
     gravity_vec = rotateVectorQ(q, np.array([0, 0, gravity]))
     #solving for acceleration, which is velocity_dot
     aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density,
@@ -145,13 +147,14 @@ def x_dot(t, y, aircraft_config: AircraftConfig, sim_atmosphere: Atmosphere, log
     reynolds = aircraft_config.get_reynolds()
 
     control_deflection = aircraft_config.get_control_deflection()
+    control_command = aircraft_config.get_control_command()
 
     if log is not None:
         log.load_line(t, y, aero_forces_body, \
                     aero_moments, gravity, speed_of_sound, mach ,dynamic_pressure, \
                     true_airspeed, air_density, static_pressure, air_temperature, \
                     alpha, beta, reynolds, aircraft_thrust, control_deflection,\
-                    accel_body)
+                    accel_body, wind, control_command)
 
     return x_dot
 

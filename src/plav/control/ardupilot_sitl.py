@@ -43,6 +43,7 @@ class ArduPilotSITL:
         self.pos = [0.0, 0.0, 0.0]
         self.velo = [0.0, 0.0, 0.0]
         self.airspeed = 0.0
+        self.wind = [0.0, 0.0, 0.0]
 
         self.frame_rate_hz = 1
         self.fresh_data = False
@@ -160,6 +161,7 @@ class ArduPilotSITL:
             #"attitude": rpy,
             "velocity": self.velo,
             "airspeed": self.airspeed,
+            "velocity_wind": self.wind,
         }
         #print(self.pos[2])
 
@@ -190,6 +192,8 @@ class ArduPilotSITL:
         self.velo = [latest_data[slog.SDI_VN], latest_data[slog.SDI_VE], latest_data[slog.SDI_VD]]
 
         self.airspeed = latest_data[slog.SDI_TAS]
+
+        self.wind = [-latest_data[slog.SDI_WIND_N], -latest_data[slog.SDI_WIND_E], -latest_data[slog.SDI_WIND_D]]
 
         #rpy = [latest_data[slog.SDI_ROLL], latest_data[slog.SDI_PITCH], latest_data[slog.SDI_YAW]]
 

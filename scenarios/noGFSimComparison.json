@@ -1,0 +1,73 @@
+{
+    "title": "OpenVSP Wing Wind Tunnel Grid Fins",
+    "modeldate":"4/19/25",
+    "lengthunits":"meters",
+    "angleunits":"radians",
+    "massunits": "kilograms",
+
+    "use_generic_aircraft":false,
+    "aircraft_file":"brgr_model.py",
+
+    "plav_mixing": true,
+
+    "on_balloon": false,
+    "gas_cf": 200,
+    "burst_dia_ft": 42.7,
+
+    "has_control":true,
+    "trim_rudder": 0.005,
+    "trim_aileron": -0.003,
+    "trim_elevator": -0.1,
+    "trim_throttle": 0.0,
+
+    "init_alt": 34000.0,
+    "init_vel": [ 0.0, 0.0,  0.0],
+    "init_rot": [0.0, 0.0, 0.0],
+    "init_lat": 0.702839063228,
+    "init_lon": -1.28751267,
+    "init_ori": [0.0, -89.9, 0.0],
+
+    "wind_alt_profile": [0, 30000],
+    "wind_speed_profile": [10.0, 30.0],
+    "wind_direction_profile": [0.0, 0.0],
+
+    "mass": 1.8,
+    "inertiatensor": [
+        [0.039616, 0.0003565, -0.00026592],
+        [0.0003565, 0.08273, 2.647e-5],
+        [-0.00026592, 2.647e-5, 0.1192]
+    ],
+
+    "Sref": 0.14,
+    "cref": 0.117475,
+    "bref": 1.1684,
+    
+    "xcp_wrt_cm": [-0.01524, 0.0, -0.01905],
+
+    "C_L0": 0.37,
+    "C_La": 5.1,
+    "C_Lmax": 1.3,
+    "C_Lmin":-0.4,
+    "C_D0": 0.030,
+    "k2": 0.0362,
+    "C_Db": 0.03667,
+
+    "C_m0": -0.085,
+    "C_ma": -0.52087,
+    "C_mq": -4.5,
+    "C_mbb": -4.92,
+
+    "C_nb": -0.038197,
+    "C_Yb":  -0.2005,
+    "C_l" :  0.0,
+    "C_lp": -0.58,
+    "C_lr":  0.1,
+    "C_np": -0.1,
+    "C_nr": -0.04,
+
+
+    "C_XYlutX": [0.0, 0.1 ],
+    "C_XlutY": [0.0, 0.0],
+    "C_YlutY": [0.0, 0.0]
+
+}
