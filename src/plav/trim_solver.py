@@ -84,7 +84,8 @@ def trim_glider_hddot0(
             np.array([0.0,0.0,0.0],'d'),
             np.float64(air_density),
             np.float64(pdt[2]),
-            np.float64(343.0)
+            np.float64(343.0),
+            np.array([0.0,0.0,9.81],'d')
         )
 
         model.update_trim(dr, da, de, 0.0)
@@ -117,7 +118,8 @@ def trim_glider_hddot0(
             np.array([0.0,0.0,0.0],'d'),
             np.float64(air_density),
             np.float64(pdt[2]),
-            np.float64(343.0)
+            np.float64(343.0),
+            np.array([0.0,0.0,9.81],'d')
         )
 
     body_forces, body_moments = model.get_forces()

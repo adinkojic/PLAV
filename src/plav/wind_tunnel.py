@@ -50,6 +50,12 @@ class WindTunnel(object):
         modelparam = load_scenario("scenarios/" + self.scenario_file)
         self.model, _ = load_aircraft_config(modelparam)
 
+        try:
+            self.model.instant_actuation()
+            print('Instant Actuation')
+        except AttributeError:
+            pass
+
     def change_alpha(self, alpha_deg):
         """Model alpha [deg]"""
         self.alpha = alpha_deg / conv.RAD_TO_DEG

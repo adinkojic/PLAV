@@ -89,6 +89,7 @@ spec = [
 
     ('prev_command', float64[:]),
     ('prev_position', float64[:]),
+    ('disable_filter', int64),
 
 ]
 
@@ -212,7 +213,8 @@ class BRGRConfig(object):
         self.burst_dia_ft = burst_dia_ft
         self.burst_flag = 0
         self.balloon_volume = gas_cf / 35.315
-        
+
+        self.disable_filter = 0
 
     def update_control(self, rudder, aileron, elevator, throttle):
         """Give the simulation a new control vector"""
@@ -347,6 +349,10 @@ class BRGRConfig(object):
         """Triggers cut_balloon event"""
         self.cut_balloon()
 
+    def instant_actuation(self):
+        """Disables servo delay"""
+        self.disable_filter = 1
+
     def cut_balloon(self):
         """Cuts the balloon"""
         self.on_balloon = 0
@@ -415,15 +421,21 @@ class BRGRConfig(object):
             deflection_star_command = self.ail * math.pi/2
             deflection_port_command = self.el  * math.pi/2
 
+        
         #this is a low pass filter to make the servos act realistic
         b_0 = 0.0154662914
         b_1 = 0.0154662914
         a_1 = 0.9690674172
         current_command = np.array([deflection_top_command, deflection_star_command, deflection_port_command], 'd')
 
-        deflection_top = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
-        deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
-        deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
+        if self.disable_filter == 1:
+            deflection_top  = deflection_top_command
+            deflection_star = deflection_star_command
+            deflection_port = deflection_port_command
+        else:
+            deflection_top = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
+            deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
+            deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
 
         #store previous commands and positions
         self.prev_command = current_command

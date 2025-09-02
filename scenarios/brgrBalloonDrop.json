@@ -10,14 +10,14 @@
 
     "plav_mixing": true,
 
-    "on_balloon": true,
+    "on_balloon": false,
     "gas_cf": 200,
     "burst_dia_ft": 42.7,
 
     "has_control":true,
     "trim_rudder": 0.005,
     "trim_aileron": -0.003,
-    "trim_elevator": -0.1,
+    "trim_elevator": -0.002,
     "trim_throttle": 0.0,
 
     "init_alt": 34000.0,
@@ -42,7 +42,7 @@
     "cref": 0.117475,
     "bref": 1.1684,
     
-    "xcp_wrt_cm": [-0.01524, 0.0, -0.01905],
+    "xcp_wrt_cm": [-0.0127, 0.0, -0.01905],
 
     "C_L0": 0.37,
     "C_La": 5.1,
