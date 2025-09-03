@@ -10,7 +10,7 @@
 
     "plav_mixing": true,
 
-    "on_balloon": false,
+    "on_balloon": true,
     "gas_cf": 200,
     "burst_dia_ft": 42.7,
 
