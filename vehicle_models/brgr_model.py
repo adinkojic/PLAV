@@ -321,6 +321,8 @@ class BRGRConfig(object):
             balloon_forces, moment_from_balloon = self.get_buoyancy_force()
             body_forces_body = body_forces_body + balloon_forces
             moments_with_torque = moments_with_torque + moment_from_balloon
+        else:
+            self.balloon_drag = 0.0
 
 
         return body_forces_body, moments_with_torque

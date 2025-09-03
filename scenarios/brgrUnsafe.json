@@ -20,7 +20,7 @@
     "trim_elevator": -0.002,
     "trim_throttle": 0.0,
 
-    "init_alt": 33800.0,
+    "init_alt": 33000.0,
     "init_vel": [ 0.0, 0.0,  0.0],
     "init_rot": [0.0, 0.0, 0.0],
     "init_lat": 40.287737,

@@ -300,6 +300,9 @@ class SimDataLogger(object):
 
         self.valid_data_size = self.valid_data_size + 1
 
+    def actual_data_size(self):
+        return np.shape(self.data)
+
     def trim_excess(self):
         """Trim excess data
         excess points are the preallocated zeros"""
