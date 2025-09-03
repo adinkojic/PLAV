@@ -195,6 +195,7 @@ class Simulator(object):
             #by now the HIL should have a response ready
             #for HIL it might block a bit as the aurdino computes
             rudder, aileron, elevator, throttle = self.control_sys_request_response()
+            #print([rudder, aileron, elevator, throttle])
             self.aircraft.update_control(rudder, aileron, elevator, throttle)
         else:
             self.aircraft.update_control(
@@ -212,6 +213,8 @@ class Simulator(object):
             self.state[7] = self.state[7] + 2.0*math.pi
         elif self.state[7] > math.pi:
             self.state[7] = self.state[7] - 2.0*math.pi
+
+        #print(self.aircraft.get_control_deflection().tolist())
 
         #get stuff
         x_dot(self.time, self.state, self.aircraft, self.sim_atmosphere, self.sim_log)

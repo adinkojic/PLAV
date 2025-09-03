@@ -89,7 +89,7 @@ class ArduPilotSITL:
                 pwm = decoded[3:]
                 #print(self.frame_rate_hz)
 
-                #print(frame_number)
+                #print(pwm)
 
                 if 1000 <= pwm[0] <= 2000:
                     self.ardupilot_aileron = (pwm[0] -1500) / 500.0#pwm pulse our servo deflection
@@ -149,6 +149,8 @@ class ArduPilotSITL:
 
         gyro_out = gyro_out.tolist()
         accel_out = accel_out.tolist()
+
+
 
         json_data = {
             "timestamp": self.phys_time,

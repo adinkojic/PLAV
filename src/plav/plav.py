@@ -203,6 +203,12 @@ class Plav(object):
             sys.exit(1)
 
         self.aircraft, self.control_unit = load_aircraft_config(modelparam)
+
+        try:
+            self.aircraft.use_realistic_mixing()
+        except AttributeError:
+            pass
+
         atmosphere = load_atmosphere(modelparam, use_live_atmosphere=live_atmosphere)
         y0 = load_init_position(modelparam)
 

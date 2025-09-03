@@ -8,7 +8,7 @@
     "use_generic_aircraft":false,
     "aircraft_file":"brgr_model.py",
 
-    "plav_mixing": true,
+    "plav_mixing": false,
 
     "on_balloon": true,
     "gas_cf": 200,

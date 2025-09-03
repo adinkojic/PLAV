@@ -411,15 +411,15 @@ class BRGRConfig(object):
         el_command  = self.el + self.trim_el
         rdr_command = self.rdr + self.trim_rdr
 
-        if self.plav_mixing == 1:
-            #theta is the angle of deflection of the surface
-            deflection_top_command  = -ail_command*0.2 + rdr_command*0.2
-            deflection_star_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
-            deflection_port_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
-        else:
-            deflection_top_command  = self.rdr * math.pi/2
-            deflection_star_command = self.ail * math.pi/2
-            deflection_port_command = self.el  * math.pi/2
+        #if self.plav_mixing == 1:
+        #    #theta is the angle of deflection of the surface
+        #    deflection_top_command  = -ail_command*0.2 + rdr_command*0.2
+        #    deflection_star_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
+        #    deflection_port_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
+        #else:
+        deflection_top_command  = self.ail * math.pi/2
+        deflection_star_command = -self.el * math.pi/2
+        deflection_port_command = self.power * math.pi/2
 
         
         #this is a low pass filter to make the servos act realistic
@@ -428,14 +428,14 @@ class BRGRConfig(object):
         a_1 = 0.9690674172
         current_command = np.array([deflection_top_command, deflection_star_command, deflection_port_command], 'd')
 
-        if self.disable_filter == 1:
-            deflection_top  = deflection_top_command
-            deflection_star = deflection_star_command
-            deflection_port = deflection_port_command
-        else:
-            deflection_top = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
-            deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
-            deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
+        #if self.disable_filter == 1:
+        #    deflection_top  = deflection_top_command
+        #    deflection_star = deflection_star_command
+        #    deflection_port = deflection_port_command
+        #else:
+        deflection_top = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
+        deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
+        deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
 
         #store previous commands and positions
         self.prev_command = current_command
