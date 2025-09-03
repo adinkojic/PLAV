@@ -84,8 +84,9 @@ spec = [
     ('burst_dia_ft', float64),
     ('burst_flag', float64),
     ('balloon_volume', float64),
-    ('brgr_Sref', float64),
     ('brgr_mass', float64),
+    ('burn_time', float64),
+    ('balloon_drag', float64),
 
     ('prev_command', float64[:]),
     ('prev_position', float64[:]),
@@ -146,7 +147,6 @@ class BRGRConfig(object):
         self.inertiamatrix = np.ascontiguousarray(inertia)
         self.cmac = cmac
         self.Sref = Sref
-        self.brgr_Sref = Sref
         self.brgr_mass = mass
         self.bref = bref
         self.cp_wrt_cm = cp_wrt_cm
@@ -213,6 +213,8 @@ class BRGRConfig(object):
         self.burst_dia_ft = burst_dia_ft
         self.burst_flag = 0
         self.balloon_volume = gas_cf / 35.315
+        self.burn_time = 0.0
+        self.balloon_drag = 0.0
 
         self.disable_filter = 0
 
@@ -291,7 +293,7 @@ class BRGRConfig(object):
         qbar = 0.5 * self.density *self.airspeed**2
 
         body_lift = C_L * qbar * self.Sref
-        body_drag = C_D * qbar * self.Sref
+        body_drag = C_D * qbar * self.Sref + self.balloon_drag
         body_side = C_Y * qbar * self.Sref
         body_pitching_moment = C_m * qbar * self.Sref * self.cmac
         body_yawing_moment   = C_n * qbar * self.Sref * self.bref
@@ -347,7 +349,7 @@ class BRGRConfig(object):
 
     def trigger_event(self):
         """Triggers cut_balloon event"""
-        self.cut_balloon()
+        self.burst_flag = 1
 
     def instant_actuation(self):
         """Disables servo delay"""
@@ -356,7 +358,6 @@ class BRGRConfig(object):
     def cut_balloon(self):
         """Cuts the balloon"""
         self.on_balloon = 0
-        self.Sref = self.brgr_Sref
         self.mass = self.brgr_mass
 
     def get_buoyancy_force(self):
@@ -374,14 +375,15 @@ class BRGRConfig(object):
 
         self.balloon_volume = pressure_sea * volume_sea * temperature_sea /self.temperature /amb_pressure
 
-        self.Sref = (self.balloon_volume /(4/3) / np.pi)**(2/3) * np.pi #approx cross sectional area from volume
+        BSref = (self.balloon_volume *3 /(4* np.pi))**(2/3) * np.pi #approx cross sectional area from volume
+        self.balloon_drag = 0.5 * self.density * self.velocity**2 * 0.5 * BSref
 
         if self.balloon_volume > burst_volume :
             self.burst_flag = 1
 
         if self.burst_flag == 1:
-            self.Sref = 10.0
-            self.cut_balloon()
+            #self.cut_balloon()
+            self.balloon_drag = 0.5 * self.density * self.velocity**2 * 0.5 * BSref
             return np.zeros(3,'d'), np.zeros(3,'d')
 
         bouancy_force = self.density * self.balloon_volume * -self.gravity
@@ -436,6 +438,11 @@ class BRGRConfig(object):
         deflection_top = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
         deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
         deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
+
+        if self.rdr < -0.9:
+            self.burn_time = self.burn_time + 0.001
+            if self.burn_time > 1.0:
+                self.cut_balloon()
 
         #store previous commands and positions
         self.prev_command = current_command

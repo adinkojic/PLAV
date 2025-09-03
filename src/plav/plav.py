@@ -130,8 +130,8 @@ def load_atmosphere(modelparam, use_file_atmosphere:bool = True, use_live_atmosp
         wind_direction_profile = np.array(modelparam['wind_direction_profile'], dtype='d')
     if use_live_atmosphere:
         wind_alt_profile, wind_speed_profile, wind_direction_profile = get_live_wind_profile(
-                            lat=modelparam['init_lat']*conv.RAD_TO_DEG,
-                            lon=modelparam['init_lon']*conv.RAD_TO_DEG,
+                            lat=modelparam['init_lat'],
+                            lon=modelparam['init_lon'],
                             time=datetime.now(timezone.utc))
     else:
         wind_alt_profile = np.array([0, 0], dtype='d')
@@ -142,8 +142,8 @@ def load_atmosphere(modelparam, use_file_atmosphere:bool = True, use_live_atmosp
 
 def load_init_position(modelparam):
     """load the initial position from the modelparam and return y0"""
-    init_long = modelparam['init_lon']
-    init_lat = modelparam['init_lat']
+    init_long = modelparam['init_lon']/conv.RAD_TO_DEG
+    init_lat = modelparam['init_lat']/conv.RAD_TO_DEG
     inital_alt = modelparam['init_alt']
     init_velocity = modelparam['init_vel']
     init_rte = modelparam['init_rot']

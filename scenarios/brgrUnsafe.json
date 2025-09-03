@@ -8,25 +8,28 @@
     "use_generic_aircraft":false,
     "aircraft_file":"brgr_model.py",
 
-    "plav_mixing": true,
-    "on_balloon": false,
+    "plav_mixing": false,
+
+    "on_balloon": true,
+    "gas_cf": 200,
+    "burst_dia_ft": 42.7,
 
     "has_control":true,
-    "trim_rudder": 0.000,
-    "trim_aileron": 0.000,
-    "trim_elevator": 0.000,
+    "trim_rudder": 0.005,
+    "trim_aileron": -0.003,
+    "trim_elevator": -0.002,
     "trim_throttle": 0.0,
 
-    "init_alt": 120.0,
-    "init_vel": [ 1.59689167e+01, 0.0,  9.96844721e-01],
+    "init_alt": 33800.0,
+    "init_vel": [ 0.0, 0.0,  0.0],
     "init_rot": [0.0, 0.0, 0.0],
-    "init_lat": 40.3320972,
-    "init_lon": -74.6733131,
-    "init_ori": [0.0, 0.0, 0.0],
+    "init_lat": 40.287737,
+    "init_lon": -74.0317880953,
+    "init_ori": [0.0, -89.9, 0.0],
 
-    "wind_alt_profile": [0, 200],
-    "wind_speed_profile": [0.0, 0.0],
-    "wind_direction_profile": [0, 0],
+    "wind_alt_profile": [0, 30000],
+    "wind_speed_profile": [10.0, 30.0],
+    "wind_direction_profile": [0.0, 0.0],
 
     "mass": 1.8,
     "inertiatensor": [

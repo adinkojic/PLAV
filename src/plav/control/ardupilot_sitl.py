@@ -150,7 +150,7 @@ class ArduPilotSITL:
         gyro_out = gyro_out.tolist()
         accel_out = accel_out.tolist()
 
-
+        rc = {"rc_1":0,"rc_2":0,"rc_3":0,"rc_4":0,"rc_5":0,"rc_6":0,"rc_7":0,"rc_8":0,"rc_9":0,"rc_10":0}
 
         json_data = {
             "timestamp": self.phys_time,
@@ -164,6 +164,7 @@ class ArduPilotSITL:
             "velocity": self.velo,
             "airspeed": self.airspeed,
             "velocity_wind": self.wind,
+            "rc": rc
         }
         #print(self.pos[2])
 
