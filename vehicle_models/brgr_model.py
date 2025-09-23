@@ -11,7 +11,6 @@ import plav.quaternion_math as quat
 from plav.vehicle_models.generic_aircraft_config import \
     get_dynamic_viscosity,get_wind_to_body_axis,velocity_to_alpha_beta
 
-from plav.plav import load_scenario
 
 spec = [
     #geometrics
@@ -34,7 +33,7 @@ spec = [
 
     #enviromentals
     ('altitude', float64),
-    ('velocity', float64[:]),
+    ('velocity', float64[::1]),
     ('airspeed', float64),
     ('alpha', float64),
     ('beta', float64),
@@ -122,7 +121,7 @@ def get_local_alpha_beta(velocity, gamma, theta):
 
     return np.array([aab[1], aab[2]], 'd')
 
-@jit
+@jit(float64[:,::1](float64))
 def get_x_rotation_matrix(angle):
     """Gets a rotation matrix about X, useful for fins [rad]"""
     rotation_around_body = np.array([ [1., 0.0, 0.0], \
@@ -236,7 +235,7 @@ class BRGRConfig(object):
         """Update altitude and velocity it thinks it's at
         Call this before every get_forces()"""
         self.altitude = altitude
-        self.velocity = velocity
+        self.velocity = np.ascontiguousarray(velocity)
         self.omega = omega
         self.gravity = gravity
 
@@ -630,6 +629,5 @@ def init_aircraft(config_file) -> BRGRConfig:
     #none for control unit
     return aircraft_model
 
-#modelparam = load_scenario("scenarios/brgrDroneDrop.json")
-
-#air = init_aircraft(modelparam)
+def brgr_temp(config_file) -> BRGRConfig:
+    return init_aircraft(config_file)

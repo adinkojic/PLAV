@@ -386,7 +386,7 @@ def ned_displacement(lat0, lon0, h0, lat1, lon1, h1):
     r0 = lla_to_ecef(lat0, lon0, h0)
     r1 = lla_to_ecef(lat1, lon1, h1)
     dr_ecef = r1 - r0                   # chord vector in ECEF
-    R_en = ecef_to_ned_matrix(lat0, lon0)
+    R_en = np.ascontiguousarray(ecef_to_ned_matrix(lat0, lon0))
     ned = R_en @ dr_ecef
     ned[2] = h0 - h1
     return ned

@@ -4,7 +4,7 @@ import math
 import numpy as np
 from numba import jit, float64, int64
 
-@jit(float64[:](float64[:], float64[:]), cache=True)
+@jit(float64[::1](float64[:], float64[:]), cache=True)
 def rotateFrameQ(quat, vec):
     """frame rotation algorithm
     q0 is scalar part"""
@@ -16,7 +16,7 @@ def rotateFrameQ(quat, vec):
     return v_prime
 
 
-@jit(float64[:](float64[:], float64[:]), cache=True)
+@jit(float64[::1](float64[:], float64[:]), cache=True)
 def rotateVectorQ(quat, vec):
     """Vector rotation algorithm
     q0 is scalar part"""
