@@ -1,0 +1,18 @@
+[project]
+name = "plav"
+version = "0.1.0"
+description = "Python Laptop Air Vehicles"
+authors = [{name="Adin Kojic", email="adinkojic21@gmail.com"}]
+dependencies = [
+    "typer>=0.9.0"
+]
+
+[project.scripts]
+plav = "plav.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
