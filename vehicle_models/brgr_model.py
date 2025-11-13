@@ -374,7 +374,7 @@ class BRGRConfig(object):
 
         amb_pressure = 287.05 * self.temperature * self.density
 
-        self.balloon_volume = pressure_sea * volume_sea * temperature_sea /self.temperature /amb_pressure
+        self.balloon_volume = pressure_sea * volume_sea / temperature_sea *self.temperature /amb_pressure
 
         BSref = (self.balloon_volume *3 /(4* np.pi))**(2/3) * np.pi #approx cross sectional area from volume
         self.balloon_drag = 0.5 * self.density * self.velocity**2 * 0.5 * BSref
