@@ -62,6 +62,8 @@ spec = [
     ('C_np', float64),
     ('C_nr', float64),
 
+    ('time', float64),
+
 ]
 
 @jit(float64(float64),cache=True)
@@ -161,6 +163,7 @@ class AircraftConfig(object):
         self.temperature = 0.0
         self.mach = 0.0
         self.gravity = np.zeros(3, 'd')
+        self.time = 0.0
 
     def update_control(self, rudder, aileron, elevator, throttle):
         """Give the simulation a new control vector"""
@@ -169,6 +172,10 @@ class AircraftConfig(object):
         self.el    = elevator
         self.power = throttle
 
+    def get_control_command(self):
+        """Returns the current control state"""
+        return np.array([self.rdr, self.ail, self.el, self.power], 'd')
+
     def update_trim(self, rudder, aileron, elevator, throttle):
         """Give the simulation a new trim vector"""
         self.trim_rdr   = rudder
@@ -176,7 +183,8 @@ class AircraftConfig(object):
         self.trim_el    = elevator
         self.trim_power = throttle
 
-    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound, gravity):
+    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound,
+                           gravity, time):
         """Update altitude and velocity it thinks it's at
         Call this before every get_forces()"""
         self.altitude = altitude
@@ -186,6 +194,7 @@ class AircraftConfig(object):
 
         self.density = density
         self.temperature = temperature
+        self.time = time
 
         aab = velocity_to_alpha_beta(velocity)
         self.airspeed = aab[0]

@@ -215,7 +215,7 @@ class Plav(object):
         if self.use_sitl:
             self.control_unit = ArduPilotSITL(ardupilot_ip = self.ardupilot_ip, add_noise=imu_noise)
 
-        print("Control Unit Ready")
+        print("Control Unit: ", self.control_unit)
 
         self.hitl_active = False
         if self.control_unit is not None:
@@ -286,6 +286,8 @@ class Plav(object):
         if not self.no_gui or self.hitl_active:
             print("Displaying GUI")
             pg.exec()
+
+        print(f"Final Altitude: {sim_data[slog.SDI_ALT][-1]} m")
         #if self.hitl_active: #shut down the HIL system
         #    try:
         #        self.control_unit.shut_down_hil()

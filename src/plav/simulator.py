@@ -75,7 +75,7 @@ def x_dot(t, y, aircraft_config: AircraftConfig, sim_atmosphere: Atmosphere, log
     gravity_vec = rotateVectorQ(q, np.array([0, 0, gravity]))
     #solving for acceleration, which is velocity_dot
     aircraft_config.update_conditions(altitude,  v_airspeed, omega, air_density,
-                                      air_temperature, speed_of_sound, gravity_vec)
+                                      air_temperature, speed_of_sound, gravity_vec, t)
 
 
     aero_forces_body, aero_moments = aircraft_config.get_forces()

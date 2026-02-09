@@ -31,6 +31,8 @@ def get_pressure_density_temp(altitude):
     if altitude < 0:
         altitude = 0
 
+    if altitude > 84852:
+        altitude = 84851.9
 
     #find constant subscript
     b = 0

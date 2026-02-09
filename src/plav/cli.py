@@ -111,6 +111,7 @@ def test():
 
 @app.command()
 def offline_sim(scenario_name,
+            sim_time = '30',
             no_gui: Annotated[bool, typer.Option("--nogui")] = False,
             output_file_name = "output.csv"):
     """Runs a hard simulation"""
@@ -119,7 +120,7 @@ def offline_sim(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,30], no_gui = no_gui)
+    plav_obj = Plav(scenario_name,[0,float(sim_time)], no_gui = no_gui)
 
 @app.command()
 def sitl_sim(scenario_name,
