@@ -278,16 +278,16 @@ class Plotter(QtWidgets.QMainWindow):
         
         self.rudder_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
                                              self.sim_data[slog.SDI_CONTROL_0],
-                                             pen=(50,50,255),name="Rudder Cmd")
+                                             pen=(50,50,127),name="Rudder Cmd")
         self.aileron_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
                                               self.sim_data[slog.SDI_CONTROL_1],
-                                              pen=(255,50,50),name="Aileron Cmd")
+                                              pen=(127,50,50),name="Aileron Cmd")
         self.elevator_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
                                                self.sim_data[slog.SDI_CONTROL_2],
-                                               pen=(50,255,50),name="Elevator Cmd")
+                                               pen=(50,127,50),name="Elevator Cmd")
         self.throttle_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
                                                self.sim_data[slog.SDI_CONTROL_3],
-                                               pen=(255,255,255),name="Throttle Cmd")
+                                               pen=(127,127,127),name="Throttle Cmd")
 
     def update_plots(self, new_sim_data):
         """Set new simulation data and update plots."""

@@ -14,7 +14,7 @@
     "has_control":true,
     "trim_rudder": 0.000,
     "trim_aileron": 0.000,
-    "trim_elevator": 0.000,
+    "trim_elevator": 0.5,
     "trim_throttle": 0.0,
 
     "init_alt": 120.0,

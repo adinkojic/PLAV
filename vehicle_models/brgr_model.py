@@ -414,15 +414,15 @@ class BRGRConfig(object):
         el_command  = self.el + self.trim_el
         rdr_command = self.rdr + self.trim_rdr
 
-        #if self.plav_mixing == 1:
-        #    #theta is the angle of deflection of the surface
-        #    deflection_top_command  = -ail_command*0.2 + rdr_command*0.2
-        #    deflection_star_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
-        #    deflection_port_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
-        #else:
-        deflection_top_command  = self.ail * math.pi/2
-        deflection_star_command = -self.el * math.pi/2
-        deflection_port_command = self.power * math.pi/2
+        if self.plav_mixing == 1:
+            #theta is the angle of deflection of the surface
+            deflection_top_command  = -ail_command*0.2 + rdr_command*0.2
+            deflection_star_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
+            deflection_port_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
+        else:
+            deflection_top_command  = self.ail * math.pi/2
+            deflection_star_command = -self.el * math.pi/2
+            deflection_port_command = self.rdr * math.pi/2
 
         
         #this is a low pass filter to make the servos act realistic
@@ -609,7 +609,7 @@ def init_aircraft(config_file) -> BRGRConfig:
         print("Using PLAV mixing")
     else:
         plav_mixing = 0
-        print("Using realistics mixing")
+        print("Using realistic mixing")
 
     if config_file['on_balloon']:
         on_balloon = 1

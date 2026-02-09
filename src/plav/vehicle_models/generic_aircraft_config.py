@@ -259,6 +259,9 @@ class AircraftConfig(object):
                         (self.ail + self.trim_ail), \
                         (self.el + self.trim_el), \
                         (self.power + self.trim_power)], 'd')
+    
+    def get_control_command(self):
+        return self.get_control_deflection()
 
     def calculate_thrust(self):
         """dummy for now, returns 0.0"""

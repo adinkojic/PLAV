@@ -255,6 +255,9 @@ class AircraftConfig(object):
     def get_control_deflection(self):
         """Returns the current control state"""
         return np.zeros(4, 'd')
+    
+    def get_control_command(self):
+        return self.get_control_deflection()
 
     def calculate_thrust(self):
         """dummy for now, returns 0.0"""

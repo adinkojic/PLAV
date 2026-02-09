@@ -1,5 +1,5 @@
 {
-    "title": "Case 1: Dragless Sphere",
+    "title": "Basic Latex Balloon",
     "modeldate":"3/13/25",
     "lengthunits":"meters",
     "angleunits":"radians",
@@ -11,7 +11,7 @@
     "gas_cf": 10000,
     "burst_dia_ft": 42.7,
 
-    "init_alt": 33000,
+    "init_alt": 27000,
     "init_vel": [0, 0, 0],
     "init_rot": [0, 0.0, 0.0],
     "init_lat": 0.0,
