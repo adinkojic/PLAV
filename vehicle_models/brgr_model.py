@@ -231,7 +231,7 @@ class BRGRConfig(object):
         self.trim_el    = elevator
         self.trim_power = throttle
 
-    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound, gravity):
+    def update_conditions(self, altitude, velocity, omega, density, temperature, speed_of_sound, gravity, t):
         """Update altitude and velocity it thinks it's at
         Call this before every get_forces()"""
         self.altitude = altitude
