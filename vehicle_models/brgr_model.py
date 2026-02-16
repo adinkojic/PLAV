@@ -351,6 +351,7 @@ class BRGRConfig(object):
     def trigger_event(self):
         """Triggers cut_balloon event"""
         self.burst_flag = 1
+        self.cut_balloon()
 
     def instant_actuation(self):
         """Disables servo delay"""
@@ -383,7 +384,7 @@ class BRGRConfig(object):
             self.burst_flag = 1
 
         if self.burst_flag == 1:
-            #self.cut_balloon()
+            self.cut_balloon()
             self.balloon_drag = 0.5 * self.density * self.velocity**2 * 0.5 * BSref
             return np.zeros(3,'d'), np.zeros(3,'d')
 
@@ -414,15 +415,15 @@ class BRGRConfig(object):
         el_command  = self.el + self.trim_el
         rdr_command = self.rdr + self.trim_rdr
 
-        #if self.plav_mixing == 1:
-        #    #theta is the angle of deflection of the surface
-        #    deflection_top_command  = -ail_command*0.2 + rdr_command*0.2
-        #    deflection_star_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
-        #    deflection_port_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
-        #else:
-        deflection_top_command  = self.ail * math.pi/2
-        deflection_star_command = -self.el * math.pi/2
-        deflection_port_command = self.power * math.pi/2
+        if self.plav_mixing == 1:
+            #theta is the angle of deflection of the surface
+            deflection_top_command  = -ail_command*0.2 + rdr_command*0.2
+            deflection_star_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 + el_command*0.5
+            deflection_port_command = -ail_command*0.2 + rdr_command*yaw_adjustment_factor*0.2 - el_command*0.5
+        else:
+            deflection_top_command  = self.ail * math.pi/2
+            deflection_star_command = -self.el * math.pi/2
+            deflection_port_command = self.power * math.pi/2
 
         
         #this is a low pass filter to make the servos act realistic
