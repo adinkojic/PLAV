@@ -351,7 +351,7 @@ class BRGRConfig(object):
     def trigger_event(self):
         """Triggers cut_balloon event"""
         self.burst_flag = 1
-        self.cut_balloon()
+        #self.cut_balloon()
 
     def instant_actuation(self):
         """Disables servo delay"""
@@ -384,7 +384,7 @@ class BRGRConfig(object):
             self.burst_flag = 1
 
         if self.burst_flag == 1:
-            self.cut_balloon()
+            #self.cut_balloon()
             self.balloon_drag = 0.5 * self.density * self.velocity**2 * 0.5 * BSref
             return np.zeros(3,'d'), np.zeros(3,'d')
 
