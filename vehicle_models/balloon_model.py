@@ -225,7 +225,7 @@ class AircraftConfig(object):
 
         amb_pressure = 287.05 * self.temperature * self.density
 
-        self.balloon_volume = pressure_sea * volume_sea * temperature_sea /self.temperature /amb_pressure
+        self.balloon_volume = pressure_sea * volume_sea / temperature_sea *self.temperature /amb_pressure
 
         self.Sref = (self.balloon_volume /(4/3) / np.pi)**(2/3) * np.pi #approx cross sectional area from volume
 
