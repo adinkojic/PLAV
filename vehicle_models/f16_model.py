@@ -9,8 +9,8 @@ import numpy as np
 from numba import jit, float64
 from numba.experimental import jitclass
 
-from plav.generic_aircraft_config import get_dynamic_viscosity, velocity_to_alpha_beta
-from plav.generic_aircraft_config import AircraftConfig
+from plav.vehicle_models.generic_aircraft_config import get_dynamic_viscosity,velocity_to_alpha_beta
+from plav.vehicle_models.generic_aircraft_config import AircraftConfig
 
 spec = [
     #deflections, d prefix is normalized -1 to 1
@@ -411,7 +411,7 @@ def cl_lookup(alpha, beta):
 
 @jit(float64(float64, float64))
 def cn_lookup(alpha, beta):
-    """Lookup for C_l, based on Alpha and Beta [deg], [deg]"""
+    """Lookup for C_n (yaw moment), based on Alpha and Beta [deg], [deg]"""
     alpha_table = get_alpha_table()
     beta_table = get_beta_table()
     table = np.array([

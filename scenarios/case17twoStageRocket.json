@@ -1,0 +1,31 @@
+{
+    "title": "Case 17: Two Stage Rocket",
+    "modeldate":"10/2/25",
+    "lengthunits":"meters",
+    "angleunits":"radians",
+    "massunits": "kilograms",
+
+    "use_generic_aircraft":false,
+    "aircraft_file":"two_stage_model.py",
+
+    "init_alt": 0.0,
+    "init_vel": [0, 0, -0.1],
+    "init_rot": [0, 0, 0],
+    "init_lat": 0.0,
+    "init_lon": 0.0,
+    "init_ori": [0.0, 55.22, 90.0],
+
+    "wind_alt_profile": [0, 0],
+    "wind_speed_profile": [0, 0],
+    "wind_direction_profile": [0, 0],
+
+    
+
+    "Sref": 7.0,
+    "cref": 3.0,
+    "bref": 3.0,
+
+
+    "has_control":false
+
+}

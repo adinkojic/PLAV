@@ -153,11 +153,13 @@ class SimDataLogger(object):
         self.control_command = np.zeros(4,'d')
         self.body_acceleration = np.zeros(3,'d')
 
+        self.valid_data_size = 0
+
         self.line = self.make_line()
 
         self.data_columns = int64(np.size(self.line))
         self.data = np.zeros((self.data_columns, int64(preallocated)))
-        self.valid_data_size = 0
+
 
     def get_lastest(self):
         """Returns the last line of data"""
