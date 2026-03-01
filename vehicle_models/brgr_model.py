@@ -367,6 +367,7 @@ class BRGRConfig(object):
     def cut_balloon(self):
         """Cuts the balloon"""
         self.on_balloon = 0
+        self.burst_flag = 1
         self.mass = self.brgr_mass
 
     def get_balloon_forces(self):
@@ -378,14 +379,18 @@ class BRGRConfig(object):
             self.mass = self.brgr_mass
             return np.zeros(3,'d'), np.zeros(3,'d')
         else:
-            self.mass = self.brgr_mass + 3.5 #3kg balloon + 0.5 kg He
+            
             mounting_arm = np.array([-0.4826, 0.001, 0.0254], 'd') #from cm to center of balloon
             
             if self.burst_flag == 1: #already burst, parachute calculations
+                self.mass = self.brgr_mass + 2.2 #2kg balloon + helium gone, 200g extra
+
                 parachute_drag = 0.5 * self.density * self.airspeed**2 * 1.0 * 1.5 #1.0 parachute area, 1.5 drag coeff
                 balloon_force = np.array([-parachute_drag, 0.0, 0.0], 'd')
-                rate_damping = np.zeros(3,'d')
+                balloon_moment = np.zeros(3,'d') #its not that important to model right
             else: #on balloon case
+                self.mass = self.brgr_mass + 3.2 #2kg balloon + 1.0 kg He, 200g extra
+
                 volume_sea = self.gas_cf / 35.315 #cubic feet to m^3
                 burst_volume = (4/3) * np.pi * (self.burst_dia_ft / 3.281 / 2)**3
             
@@ -394,13 +399,13 @@ class BRGRConfig(object):
                 temperature_sea = 288.15 #K
                 density_sea = (287.05 * temperature_sea) /pressure_sea
                 amb_pressure = 287.05 * self.temperature * self.density
-                self.balloon_volume = pressure_sea * volume_sea * temperature_sea /self.temperature /amb_pressure
+                self.balloon_volume = pressure_sea * volume_sea / temperature_sea *self.temperature /amb_pressure
 
                 BSref = (self.balloon_volume *3 /(4* np.pi))**(2/3) * np.pi #approx cross sectional area from volume
                 balloon_diameter = 2 * (self.balloon_volume *3 /(4* np.pi))**(1/3)
 
                 bouancy_force = self.density * self.balloon_volume * -self.gravity #vec
-                balloon_drag = 0.5 * self.density * self.airspeed**2 * 0.5 * BSref
+                balloon_drag = 0.5 * self.density * self.airspeed**2 * 0.5 * BSref #cd 0.3 for balloon
                 drag_force_wind = np.array([-balloon_drag, 0, -0],'d')
                 wind_to_body = get_wind_to_body_axis(self.alpha, self.beta)
                 drag_force_body = quat.rotateVectorQ(wind_to_body, drag_force_wind)
@@ -410,12 +415,13 @@ class BRGRConfig(object):
                 #rate damping
                 nd_rotation_rates = np.array(self.get_nd_rotation_rates(), 'd')
                 rate_damping = -0.1 * nd_rotation_rates * 0.5 * self.airspeed * balloon_diameter * BSref
+                balloon_moment = np.cross(mounting_arm, balloon_force) + rate_damping
 
                 if self.balloon_volume > burst_volume :
                     self.burst_flag = 1
 
-            balloon_moment = np.zeros(3,'d')#np.cross(mounting_arm, balloon_force)
-            return balloon_force, balloon_moment# + rate_damping
+            
+            return balloon_force, balloon_moment
 
     def calculate_grid_fin_forces(self):
         """Calculates the forces of each grid fin"""
