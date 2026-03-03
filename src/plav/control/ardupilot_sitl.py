@@ -164,7 +164,8 @@ class ArduPilotSITL:
             "velocity": self.velo,
             "airspeed": self.airspeed,
             "velocity_wind": self.wind,
-            "rc": rc
+            "rc": rc,
+            "battery":{"voltage":8.4,"current":0.1}
         }
         #print(self.pos[2])
 

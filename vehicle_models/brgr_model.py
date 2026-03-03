@@ -465,7 +465,7 @@ class BRGRConfig(object):
         #    deflection_star = deflection_star_command
         #    deflection_port = deflection_port_command
         #else:
-        deflection_top = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
+        deflection_top  = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
         deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
         deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
 

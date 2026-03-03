@@ -148,7 +148,7 @@ class Plotter(QtWidgets.QMainWindow):
                                self.sim_data[slog.SDI_BETA]*conv.RAD_TO_DEG,
                                pen=(40, 30, 200), name="Beta")
 
-        range_cross_section = plot_widget.addPlot(title="Downrange [m] vs Altitude [m]")
+        range_cross_section = plot_widget.addPlot(title="Altitude [m] vs Downrange [m]")
         self.rcs = range_cross_section.plot(self.sim_data[slog.SDI_DOWNRANGE],
                                        self.sim_data[slog.SDI_ALT],
                                        pen=(255,255,255),name="Flight Cross Section")
@@ -347,7 +347,7 @@ class Plotter(QtWidgets.QMainWindow):
                                  self.sim_data[slog.SDI_FLIGHT_PATH]*conv.RAD_TO_DEG)
         self.downrange.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_DOWNRANGE])
 
-        self.rcs.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_DOWNRANGE])
+        self.rcs.setData(self.sim_data[slog.SDI_DOWNRANGE], self.sim_data[slog.SDI_ALT])
         self.thrust.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_THRUST],
                             pen=(255,255,255))
         self.rudder.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_RUDDER_CMD])
