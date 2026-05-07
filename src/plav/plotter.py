@@ -263,18 +263,6 @@ class Plotter(QtWidgets.QMainWindow):
 
         control_plot = plot_widget.addPlot(title="Control Surface Deflection [-1, 1] vs Time")
         control_plot.addLegend()
-        self.rudder = control_plot.plot(self.sim_data[slog.SDI_TIME],
-                                   self.sim_data[slog.SDI_RUDDER_CMD],
-                                   pen=(10,10,255),name="Rudder")
-        self.aileron = control_plot.plot(self.sim_data[slog.SDI_TIME],
-                                    self.sim_data[slog.SDI_AILERON_CMD],
-                                    pen=(255,10,10),name="Aileron")
-        self.elevator = control_plot.plot(self.sim_data[slog.SDI_TIME],
-                                     self.sim_data[slog.SDI_ELEVATOR_CMD],
-                                     pen=(10,255,10),name="Elevator")
-        self.throttle = control_plot.plot(self.sim_data[slog.SDI_TIME],
-                                     self.sim_data[slog.SDI_THRUST_CMD],
-                                     pen=(128,128,128),name="Throttle")
         
         self.rudder_cmd = control_plot.plot(self.sim_data[slog.SDI_TIME],
                                              self.sim_data[slog.SDI_CONTROL_0],
@@ -350,10 +338,6 @@ class Plotter(QtWidgets.QMainWindow):
         self.rcs.setData(self.sim_data[slog.SDI_DOWNRANGE], self.sim_data[slog.SDI_ALT])
         self.thrust.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_THRUST],
                             pen=(255,255,255))
-        self.rudder.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_RUDDER_CMD])
-        self.aileron.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_AILERON_CMD])
-        self.elevator.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_ELEVATOR_CMD])
-        self.throttle.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_THRUST_CMD])
 
         self.rudder_cmd.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_CONTROL_0])
         self.aileron_cmd.setData(self.sim_data[slog.SDI_TIME], self.sim_data[slog.SDI_CONTROL_1])
