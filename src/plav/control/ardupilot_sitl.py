@@ -90,17 +90,22 @@ class ArduPilotSITL:
                 #print(self.frame_rate_hz)
 
                 #print(pwm)
+                if frame_number > self.last_sitl_frame:
+                    if 1000 <= pwm[0] <= 2000:
+                        self.ardupilot_aileron = (pwm[0] -1500) / 500.0#pwm pulse our servo deflection
+                    #else:
+                        #print(f"pwm out of bounds: {pwm[0]}")
+                    if 1000 <= pwm[1] <= 2000:
+                        self.ardupilot_elevator = -(pwm[1] -1500) / 500.0
+                    if 1000 <= pwm[2] <= 2000:
+                        self.ardupilot_throttle = (pwm[2] -1500) / 500.0
+                    if 1000 <= pwm[3] <= 2000:
+                        self.ardupilot_rudder   = -(pwm[3] -1500) / 500.0
 
-                if 1000 <= pwm[0] <= 2000:
-                    self.ardupilot_aileron = (pwm[0] -1500) / 500.0#pwm pulse our servo deflection
-                #else:
-                    #print(f"pwm out of bounds: {pwm[0]}")
-                if 1000 <= pwm[1] <= 2000:
-                    self.ardupilot_elevator = -(pwm[1] -1500) / 500.0
-                if 1000 <= pwm[2] <= 2000:
-                    self.ardupilot_throttle = (pwm[2] -1500) / 500.0
-                if 1000 <= pwm[3] <= 2000:
-                    self.ardupilot_rudder   = -(pwm[3] -1500) / 500.0
+                    self.last_sitl_frame = frame_number
+                else:
+                    print(f"Out of order frame: {frame_number} (last: {self.last_sitl_frame})")
+                
 
                 #TODO: if frame_rate_hz != RATE_HZ: ... RATE_HZ = frame_rate_hz
                 #TODO: reset logic
