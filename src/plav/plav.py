@@ -269,8 +269,6 @@ class Plav(object):
                 plotter_object.update_plots(sim_data)
 
 
-
-
         timer = QtCore.QTimer()
         timer.timeout.connect(update)
 
