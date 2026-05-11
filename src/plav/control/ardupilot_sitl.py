@@ -1,6 +1,6 @@
 """Control scheme that interfaces with the ArduPilot SITL (Software In The Loop) simulation."""
 
-import time, socket, struct, json, threading
+import time, socket, struct, json, threading, math
 
 import numpy as np
 
@@ -167,7 +167,7 @@ class ArduPilotSITL:
             "quaternion": self.quat,
             #"attitude": rpy,
             "velocity": self.velo,
-            "airspeed": self.airspeed,
+            #"airspeed": self.airspeed,
             "velocity_wind": self.wind,
             "rc": rc,
             "battery":{"voltage":8.4,"current":0.1}
@@ -200,9 +200,11 @@ class ArduPilotSITL:
 
         self.velo = [latest_data[slog.SDI_VN], latest_data[slog.SDI_VE], latest_data[slog.SDI_VD]]
 
-        self.airspeed = latest_data[slog.SDI_TAS]
+        self.airspeed = latest_data[slog.SDI_TAS] * math.sqrt(latest_data[slog.SDI_AIR_DENSITY] / 1.225) #ardupilot wants eas
 
-        self.wind = [-latest_data[slog.SDI_WIND_N], -latest_data[slog.SDI_WIND_E], -latest_data[slog.SDI_WIND_D]]
+        self.wind = [latest_data[slog.SDI_VN] + latest_data[slog.SDI_WIND_N], \
+                     latest_data[slog.SDI_VE] + latest_data[slog.SDI_WIND_E], \
+                     latest_data[slog.SDI_VD] + latest_data[slog.SDI_WIND_D]]
 
         #rpy = [latest_data[slog.SDI_ROLL], latest_data[slog.SDI_PITCH], latest_data[slog.SDI_YAW]]
 
