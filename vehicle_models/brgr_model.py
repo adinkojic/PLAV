@@ -638,7 +638,7 @@ def init_aircraft(config_file) -> BRGRConfig:
         print("Using PLAV mixing")
     else:
         plav_mixing = 0
-        print("Using realistics mixing")
+        print("Using realistic mixing")
 
     if config_file['on_balloon']:
         on_balloon = 1

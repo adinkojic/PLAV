@@ -167,8 +167,8 @@ class ArduPilotSITL:
             "quaternion": self.quat,
             #"attitude": rpy,
             "velocity": self.velo,
-            #"airspeed": self.airspeed,
-            "velocity_wind": self.wind,
+            "airspeed": self.airspeed,
+            #"velocity_wind": self.wind,
             "rc": rc,
             "battery":{"voltage":8.4,"current":0.1}
         }
