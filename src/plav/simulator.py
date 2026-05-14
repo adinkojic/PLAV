@@ -184,6 +184,8 @@ class Simulator(object):
         self.pilot_throttle = 0.0
         self.control_sys = control_sys
 
+        self.last_print = 0
+
         #log the inital state
         x_dot(self.time, self.state, aircraft, sim_atmosphere, self.sim_log)
         self.sim_log.save_line()
@@ -260,8 +262,18 @@ class Simulator(object):
             pass
         else:
             self.elapsed_time = (time.time() - self.start_time) * time_warp +self.time_at_last_pause
+
+            step_count = 0
+            time_to_sim = self.elapsed_time - self.time
+            start_time = time.time()
             while self.time < self.elapsed_time:
                 self.advance_timestep()
+                step_count += 1
+
+            end = time.time()
+            if self.last_print + 1.0 < self.time:
+                print("Sim elapsed: ", time_to_sim, " Real dt: ", start_time-end, " Steps taken: ", step_count, "time delta: ", time_to_sim- (start_time-end))
+                self.last_print = self.time
         return self.return_results()
 
     def trigger_aircraft_event(self):
