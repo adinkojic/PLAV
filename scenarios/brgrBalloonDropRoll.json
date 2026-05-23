@@ -16,8 +16,8 @@
 
     "has_control":true,
     "trim_rudder": 0.005,
-    "trim_aileron": -0.003,
-    "trim_elevator": -0.002,
+    "trim_aileron": 0.0,
+    "trim_elevator": 0.0,
     "trim_throttle": 0.0,
 
     "init_alt": 33000.0,
@@ -59,8 +59,8 @@
 
     "C_nb": -0.038197,
     "C_Yb":  -0.2005,
-    "C_l" :  0.0,
-    "C_la":  0.0,
+    "C_l" :  -0.001,
+    "C_la" : -0.0,
     "C_lp": -0.58,
     "C_lr":  0.1,
     "C_np": -0.1,

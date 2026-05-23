@@ -270,6 +270,9 @@ class Simulator(object):
                 self.advance_timestep()
                 step_count += 1
 
+                if step_count > 1/24 / self.t_step:
+                    break
+
             end = time.time()
             if self.last_print + 1.0 < self.time:
                 print("Sim elapsed: ", time_to_sim, " Real dt: ", start_time-end, " Steps taken: ", step_count, "time delta: ", time_to_sim- (start_time-end))

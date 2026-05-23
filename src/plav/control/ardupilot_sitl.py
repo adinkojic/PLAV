@@ -90,7 +90,7 @@ class ArduPilotSITL:
                 #print(self.frame_rate_hz)
 
                 #print(pwm)
-                if frame_number > self.last_sitl_frame:
+                if frame_number >= self.last_sitl_frame:
                     if 1000 <= pwm[0] <= 2000:
                         self.ardupilot_aileron = (pwm[0] -1500) / 500.0#pwm pulse our servo deflection
                     #else:
@@ -103,6 +103,7 @@ class ArduPilotSITL:
                         self.ardupilot_rudder   = -(pwm[3] -1500) / 500.0
 
                     self.last_sitl_frame = frame_number
+                    self.fresh_data = True
                 else:
                     print(f"Out of order frame: {frame_number} (last: {self.last_sitl_frame})")
                 
@@ -183,6 +184,10 @@ class ArduPilotSITL:
     
     def get_control_output(self):
         """Returns latest control output"""
+        while not self.fresh_data:
+            time.sleep(0)
+        
+        self.fresh_data = False
         return self.ardupilot_rudder, self.ardupilot_aileron, self.ardupilot_elevator, self.ardupilot_throttle
 
     def update_environment(self, latest_data):

@@ -64,6 +64,7 @@ spec = [
 
     ('C_Yb', float64),
     ('C_l', float64),
+    ('C_la', float64),
     ('C_lp', float64),
     ('C_lr', float64),
     ('C_np', float64),
@@ -137,7 +138,7 @@ class BRGRConfig(object):
     information and even giving forces"""
 
     def __init__(self, mass, inertia, cmac, Sref, bref, cp_wrt_cm, C_L0, C_La, C_Lmax, C_Lmin, C_D0, epsilon, C_m0, C_ma,\
-                    C_mq, C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
+                    C_mq, C_Yb, C_l, C_la, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db, C_nb, \
                     trim_rudder, trim_aileron, trim_elevator, trim_throttle, has_gridfins = 0, \
                     C_XYlutX = np.array([0.0, 0.0]), C_XlutY =np.array([0.0, 0.0]), \
                     C_YlutY = np.array([0.0, 0.0]), plav_mixing = 1, on_balloon = 0, \
@@ -179,6 +180,7 @@ class BRGRConfig(object):
 
         self.C_Yb = C_Yb
         self.C_l  = C_l
+        self.C_la = C_la
         self.C_lp = C_lp
         self.C_lr = C_lr
         self.C_np = C_np
@@ -287,7 +289,7 @@ class BRGRConfig(object):
         # + self.C_ma * self.alpha this is covered by crossing forces with x_cp
 
         C_Y = self.C_Yb * self.beta #side force
-        C_l = self.C_l + self.C_lr * r_hat + self.C_lp * p_hat #roll
+        C_l = self.C_l + self.C_la * self.alpha + self.C_lr * r_hat + self.C_lp * p_hat #roll
         C_n = self.C_np * p_hat + self.C_nr * r_hat #+ self.C_nb * self.beta#yaw force
 
         return C_L, C_D, C_m, C_Y, C_l, C_n
@@ -461,13 +463,13 @@ class BRGRConfig(object):
         current_command = np.array([deflection_top_command, deflection_star_command, deflection_port_command], 'd')
 
         #if self.disable_filter == 1:
-        #    deflection_top  = deflection_top_command
-        #    deflection_star = deflection_star_command
-        #    deflection_port = deflection_port_command
+        deflection_top  = deflection_top_command
+        deflection_star = deflection_star_command
+        deflection_port = deflection_port_command
         #else:
-        deflection_top  = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
-        deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
-        deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
+        #deflection_top  = b_0 * current_command[0] + b_1 * self.prev_command[0] + a_1 * self.prev_position[0]
+        #deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
+        #deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
 
         if self.rdr < -0.9:
             self.burn_time = self.burn_time + 0.001
@@ -614,6 +616,7 @@ def init_aircraft(config_file) -> BRGRConfig:
 
     C_Yb  = config_file['C_Yb']
     C_l  = config_file['C_l']
+    C_la  = config_file['C_la']
     C_lp = config_file['C_lp']
     C_lr = config_file['C_lr']
     C_np = config_file['C_np']
@@ -652,7 +655,7 @@ def init_aircraft(config_file) -> BRGRConfig:
 
     aircraft_model = BRGRConfig(mass, inertia, cmac, Sref, bref, cp_wrt_cm,\
                                 C_L0, C_La, C_Lmax, C_Lmin, C_D0, epsilon, C_m0, C_ma, C_mq,\
-                                C_Yb, C_l, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db,\
+                                C_Yb, C_l, C_la, C_lp, C_lr, C_np, C_nr, C_mbb, C_Db,\
                                 C_nb, trim_rudder, trim_aileron, trim_elevator, trim_throttle,
                                 1, C_XYlutX, C_XlutY, C_YlutY, plav_mixing, on_balloon, gas_cf, burst_dia_ft)
     #none for control unit
