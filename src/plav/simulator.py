@@ -275,7 +275,7 @@ class Simulator(object):
 
             end = time.time()
             if self.last_print + 1.0 < self.time:
-                print("Sim elapsed: ", time_to_sim, " Real dt: ", start_time-end, " Steps taken: ", step_count, "time delta: ", time_to_sim- (start_time-end))
+                print("Sim elapsed: ", step_count*self.t_step, " Real dt: ", start_time-end, " Steps taken: ", step_count)
                 self.last_print = self.time
         return self.return_results()
 

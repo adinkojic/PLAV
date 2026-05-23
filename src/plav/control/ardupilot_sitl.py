@@ -46,7 +46,7 @@ class ArduPilotSITL:
         self.wind = [0.0, 0.0, 0.0]
 
         self.frame_rate_hz = 1
-        self.fresh_data = False
+        self.fresh_data = True #it can have one timestep, as a treat :)
 
         self.sim_paused = False
 
