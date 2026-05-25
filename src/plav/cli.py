@@ -135,7 +135,7 @@ def sitl_sim(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,0.01], timestep=0.002, no_gui = no_gui, real_time=True,
+    plav_obj = Plav(scenario_name,[0,0.01], timestep=0.0025, no_gui = no_gui, real_time=True,
                     use_sitl=True, ardupilot_ip = ardupilot_ip, imu_noise=imu_noise, 
                     live_atmosphere=live_atmosphere)
 
