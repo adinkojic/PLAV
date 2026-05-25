@@ -47,6 +47,7 @@ class ArduPilotSITL:
 
         self.frame_rate_hz = 1
         self.fresh_data = True #it can have one timestep, as a treat :)
+        self.allow_restart = True
 
         self.sim_paused = False
 
@@ -90,6 +91,12 @@ class ArduPilotSITL:
                 #print(self.frame_rate_hz)
 
                 #print(pwm)
+                if self.allow_restart:
+                    if frame_number < 2:
+                        self.last_sitl_frame = -1
+                        self.allow_restart = False
+                        print("SITL restarted, physics will not")
+
                 if frame_number >= self.last_sitl_frame:
                     if 1000 <= pwm[0] <= 2000:
                         self.ardupilot_aileron = (pwm[0] -1500) / 500.0#pwm pulse our servo deflection
@@ -184,7 +191,12 @@ class ArduPilotSITL:
     
     def get_control_output(self):
         """Returns latest control output"""
+        attempt_limit = 100
+        attempt = 0
         while not self.fresh_data:
+            attempt += 1
+            if attempt >= attempt_limit:
+                self.allow_restart = True
             time.sleep(0)
         
         self.fresh_data = False

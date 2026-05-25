@@ -271,6 +271,9 @@ class Simulator(object):
                 step_count += 1
 
                 if step_count > 1/24 / self.t_step:
+                    self.elapsed_time = self.time
+                    self.time_at_last_pause = self.time
+                    self.start_time = time.time()
                     break
 
             end = time.time()
