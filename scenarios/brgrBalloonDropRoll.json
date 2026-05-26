@@ -11,7 +11,7 @@
     "plav_mixing": false,
 
     "on_balloon": true,
-    "gas_cf": 165.0,
+    "gas_cf": 155.0,
     "burst_dia_ft": 34.6,
 
     "has_control":true,
@@ -21,7 +21,7 @@
     "trim_throttle": 0.0,
 
     "init_alt": 33000.0,
-    "init_vel": [ 0.0, 0.0,  0.0],
+    "init_vel": [ 0.0, 0.0,  -5.0],
     "init_rot": [0.0, 0.0, 0.0],
     "init_lat": 40.269712,
     "init_lon": -73.769042,
@@ -59,8 +59,8 @@
 
     "C_nb": -0.038197,
     "C_Yb":  -0.2005,
-    "C_l" :  -0.001,
-    "C_la" : -0.0,
+    "C_l" :  -0.002,
+    "C_la" : -0.001,
     "C_lp": -0.58,
     "C_lr":  0.1,
     "C_np": -0.1,
