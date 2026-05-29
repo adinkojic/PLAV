@@ -106,8 +106,8 @@ class ArduPilotSITL:
                         self.ardupilot_elevator = -(pwm[1] -1500) / 500.0
                     if 1000 <= pwm[2] <= 2000:
                         self.ardupilot_throttle = (pwm[2] -1500) / 500.0
-                    if 1000 <= pwm[3] <= 2000:
-                        self.ardupilot_rudder   = -(pwm[3] -1500) / 500.0
+                    if 1000 <= pwm[5] <= 2000:
+                        self.ardupilot_rudder   = -(pwm[5] -1500) / 500.0
 
                     self.last_sitl_frame = frame_number
                     self.fresh_data = True
