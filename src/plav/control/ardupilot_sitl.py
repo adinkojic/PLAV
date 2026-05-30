@@ -49,6 +49,8 @@ class ArduPilotSITL:
         self.fresh_data = True #it can have one timestep, as a treat :)
         self.allow_restart = True
 
+        self.last_print = 0
+
         self.sim_paused = False
 
         if add_noise:
@@ -99,18 +101,22 @@ class ArduPilotSITL:
 
                 if frame_number >= self.last_sitl_frame:
                     if 1000 <= pwm[0] <= 2000:
-                        self.ardupilot_aileron = (pwm[0] -1500) / 500.0#pwm pulse our servo deflection
+                        self.ardupilot_aileron = (pwm[0] -1500) / 1000.0#pwm pulse our servo deflection
                     #else:
                         #print(f"pwm out of bounds: {pwm[0]}")
                     if 1000 <= pwm[1] <= 2000:
-                        self.ardupilot_elevator = -(pwm[1] -1500) / 500.0
+                        self.ardupilot_elevator = -(pwm[1] -1500) / 1000.0
                     if 1000 <= pwm[2] <= 2000:
-                        self.ardupilot_throttle = (pwm[2] -1500) / 500.0
+                        self.ardupilot_throttle = (pwm[2] -1500) / 1000.0
                     if 1000 <= pwm[5] <= 2000:
                         self.ardupilot_rudder   = -(pwm[5] -1500) / 500.0
 
                     self.last_sitl_frame = frame_number
                     self.fresh_data = True
+
+                    if time.time() - self.last_print > 1.0:
+                        print(f"PWM: {pwm[0]}, {pwm[1]}, {pwm[2]}")
+                        self.last_print = time.time()
                 else:
                     print(f"Out of order frame: {frame_number} (last: {self.last_sitl_frame})")
                 

@@ -471,7 +471,7 @@ class BRGRConfig(object):
         #deflection_star = b_0 * current_command[1] + b_1 * self.prev_command[1] + a_1 * self.prev_position[1]
         #deflection_port = b_0 * current_command[2] + b_1 * self.prev_command[2] + a_1 * self.prev_position[2]
 
-        if self.rdr < -0.9:
+        if self.rdr < -0.4:
             self.burn_time = self.burn_time + 0.001
             if self.burn_time > 1.0:
                 self.cut_balloon()
