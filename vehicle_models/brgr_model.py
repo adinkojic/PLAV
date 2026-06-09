@@ -284,6 +284,13 @@ class BRGRConfig(object):
         if C_L < self.C_Lmin:
             C_L = self.C_Lmin
 
+        #fly backwards on the balloon, trying to get it to jiggle like in flight
+        if self.alpha < -np.pi + 0.3:
+            C_L = -(self.C_L0 + self.C_La * (self.alpha + np.pi) )
+
+        if self.alpha > np.pi - 0.3:
+            C_L = -(self.C_L0 + self.C_La * (self.alpha - np.pi) )
+        
         C_D = self.C_D0 + self.epsilon * C_L**2 + self.C_Db * abs(self.beta)
         C_m = self.C_m0 + self.C_mq * q_hat #+ self.C_mbb * self.beta ** 2
         # + self.C_ma * self.alpha this is covered by crossing forces with x_cp

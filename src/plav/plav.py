@@ -122,7 +122,7 @@ def load_aircraft_config(modelparam) -> tuple[AircraftConfig, typing.Any]:
 
     return aircraft, control_unit
 
-def load_atmosphere(modelparam, use_file_atmosphere:bool = True, use_live_atmosphere:bool = False):
+def load_atmosphere(modelparam, use_file_atmosphere:bool = True, use_live_atmosphere:bool = False, use_turbulence:bool = False) -> Atmosphere:
     """load the atmosphere config from the modelparam and return an Atmosphere object"""
     if use_file_atmosphere and not use_live_atmosphere:
         wind_alt_profile       = np.array(modelparam['wind_alt_profile'], dtype='d')
@@ -138,7 +138,7 @@ def load_atmosphere(modelparam, use_file_atmosphere:bool = True, use_live_atmosp
         wind_speed_profile = np.array([0, 0], dtype='d')
         wind_direction_profile = np.array([0, 0], dtype='d')
     #init atmosphere config
-    return Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile)
+    return Atmosphere(wind_alt_profile,wind_speed_profile,wind_direction_profile, turbulence=use_turbulence)
 
 def load_init_position(modelparam):
     """load the initial position from the modelparam and return y0"""
@@ -189,7 +189,7 @@ class Plav(object):
     def __init__(self, scenario_file: str, timespan, timestep = 0.01,
                          real_time=False, no_gui = False, export_to_csv=True, runsim=True,
                          use_sitl=False, ardupilot_ip = "127.0.0.1", imu_noise=False,
-                         live_atmosphere = False):
+                         live_atmosphere = False, turbulence = False):
         self.no_gui = no_gui
         use_flight_gear = False
         self.real_time = real_time
@@ -209,7 +209,7 @@ class Plav(object):
         except AttributeError:
             pass
 
-        atmosphere = load_atmosphere(modelparam, use_live_atmosphere=live_atmosphere)
+        atmosphere = load_atmosphere(modelparam, use_live_atmosphere=live_atmosphere, use_turbulence=turbulence)
         y0 = load_init_position(modelparam)
 
         if self.use_sitl:

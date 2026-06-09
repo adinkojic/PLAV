@@ -113,6 +113,8 @@ def test():
 def offline_sim(scenario_name,
             sim_time = '30',
             no_gui: Annotated[bool, typer.Option("--nogui")] = False,
+            live_atmosphere: Annotated[bool, typer.Option("--live")] = False,
+            turbulence: Annotated[bool, typer.Option("--turbulent")] = False,
             output_file_name = "output.csv"):
     """Runs a hard simulation"""
     if ".json" not in scenario_name:
@@ -120,7 +122,8 @@ def offline_sim(scenario_name,
 
 
     typer.echo("Starting scenario " + scenario_name)
-    plav_obj = Plav(scenario_name,[0,float(sim_time)], no_gui = no_gui)
+    plav_obj = Plav(scenario_name,[0,float(sim_time)], no_gui = no_gui,
+                    live_atmosphere=live_atmosphere, turbulence=turbulence)
 
 @app.command()
 def sitl_sim(scenario_name,
@@ -128,6 +131,7 @@ def sitl_sim(scenario_name,
             no_gui: Annotated[bool, typer.Option("--nogui")] = False,
             imu_noise: Annotated[bool, typer.Option("--noise")] = False,
             live_atmosphere: Annotated[bool, typer.Option("--live")] = False,
+            turbulence: Annotated[bool, typer.Option("--turbulent")] = False,
             output_file_name = "output.csv"):
     """Simulates the Vehicle with ArduPilot's SITL"""
     if ".json" not in scenario_name:
@@ -137,7 +141,7 @@ def sitl_sim(scenario_name,
     typer.echo("Starting scenario " + scenario_name)
     plav_obj = Plav(scenario_name,[0,0.01], timestep=0.0025, no_gui = no_gui, real_time=True,
                     use_sitl=True, ardupilot_ip = ardupilot_ip, imu_noise=imu_noise, 
-                    live_atmosphere=live_atmosphere)
+                    live_atmosphere=live_atmosphere, turbulence=turbulence)
 
 
 @app.command()
